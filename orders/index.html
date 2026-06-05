@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BestShopio · Orders</title>
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../assets/tailwind-config.js"></script>
+  <link rel="stylesheet" href="../assets/theme.css?v=1" />
+</head>
+<body class="bg-page text-ink font-sans antialiased">
+  <div id="app" class="flex h-screen overflow-hidden">
+    <div id="content-col" class="flex-1 flex flex-col min-w-0">
+      <main id="view" class="flex-1 overflow-auto scroll-thin">
+        <div class="view-wrap">
+          <div class="coming">
+            <div class="coming-ico" id="ic"></div>
+            <h2>Orders</h2>
+            <p>This is a module scaffold on the shared shell &mdash; proof that a new page joins the set and cross-links through the sidebar. Replace this block with the real Orders prototype (list, fulfillment, the three-layer / split-order view) when its PRD lands.</p>
+            <p class="muted" style="font-size:13px">To start any new module: copy this file, set <span class="kbd">data-active</span> on the shell script, and flip the module to <span class="kbd">ready</span> in <span class="kbd">assets/nav.js</span>.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../assets/nav.js"></script>
+  <script src="../assets/shell.js" data-base="../" data-active="orders"></script>
+  <script>document.getElementById('ic').innerHTML = (window.ICONS && window.ICONS.inbox) || '';</script>
+</body>
+</html>

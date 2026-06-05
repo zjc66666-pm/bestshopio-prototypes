@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BestShopio · Prototypes</title>
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="assets/tailwind-config.js"></script>
+  <link rel="stylesheet" href="assets/theme.css?v=1" />
+</head>
+<body class="bg-page text-ink font-sans antialiased">
+  <div id="app" class="flex h-screen overflow-hidden">
+    <div id="content-col" class="flex-1 flex flex-col min-w-0">
+      <main id="view" class="flex-1 overflow-auto scroll-thin">
+        <div class="view-wrap" id="hub"></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="assets/nav.js"></script>
+  <script src="assets/shell.js" data-base="" data-active="home"></script>
+  <script>
+    (function () {
+      var I = window.ICONS || {}, MODS = window.NAV_MODULES || [], CL = window.CHANGELOG || [], SITE = window.SITE || {};
+      var ALL = MODS.concat(window.NAV_FOOTER || []);
+
+      function stBadge(st) {
+        if (st === 'ready') return '<span class="st st-ready"><span class="dot"></span>Ready</span>';
+        if (st === 'scaffold') return '<span class="st st-beta"><span class="dot"></span>Scaffold</span>';
+        return '<span class="st st-planned"><span class="dot"></span>Planned</span>';
+      }
+      function modCard(m) {
+        var linkable = m.status === 'ready' || m.status === 'scaffold';
+        var inner =
+          '<div class="mod-ico">' + (I[m.icon] || '') + '</div>' +
+          '<div class="mod-body">' +
+            '<div class="mod-name">' + m.label + (m.version ? ' <span class="ver">' + m.version + '</span>' : '') + '</div>' +
+            '<div class="mod-desc">' + (m.desc || '') + '</div>' +
+            '<div class="mod-foot">' + stBadge(m.status) + '</div>' +
+          '</div>';
+        return linkable
+          ? '<a class="mod-card" href="' + m.path + '">' + inner + '</a>'
+          : '<div class="mod-card planned">' + inner + '</div>';
+      }
+
+      var SECTIONS = ['Sell', 'Channels & content', 'Insights'];
+      var grid = '';
+      SECTIONS.forEach(function (sec) {
+        var items = MODS.filter(function (m) { return m.section === sec; });
+        if (!items.length) return;
+        grid += '<div class="section-label">' + sec + '</div><div class="mod-grid">' + items.map(modCard).join('') + '</div>';
+      });
+
+      function clItem(e, last) {
+        var mods = (e.modules || []).map(function (id) {
+          var m = ALL.find(function (x) { return x.id === id; });
+          if (!m) return '<span class="cl-mod">' + id + '</span>';
+          var go = (m.status === 'ready' || m.status === 'scaffold') ? m.path : '#';
+          return '<a class="cl-mod" href="' + go + '">' + m.label + '</a>';
+        }).join(' · ');
+        var lis = (e.items || []).map(function (t) { return '<li class="cl-li">' + (I.tag || '') + '<span>' + t + '</span></li>'; }).join('');
+        return '<div class="cl-item">' +
+          '<div class="cl-rail"><div class="cl-dot"></div>' + (last ? '' : '<div class="cl-line"></div>') + '</div>' +
+          '<div class="cl-body">' +
+            '<div class="cl-head"><span class="cl-ver">' + e.version + '</span><span class="cl-date">' + (e.date || '') + '</span></div>' +
+            '<div class="cl-title">' + e.title + (mods ? ' &mdash; ' + mods : '') + '</div>' +
+            '<ul class="cl-list">' + lis + '</ul>' +
+          '</div></div>';
+      }
+      var changelog = '<div class="cl">' + CL.map(function (e, i) { return clItem(e, i === CL.length - 1); }).join('') + '</div>';
+
+      document.getElementById('hub').innerHTML =
+        '<div class="hub-hero">' +
+          '<div class="hub-h1">' + (SITE.brand || 'BestShopio') + ' &mdash; Prototypes</div>' +
+          '<div class="hub-sub">One living set of admin prototypes. Open a module, or see what each version added below.</div>' +
+        '</div>' +
+        '<div class="builder hub-cols" style="gap:24px">' +
+          '<div class="builder-main">' + grid + '</div>' +
+          '<div class="builder-side"><div class="panel card-pad">' +
+            '<div class="card-title" style="margin-bottom:14px">What changed</div>' + changelog +
+          '</div></div>' +
+        '</div>';
+    })();
+  </script>
+</body>
+</html>
