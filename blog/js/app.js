@@ -85,8 +85,8 @@
         '<button class="btn btn-primary" data-act="add">Add blog</button>' +
       '</div>' +
       '<div class="panel">' +
-        // single "All" tab with count
-        '<div class="tabs" style="padding:0 8px"><div class="tab active">All<span class="count-badge">' + D.POSTS.length + '</span></div></div>' +
+        // single "All" tab with count (reflects the filtered total, like the reference)
+        '<div class="tabs" style="padding:0 8px"><div class="tab active">All<span class="count-badge">' + total + '</span></div></div>' +
         // filter bar
         '<div class="card-pad" style="padding-bottom:8px">' +
           '<div class="flex items-start gap-2" style="flex-wrap:wrap">' +
@@ -301,7 +301,7 @@
 
   function card(titleHtml, bodyHtml, rightHtml) {
     return '<div class="panel card-pad mb-4">' +
-      '<div class="flex items-center justify-between' + (rightHtml ? '' : '') + '" style="margin-bottom:14px">' +
+      '<div class="flex items-center justify-between" style="margin-bottom:14px">' +
         '<div class="card-title">' + titleHtml + '</div>' + (rightHtml || '') +
       '</div>' + bodyHtml + '</div>';
   }

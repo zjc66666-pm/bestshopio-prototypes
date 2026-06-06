@@ -229,7 +229,7 @@
   // ============================================================
   // VARIANTS LIST  (#/variants  &  #/variants?product=:id)
   // ============================================================
-  const VL = { productId: null, tab: 0, kwType: 'variant', kw: '', kwApplied: '', page: 1, size: 20, selected: {} };
+  const VL = { productId: null, tab: 0, kwType: 'variant', kw: '', kwApplied: '', priceApplied: null, invApplied: null, page: 1, size: 20, selected: {} };
 
   function variantsForProduct(pid) {
     if (pid && D.VARIANTS[pid]) return D.VARIANTS[pid];
@@ -250,7 +250,23 @@
         return text.toLowerCase().includes(q) || (v.sku || '').toLowerCase().includes(q);
       });
     }
+    if (VL.priceApplied) {
+      const { min, max } = VL.priceApplied;
+      rows = rows.filter((v) => { const p = parseFloat(v.price); return (min == null || p >= min) && (max == null || p <= max); });
+    }
+    if (VL.invApplied) {
+      const { min, max } = VL.invApplied;
+      rows = rows.filter((v) => { const s = Number(v.stock); return (min == null || s >= min) && (max == null || s <= max); });
+    }
     return rows;
+  }
+  // range -> label (mirrors formatText in search.tsx useRange)
+  function rangeLabel(r, fmt) {
+    fmt = fmt || ((v) => String(v));
+    if (r.min != null && r.max != null) return fmt(r.min) + ' - ' + fmt(r.max);
+    if (r.min != null) return fmt(r.min) + '+';
+    if (r.max != null) return fmt(0) + ' - ' + fmt(r.max);
+    return '';
   }
 
   function renderVariants() {
@@ -272,11 +288,30 @@
 
     const kwOpts = D.VARIANT_KEYWORD_OPTIONS.map((o) => '<option value="' + o.value + '"' + (o.value === VL.kwType ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
 
-    const tags = VL.kwApplied
-      ? '<div class="flex gap-2 mt-3" style="flex-wrap:wrap"><span class="field-pill" data-clear="kw">' +
-          esc((D.VARIANT_KEYWORD_OPTIONS.find((o) => o.value === VL.kwType) || {}).label || '') + ': ' + esc(VL.kwApplied) +
-          ' <span class="x">&times;</span></span></div>'
-      : '';
+    const priceLbl = VL.priceApplied ? rangeLabel(VL.priceApplied, (v) => '$' + v) : '';
+    const invLbl = VL.invApplied ? rangeLabel(VL.invApplied) : '';
+    const tagParts = [];
+    if (VL.kwApplied) tagParts.push('<span class="field-pill" data-clear="kw">' +
+      esc((D.VARIANT_KEYWORD_OPTIONS.find((o) => o.value === VL.kwType) || {}).label || '') + ': ' + esc(VL.kwApplied) + ' <span class="x">&times;</span></span>');
+    if (VL.priceApplied) tagParts.push('<span class="field-pill" data-clear="price">Price range: ' + esc(priceLbl) + ' <span class="x">&times;</span></span>');
+    if (VL.invApplied) tagParts.push('<span class="field-pill" data-clear="inv">Inventory range: ' + esc(invLbl) + ' <span class="x">&times;</span></span>');
+    const tags = tagParts.length ? '<div class="flex gap-2 mt-3" style="flex-wrap:wrap">' + tagParts.join('') + '</div>' : '';
+
+    // range dropdown trigger (chip showing applied label or placeholder) + hidden panel
+    const rangeCtl = (ns, applied, label, placeholder) =>
+      '<div style="position:relative">' +
+        '<div class="chip" id="vl-' + ns + '-trigger" style="width:180px;justify-content:space-between">' +
+          '<span class="' + (applied ? '' : 'muted') + '" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(applied ? label : placeholder) + '</span>' + I.chevDown +
+        '</div>' +
+        '<div id="vl-' + ns + '-panel" class="panel" style="display:none;position:absolute;z-index:30;top:38px;left:0;width:300px;padding:14px;box-shadow:var(--float-shadow)">' +
+          '<div class="flex items-center gap-2" style="margin-bottom:12px">' +
+            '<input class="filter-input" id="vl-' + ns + '-min" type="number" placeholder="Minimum value" value="' + (applied && applied.min != null ? applied.min : '') + '" style="width:100%;padding-left:12px" />' +
+            '<span class="muted">-</span>' +
+            '<input class="filter-input" id="vl-' + ns + '-max" type="number" placeholder="Maximum value" value="' + (applied && applied.max != null ? applied.max : '') + '" style="width:100%;padding-left:12px" />' +
+          '</div>' +
+          '<div class="flex justify-end"><button class="btn btn-primary" id="vl-' + ns + '-apply">Confirm</button></div>' +
+        '</div>' +
+      '</div>';
 
     const subtitle = product
       ? '<span class="muted" style="font-size:13px;margin-left:10px">' + esc(product.store_name) + ' · Product ID ' + esc(product.product_id) + '</span>'
@@ -302,12 +337,16 @@
             '</div>'
           : '') +
         '<div class="card-pad" style="padding-bottom:8px">' +
-          '<div class="flex" style="max-width:430px">' +
-            '<select class="filter-select" id="vl-kw-type" style="width:150px;border-top-right-radius:0;border-bottom-right-radius:0">' + kwOpts + '</select>' +
-            '<div style="position:relative;flex:1">' +
-              '<input class="filter-input" id="vl-kw" placeholder="Search" value="' + esc(VL.kw) + '" style="width:100%;padding-left:12px;padding-right:32px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" />' +
-              '<span style="position:absolute;right:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
+          '<div class="flex items-start gap-2" style="flex-wrap:wrap">' +
+            '<div class="flex" style="width:388px">' +
+              '<select class="filter-select" id="vl-kw-type" style="width:120px;border-top-right-radius:0;border-bottom-right-radius:0">' + kwOpts + '</select>' +
+              '<div style="position:relative;flex:1">' +
+                '<input class="filter-input" id="vl-kw" placeholder="Search" value="' + esc(VL.kw) + '" style="width:100%;padding-left:12px;padding-right:32px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" />' +
+                '<span style="position:absolute;right:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
+              '</div>' +
             '</div>' +
+            rangeCtl('price', VL.priceApplied, priceLbl, 'Price range') +
+            rangeCtl('inv', VL.invApplied, invLbl, 'Inventory range') +
           '</div>' + tags +
         '</div>' +
         '<div style="overflow-x:auto">' +
@@ -387,6 +426,11 @@
       kwInput.onblur = commit;
     }
     const clear = root.querySelector('[data-clear="kw"]'); if (clear) clear.onclick = () => { VL.kw = ''; VL.kwApplied = ''; VL.page = 1; renderVariants(); };
+    const clearPrice = root.querySelector('[data-clear="price"]'); if (clearPrice) clearPrice.onclick = () => { VL.priceApplied = null; VL.page = 1; renderVariants(); };
+    const clearInv = root.querySelector('[data-clear="inv"]'); if (clearInv) clearInv.onclick = () => { VL.invApplied = null; VL.page = 1; renderVariants(); };
+    // range dropdowns (price / inventory) — mirrors useRange popover in search.tsx
+    wireRange('price', (v) => { VL.priceApplied = v; });
+    wireRange('inv', (v) => { VL.invApplied = v; });
     const all = root.querySelector('#vl-all');
     if (all) all.onchange = () => { variantRows(variantsForProduct(VL.productId)).slice((VL.page - 1) * VL.size, (VL.page - 1) * VL.size + VL.size).forEach((v) => VL.selected[v.unique] = all.checked); renderVariants(); };
     root.querySelectorAll('.vl-pick').forEach((c) => c.onchange = () => { VL.selected[c.getAttribute('data-id')] = c.checked; renderVariants(); });
@@ -432,22 +476,22 @@
       '<div class="flex items-center justify-between mb-4">' +
         '<div class="flex items-center gap-3">' +
           '<button class="back-btn" data-act="back" title="Back to variants">' + I.arrowLeft + '</button>' +
-          '<span class="page-title">Variant detail</span>' +
+          '<span class="page-title">Variant Detail</span>' +
           '<span class="muted" style="font-size:13px">' + esc(title) + '</span>' +
           submitPill(detail.submit_status) +
         '</div>' +
         '<div class="flex items-center gap-2">' +
-          '<button class="btn btn-default" data-act="edit-product">' + I.external + ' Edit product</button>' + rawBtn +
+          '<button class="btn btn-default" data-act="edit-product">' + I.external + ' Edit Product</button>' + rawBtn +
           '<button class="btn btn-primary" data-act="sync">' + I.sync + ' Sync GMC</button>' +
         '</div>' +
       '</div>' +
       '<div class="flex gap-4 mb-4" style="flex-wrap:wrap">' + cards + '</div>' +
       sectionBasicInformation(a) +
       sectionBasicProductData(a) +
+      sectionPriceAvailability(a) +
       sectionProductCategory(a) +
       sectionProductIdentifiers(a) +
-      sectionDetailedDescription(a) +
-      sectionPriceAvailability(a) +
+      sectionDetailedDescription(a, detail) +
       sectionShippingCampaigns(a) +
       sectionDestinations(a) +
       sectionShipping(a);
@@ -477,12 +521,78 @@
     '</div>';
   }
 
+  // ---- spec-link footer (mirrors renderCardTitle "Product data specification:" + "Merchant API—" in module/utils.tsx) ----
+  // real Google support taxonomy labels + hrefs from module/link.json (sample/reference data only)
+  const SPEC_LINKS = {
+    'Item group ID': 'https://support.google.com/merchants/answer/6324507',
+    'feedLabel': 'https://support.google.com/merchants/answer/14994087',
+    'Title': 'https://support.google.com/merchants/answer/6324415',
+    'Description': 'https://support.google.com/merchants/answer/6324468',
+    'Link': 'https://support.google.com/merchants/answer/6324416',
+    'Image link': 'https://support.google.com/merchants/answer/6324350',
+    'Additional Image link': 'https://support.google.com/merchants/answer/6324370',
+    '3D model link': 'https://support.google.com/merchants/answer/13674896',
+    'Mobile link': 'https://support.google.com/merchants/answer/6324459',
+    'Canonical link': 'https://support.google.com/merchants/answer/9340054',
+    'Structured title': 'https://support.google.com/merchants/answer/6324415',
+    'Structured description': 'https://support.google.com/merchants/answer/6324468',
+    'Availability': 'https://support.google.com/merchants/answer/6324448',
+    'Availability date': 'https://support.google.com/merchants/answer/6324470',
+    'Cost of goods sold': 'https://support.google.com/merchants/answer/9017895',
+    'Expiration date': 'https://support.google.com/merchants/answer/6324499',
+    'Price': 'https://support.google.com/merchants/answer/6324371',
+    'Sale price': 'https://support.google.com/merchants/answer/6324471',
+    'Sale price effective date': 'https://support.google.com/merchants/answer/6324460',
+    'Google product category': 'https://support.google.com/merchants/answer/6324436',
+    'Product type': 'https://support.google.com/merchants/answer/6324406',
+    'Brand': 'https://support.google.com/merchants/answer/6324351',
+    'GTIN': 'https://support.google.com/merchants/answer/6324461',
+    'MPN': 'https://support.google.com/merchants/answer/6324482',
+    'Identifier exists': 'https://support.google.com/merchants/answer/6324478',
+    'Condition': 'https://support.google.com/merchants/answer/6324469',
+    'Adult': 'https://support.google.com/merchants/answer/6324508',
+    'Multipack': 'https://support.google.com/merchants/answer/6324488',
+    'Bundle': 'https://support.google.com/merchants/answer/6324449',
+    'Age group': 'https://support.google.com/merchants/answer/6324463',
+    'Color': 'https://support.google.com/merchants/answer/6324487',
+    'Gender': 'https://support.google.com/merchants/answer/6324479',
+    'Material': 'https://support.google.com/merchants/answer/6324410',
+    'Pattern': 'https://support.google.com/merchants/answer/6324483',
+    'Size': 'https://support.google.com/merchants/answer/6324492',
+    'Size type': 'https://support.google.com/merchants/answer/6324497',
+    'Size system': 'https://support.google.com/merchants/answer/6324502',
+    'Ads redirect': 'https://support.google.com/merchants/answer/7501026',
+    'Custom label 0-4': 'https://support.google.com/merchants/answer/6324473',
+    'Promotion ID': 'https://support.google.com/merchants/answer/7050148',
+    'Lifestyle Image link': 'https://support.google.com/merchants/answer/9103186',
+    'Excluded destination': 'https://support.google.com/merchants/answer/6324486',
+    'Included destination': 'https://support.google.com/merchants/answer/7501026',
+    'Pause': 'https://support.google.com/merchants/answer/6324486',
+    'Shipping': 'https://support.google.com/merchants/answer/6324484',
+    'Shipping label': 'https://support.google.com/merchants/answer/6324504',
+    'Shipping weight': 'https://support.google.com/merchants/answer/6324503',
+    'Free shipping threshold': 'https://support.google.com/merchants/answer/6324484',
+  };
+  function specFoot(links, merchantApi) {
+    let out = '';
+    if (merchantApi) {
+      out += '<div style="font-size:12.5px;margin-top:10px">Merchant API—' +
+        '<a class="lnk" href="' + esc(merchantApi.href) + '" target="_blank" rel="noopener">' + esc(merchantApi.text) + '</a></div>';
+    }
+    if (links && links.length) {
+      const parts = links.map((t) => '<a class="lnk" href="' + esc(SPEC_LINKS[t] || '#') + '" target="_blank" rel="noopener">' + esc(t) + '</a>').join(', ');
+      out += '<div style="font-size:12.5px;margin-top:10px;line-height:1.7"><span class="muted">Product data specification: </span>' + parts + '</div>';
+    }
+    return out;
+  }
+
   // ---- section + descRow helpers (read-only display, mirrors module/*.tsx labels) ----
-  function section(title, desc, bodyHtml) {
+  function section(title, desc, bodyHtml, footHtml) {
     return '<div class="panel card-pad mb-4">' +
       '<div class="card-title" style="margin-bottom:' + (desc ? '4px' : '12px') + '">' + esc(title) + '</div>' +
       (desc ? '<div class="muted" style="font-size:12.5px;line-height:1.5;margin-bottom:14px;max-width:880px">' + esc(desc) + '</div>' : '') +
       bodyHtml +
+      (footHtml || '') +
     '</div>';
   }
   // label/value row
@@ -494,13 +604,19 @@
   }
   const grid2 = (rows) => '<div class="grid grid-cols-2" style="gap:0 24px">' + rows.join('') + '</div>';
   const list = (arr) => (arr && arr.length) ? arr.map((x) => '<div class="subtle" style="font-size:13px;padding:2px 0">• ' + esc(x) + '</div>').join('') : '<span class="muted">—</span>';
+  // boolean string -> Yes/No (mirrors formatGmcData: gmcData.x === 'true' ? 'Yes' : 'No')
+  const yesNo = (v) => (v === 'true' || v === true || v === 'Yes') ? 'Yes' : 'No';
+  // multi-line row whose value is arbitrary html (used for lists / key-value maps)
+  const dRowHtml = (label, valHtml) => '<div style="display:flex;padding:7px 0;border-top:1px solid var(--hair)">' +
+    '<div class="muted" style="width:220px;flex:none;font-size:13px">' + esc(label) + '</div>' +
+    '<div style="font-size:13px;min-width:0">' + valHtml + '</div></div>';
 
   function sectionBasicInformation(a) {
     return section('Basic information', '', grid2([
       dRow('name', a.name), dRow('offerId', a.offer_id),
       dRow('itemGroupId', a.item_group_id), dRow('contentLanguage', a.content_language),
       dRow('feedLabel', a.feed_label), dRow('versionNumber', a.version_number),
-    ]));
+    ]), specFoot(['Item group ID', 'feedLabel'], { text: 'REST Resource: accounts.products', href: 'https://developers.google.com/merchant/api/reference/rest/products_v1/accounts.products' }));
   }
   function sectionBasicProductData(a) {
     const body =
@@ -516,26 +632,33 @@
       dRow('Structured description', a.structured_description_digital_source_type);
     return section('Basic product data',
       "The product information you submit using these attributes is the foundation for creating successful ads and free listings for your products. Make sure everything you submit is of the quality you'd show to a customer.",
-      body);
+      body,
+      specFoot(['Title', 'Description', 'Link', 'Image link', 'Additional Image link', '3D model link', 'Mobile link', 'Canonical link', 'Structured title', 'Structured description']));
   }
   function sectionProductCategory(a) {
     return section('Product category',
       "You can use these attributes to organize your advertising campaigns in Google Ads and to override Google's automatic product categorization in specific cases.",
       dRow('Google product category', a.google_product_category) +
-      dRow('Product type', (a.product_types || []).join(', ')));
+      dRow('Product type', (a.product_types || [])[0] || ''),
+      specFoot(['Google product category', 'Product type']));
   }
   function sectionProductIdentifiers(a) {
     return section('Product identifiers', 'Include codes that identify your product.', grid2([
       dRow('Brand', a.brand), dRow('GTIN', a.gtin),
-      dRow('MPN', a.mpn), dRow('Identifier exists', a.identifier_exists),
-    ]));
+      dRow('MPN', a.mpn), dRow('Identifier exists', yesNo(a.identifier_exists)),
+    ]), specFoot(['Brand', 'GTIN', 'MPN', 'Identifier exists']));
   }
-  function sectionDetailedDescription(a) {
+  function sectionDetailedDescription(a, detail) {
+    const dm = (detail && detail.detail) || {};
+    const detailKeys = Object.keys(dm);
+    const detailsHtml = detailKeys.length
+      ? detailKeys.map((k) => '<div class="subtle" style="font-size:13px;padding:2px 0">' + esc(k) + ': ' + esc(dm[k]) + '</div>').join('')
+      : '<span class="muted">—</span>';
     return section('Detailed product description',
       "These attributes are used to provide product identifiers that define the products you're selling in the global marketplace and can help boost the performance of your ads and free listings.",
       grid2([
-        dRow('Condition', a.condition), dRow('Adult', a.adult),
-        dRow('Multipack', a.multipack), dRow('Bundle', a.bundle),
+        dRow('Condition', a.condition), dRow('Adult', yesNo(a.adult)),
+        dRow('Multipack', a.multipack), dRow('Bundle', yesNo(a.bundle)),
         dRow('Age group', a.age_group), dRow('Color', a.color),
         dRow('Gender', a.gender), dRow('Material', a.material),
         dRow('Pattern', a.pattern), dRow('Size', a.size),
@@ -543,7 +666,9 @@
         dRow('Product length', a.product_length), dRow('Product width', a.product_width),
         dRow('Product height', a.product_height), dRow('Product weight', a.product_weight),
       ]) +
-      '<div style="display:flex;padding:7px 0;border-top:1px solid var(--hair)"><div class="muted" style="width:220px;flex:none;font-size:13px">Product highlight</div><div style="font-size:13px">' + list(a.product_highlights) + '</div></div>');
+      dRowHtml('Product detail', detailsHtml) +
+      dRowHtml('Product highlight', list(a.product_highlights)),
+      specFoot(['Condition', 'Adult', 'Multipack', 'Bundle', 'Age group', 'Color', 'Gender', 'Material', 'Pattern', 'Size', 'Size type', 'Size system', 'Product length', 'Product width', 'Product height', 'Product weight', 'Product detail', 'Product highlight']));
   }
   function sectionPriceAvailability(a) {
     return section('Price and availability',
@@ -554,28 +679,33 @@
         dRow('Price', a.price ? a.price + ' ' + (a.price_currency || '') : ''), dRow('Sale price', a.sale_price ? a.sale_price + ' ' + (a.price_currency || '') : ''),
         dRow('Sale price effective date', a.sale_price_effective_date), dRow('Auto pricing min price', a.auto_pricing_min_price ? a.auto_pricing_min_price + ' ' + (a.price_currency || '') : ''),
         dRow('Sell on Google quantity', a.sell_on_google_quantity), dRow('', ''),
-      ]));
+      ]),
+      specFoot(['Availability', 'Availability date', 'Cost of goods sold', 'Expiration date', 'Price', 'Sale price', 'Sale price effective date']));
   }
   function sectionShippingCampaigns(a) {
-    return section('Shopping campaigns', '', grid2([
-      dRow('Ads redirect', a.ads_redirect), dRow('Promotion ID', a.promotion_id),
-      dRow('Custom label 0', a.custom_label_0), dRow('Custom label 1', a.custom_label_1),
-      dRow('Custom label 2', a.custom_label_2), dRow('Custom label 3', a.custom_label_3),
-      dRow('Custom label 4', a.custom_label_4), dRow('', ''),
-    ]) +
-    '<div style="display:flex;padding:7px 0;border-top:1px solid var(--hair)"><div class="muted" style="width:220px;flex:none;font-size:13px">Lifestyle image links</div><div style="font-size:13px">' + list(a.lifestyle_image_links) + '</div></div>');
+    return section('Shopping campaigns and other configurations',
+      'These attributes are used to control how your product data is used when you create advertising campaigns in Google Ads.',
+      dRow('Ads redirect', a.ads_redirect) +
+      grid2([
+        dRow('Custom label 0', a.custom_label_0), dRow('Custom label 1', a.custom_label_1),
+        dRow('Custom label 2', a.custom_label_2), dRow('Custom label 3', a.custom_label_3),
+        dRow('Custom label 4', a.custom_label_4), dRow('Promotion ID', a.promotion_id),
+      ]) +
+      dRowHtml('Lifestyle image link', list(a.lifestyle_image_links)),
+      specFoot(['Ads redirect', 'Custom label 0-4', 'Promotion ID', 'Lifestyle Image link']));
   }
   function sectionDestinations(a) {
     return section('Destinations',
-      'These attributes can be used to control the different locations where your content can appear.',
+      'These attributes can be used to control the different locations where your content can appear. For example, you could use this attribute if you want a product to appear in a dynamic remarketing campaign, but not in a Shopping ads campaign.',
       dRow('Excluded destination', (a.excluded_destination || []).join(', ')) +
       dRow('Included destination', (a.included_destination || []).join(', ')) +
-      dRow('Pause', a.pause));
+      dRow('Pause', a.pause),
+      specFoot(['Excluded destination', 'Included destination', 'Pause']));
   }
   function sectionShipping(a) {
     const s = a.shipping || {};
     return section('Shipping',
-      'These attributes can be used together with the account shipping settings and return settings to help you provide accurate shipping and return costs.',
+      "These attributes can be used together with the account shipping settings and return settings to help you provide accurate shipping and return costs. People who are shopping online rely on shipping costs and speeds, as well as return policies, to help them make choices about what to buy, so it's important to take the time to submit quality information.",
       grid2([
         dRow('Price', (s.price != null ? s.price + ' ' + (s.price_currency || '') : '')), dRow('Country', s.country),
         dRow('Region', s.region), dRow('Service', s.service),
@@ -586,7 +716,8 @@
         dRow('Shipping weight', s.shipping_weight), dRow('Shipping length', s.shipping_length),
         dRow('Shipping width', s.shipping_width), dRow('Shipping height', s.shipping_height),
         dRow('Free shipping threshold', s.free_shipping_threshold), dRow('', ''),
-      ]));
+      ]),
+      specFoot(['Shipping', 'Shipping label', 'Shipping weight', 'Shipping length', 'Shipping width', 'Shipping height', 'Free shipping threshold']));
   }
 
   function wireVariantEdit(unique, detail, meta) {
@@ -669,6 +800,34 @@
     if (ps) ps.onchange = () => { state.size = Number(ps.value); state.page = 1; rerender(); };
   }
 
+  // range dropdown wiring for the variants list (price / inventory)
+  function wireRange(ns, apply) {
+    const trigger = root.querySelector('#vl-' + ns + '-trigger');
+    const panel = root.querySelector('#vl-' + ns + '-panel');
+    if (!trigger || !panel) return;
+    const minEl = panel.querySelector('#vl-' + ns + '-min');
+    const maxEl = panel.querySelector('#vl-' + ns + '-max');
+    const applyBtn = panel.querySelector('#vl-' + ns + '-apply');
+    const close = () => { panel.style.display = 'none'; document.removeEventListener('mousedown', onDoc); };
+    const onDoc = (e) => { if (!panel.contains(e.target) && !trigger.contains(e.target)) close(); };
+    trigger.onclick = () => {
+      const open = panel.style.display === 'block';
+      if (open) { close(); return; }
+      panel.style.display = 'block';
+      setTimeout(() => document.addEventListener('mousedown', onDoc), 0);
+      if (minEl) minEl.focus();
+    };
+    const num = (el) => { if (!el || el.value === '' || el.value == null) return null; const n = Number(el.value); return isNaN(n) ? null : n; };
+    if (applyBtn) applyBtn.onclick = () => {
+      const min = num(minEl);
+      const max = num(maxEl);
+      if (min == null && max == null) { apply(null); close(); VL.page = 1; renderVariants(); return; }
+      if (min != null && max != null && max < min) return; // invalid: max must be >= min
+      apply({ min: min, max: max });
+      VL.page = 1; renderVariants();
+    };
+  }
+
   // ============================================================
   // ROUTER
   // ============================================================
@@ -686,7 +845,7 @@
     if (hash.indexOf('#/variants') === 0) {
       const q = hash.match(/[?&]product=([^&]+)/);
       const pid = q ? decodeURIComponent(q[1]) : null;
-      if (pid !== VL.productId) { VL.productId = pid; VL.tab = 0; VL.kw = ''; VL.kwApplied = ''; VL.page = 1; VL.selected = {}; }
+      if (pid !== VL.productId) { VL.productId = pid; VL.tab = 0; VL.kw = ''; VL.kwApplied = ''; VL.priceApplied = null; VL.invApplied = null; VL.page = 1; VL.selected = {}; }
       renderVariants(); scrollTop(); return;
     }
     // default: products list

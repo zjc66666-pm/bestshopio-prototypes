@@ -292,10 +292,24 @@
   function renderEmptyState() {
     root.innerHTML =
       '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Vendors</h1></div>' +
-      '<div class="panel" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:520px;text-align:center;padding:48px 20px">' +
-        '<div style="width:120px;height:120px;border-radius:50%;background:#eaf1fe;display:grid;place-items:center;margin-bottom:26px">' +
-          '<span style="color:var(--brand)">' + svg('<path d="M4 4h16l1 5a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/>', 52) + '</span>' +
-        '</div>' +
+      '<div class="panel" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:560px;text-align:center;padding:96px 20px 48px">' +
+        // storefront illustration — mirrors emptyState.tsx (awning + 3 product stalls + dashed "add" tile)
+        '<svg width="240" height="174" viewBox="0 0 240 174" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="margin-bottom:30px">' +
+          '<circle cx="120" cy="86" r="74" fill="#EAF1FE" />' +
+          '<path d="M50 55C50 52.7909 51.7909 51 54 51H184C186.209 51 188 52.7909 188 55V93H50V55Z" fill="#5F6B82" />' +
+          '<rect x="50" y="93" width="138" height="72" fill="#F7F9FE" />' +
+          '<rect x="64" y="66" width="51" height="10" rx="1.5" fill="#E6ECF7" />' +
+          '<circle cx="62" cy="62" r="2" fill="#7B879D" /><circle cx="69" cy="62" r="2" fill="#7B879D" /><circle cx="76" cy="62" r="2" fill="#7B879D" />' +
+          '<rect x="62" y="95" width="42" height="54" fill="#FFFFFF" /><rect x="110" y="95" width="42" height="54" fill="#FFFFFF" /><rect x="158" y="95" width="42" height="54" fill="#FFFFFF" />' +
+          '<path d="M71 107L82 101L96 107L93 115L88 113V132H76V113L71 115V107Z" fill="#A9B8D1" />' +
+          '<rect x="72" y="136" width="22" height="3" rx="1.5" fill="#E7EBF3" />' +
+          '<path d="M120 119C129.5 120.5 138.5 126 145 129H120V119Z" fill="#A9B8D1" /><path d="M122 112L129 120L145 129H120L122 112Z" fill="#C2CCE0" />' +
+          '<rect x="120" y="136" width="22" height="3" rx="1.5" fill="#E7EBF3" />' +
+          '<ellipse cx="179" cy="119" rx="12" ry="5" fill="#A9B8D1" /><path d="M174 115C174 109 184 109 184 115V119H174V115Z" fill="#C2CCE0" />' +
+          '<rect x="168" y="136" width="22" height="3" rx="1.5" fill="#E7EBF3" />' +
+          '<rect x="195" y="95" width="42" height="54" fill="#FFFFFF" stroke="#B5C2D6" stroke-dasharray="4 4" />' +
+          '<path d="M216 113V131M207 122H225" stroke="#3477F4" stroke-linecap="round" stroke-width="3" />' +
+        '</svg>' +
         '<h2 style="font-size:20px;font-weight:600;color:#202124;margin-bottom:24px">Add and manage product vendors</h2>' +
         '<button class="btn btn-primary" data-act="add" style="width:144px;justify-content:center">Add vendor</button>' +
       '</div>';
@@ -349,7 +363,7 @@
           vendorDetailsCard(f) +
           vendorProductsCard(f) +
           '<div class="flex justify-end gap-2 mt-6">' +
-            '<button class="btn btn-primary" data-act="save">' + (IS_EDIT ? 'Save' : 'Add vendor') + '</button>' +
+            '<button class="btn btn-primary" data-act="save">' + (IS_EDIT ? 'Update' : 'Add vendor') + '</button>' +
             (IS_EDIT ? '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c6bd">Delete vendor</button>' : '') +
           '</div>' +
         '</div>' +

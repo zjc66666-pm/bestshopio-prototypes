@@ -68,13 +68,14 @@
   function matchesKeyword(p) {
     if (!LST.kwApplied) return true;
     const q = LST.kwApplied.toLowerCase();
+    const has = (v) => String(v == null ? '' : v).toLowerCase().includes(q);
     switch (LST.kwType) {
-      case 'product_id': return String(p.product_id).includes(q);
-      case 'product_spu': return ('spu-leg-' + p.product_id).toLowerCase().includes(q) || p.store_name.toLowerCase().includes(q);
-      case 'product_sku': return p.store_name.toLowerCase().includes(q);
-      case 'barcode': return String(p.product_id).includes(q);
-      case 'variant_id': return ('v-' + p.product_id).toLowerCase().includes(q);
-      default: return p.store_name.toLowerCase().includes(q);
+      case 'product_id': return has(p.product_id);
+      case 'product_spu': return has(p.product_spu);
+      case 'product_sku': return has(p.sku);
+      case 'barcode': return has(p.barcode);
+      case 'variant_id': return has(p.variant_id);
+      default: return has(p.store_name);
     }
   }
 
@@ -82,11 +83,15 @@
     let rows = D.PRODUCTS.slice();
     if (LST.tab !== 0) rows = rows.filter((p) => STATUS_TAB[statusOf(p)] === LST.tab);
     rows = rows.filter(matchesKeyword);
-    if (LST.cate) rows = rows.filter((p) => p.cate_id === LST.cate || p.category_label || true).filter((p) => {
-      // approximate: match by cate group prefix using category dropdown selection
-      const cat = (D.CATEGORIES.find((c) => c.value === LST.cate) || {}).label || '';
-      return cat ? p.store_name && true : true;
-    });
+    if (LST.cate) {
+      // Parent categories (e.g. "Activewear") include their children ("Activewear / Leggings").
+      const sel = D.CATEGORIES.find((c) => c.value === LST.cate);
+      const selLabel = sel ? sel.label : '';
+      const childIds = D.CATEGORIES
+        .filter((c) => c.value === LST.cate || (selLabel && c.label.indexOf(selLabel + ' / ') === 0))
+        .map((c) => c.value);
+      rows = rows.filter((p) => childIds.includes(p.cate_id));
+    }
     if (LST.priceApplied) {
       const lo = LST.priceMin === '' ? -Infinity : Number(LST.priceMin);
       const hi = LST.priceMax === '' ? Infinity : Number(LST.priceMax);
@@ -378,27 +383,49 @@
 
   function loadEdit(id) {
     EDIT_ID = id; DIRTY = false;
-    if (id === 'new') { EDIT = blankProduct(); return; }
+    if (id === 'new') { EDIT = blankProduct(); return true; }
     const src = D.DETAILS[id] || D.DETAILS[Number(id)];
-    if (src) { EDIT = JSON.parse(JSON.stringify(src)); return; }
+    if (src) { EDIT = JSON.parse(JSON.stringify(src)); return true; }
     // fallback: synthesize a minimal record from the list row so any row is openable
     const row = D.PRODUCTS.find((p) => String(p.product_id) === String(id));
-    EDIT = Object.assign(blankProduct(), row ? {
+    if (!row) { EDIT = null; return false; } // unknown id -> caller shows a not-found state
+    EDIT = Object.assign(blankProduct(), {
       product_id: row.product_id, name: row.store_name, spec_type: row.spec_type, hasVariants: row.spec_type === 1,
+      product_spu: row.product_spu, sku: row.sku, barcode: row.barcode,
       price: row.price_min, compareAtPrice: row.price_max, inventoryQuantity: row.on_sale_stock,
       images: [{ uid: 'x', name: 'image', url: row.image, cover: true }],
       attr: row.spec_type === 1 ? [{ value: 'Size', detail: [{ value: 'S' }, { value: 'M' }, { value: 'L' }] }] : [],
       attrValue: row.spec_type === 1
-        ? [{ unique: 'V-' + row.product_id + '-S', title: 'S', image: row.image, sku: 'SKU-' + row.product_id + '-S', price: row.price_min, ot_price: row.price_max, cost: 0, stock: Math.round(row.on_sale_stock / 3), weight: 180, bar_code_number: '', is_show: 1, is_default_select: 1 }]
-        : [{ unique: 'V-' + row.product_id, title: 'Default', image: row.image, sku: 'SKU-' + row.product_id, price: row.price_min, ot_price: row.price_max, cost: 0, stock: row.on_sale_stock, weight: 180, bar_code_number: '', is_show: 1, is_default_select: 1 }],
-      settings: Object.assign(blankProduct().settings, { activated: row.is_show === 1, status: statusOf(row), category: row.cate_id || 0, archived: row.is_del === 1 }),
-    } : {});
+        ? [{ unique: 'V-' + row.product_id + '-S', title: 'S', image: row.image, sku: (row.sku || 'SKU-' + row.product_id) + '-S', price: row.price_min, ot_price: row.price_max, cost: 0, stock: Math.round(row.on_sale_stock / 3), weight: 180, bar_code_number: '', is_show: 1, is_default_select: 1 }]
+        : [{ unique: 'V-' + row.product_id, title: 'Default', image: row.image, sku: row.sku || 'SKU-' + row.product_id, price: row.price_min, ot_price: row.price_max, cost: 0, stock: row.on_sale_stock, weight: 180, bar_code_number: '', is_show: 1, is_default_select: 1 }],
+      settings: Object.assign(blankProduct().settings, { activated: row.is_show === 1, status: statusOf(row), category: row.cate_id || 0, spu: row.product_spu, archived: row.is_del === 1 }),
+    });
+    return true;
   }
 
   const markDirty = () => { if (!DIRTY) { DIRTY = true; const bar = document.getElementById('unsaved-bar'); if (bar) bar.style.display = 'flex'; } };
 
+  // Unknown product id (e.g. a stale/typo hash) -> friendly empty state, not a blank editable form.
+  function renderNotFound(id) {
+    DIRTY = false;
+    root.innerHTML =
+      '<div class="flex items-center gap-3 mb-4">' +
+        '<button class="back-btn" data-act="back" title="Back to products">' + I.arrowLeft + '</button>' +
+        '<h1 class="page-title">Product not found</h1>' +
+      '</div>' +
+      '<div class="panel card-pad" style="text-align:center;padding:48px 16px">' +
+        '<div style="color:var(--ink-muted);margin-bottom:6px">' + I.alert + '</div>' +
+        '<div style="font-weight:600;margin-bottom:4px">No product with ID ' + esc(id) + '</div>' +
+        '<div class="muted" style="font-size:13px;margin-bottom:16px">It may have been deleted, or the link is out of date.</div>' +
+        '<button class="btn btn-primary" data-act="back-list">Back to products</button>' +
+      '</div>';
+    const go = () => { location.hash = '#/products'; };
+    const b1 = root.querySelector('[data-act="back"]'); if (b1) b1.onclick = go;
+    const b2 = root.querySelector('[data-act="back-list"]'); if (b2) b2.onclick = go;
+  }
+
   function renderEdit(id) {
-    loadEdit(id);
+    if (!loadEdit(id)) { renderNotFound(id); return; }
     const isEdit = id !== 'new';
     const title = isEdit ? (EDIT.name || 'Edit product') : 'Add product';
     const archived = !!(EDIT.settings && EDIT.settings.archived);

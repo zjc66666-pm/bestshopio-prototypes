@@ -570,9 +570,9 @@
   }
 
   // ---- Eligibility ----
+  // Reference ships a single "All customers" option (eligibility.tsx).
   function eligibilityCard(e) {
-    const body = D.CUSTOMERS_PRESET.map((c) => radioRow('eligibility', c, e.customer_scope, c)).join('');
-    return sectionCard('Eligibility', body);
+    return sectionCard('Eligibility', radioRow('eligibility', 'All customers', e.customer_scope, 'All customers'));
   }
 
   // ---- Combinations ----

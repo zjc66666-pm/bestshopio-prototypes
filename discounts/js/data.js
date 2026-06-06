@@ -40,10 +40,6 @@
     { key: 'shipping', label: 'Free shipping',       desc: 'Offer free shipping on an order.',                        icon: 'truck' },
   ];
 
-  const CUSTOMERS_PRESET = [
-    'All customers', 'New customers', 'Returning customers', 'VIP members',
-  ];
-
   // type_text helpers per dimension
   const TYPE_TEXT = { 1: 'Amount off order', 2: 'Amount off products', 3: 'Free shipping' };
 
@@ -193,7 +189,7 @@
       applies_to: 'all_order', products: [],
       minimum_purchase_type: 'amount', minimum_purchase_value: '60',
       maximum_uses: { totalEnabled: false, total: '', customerEnabled: true, customer: '1', oncePerOrder: false },
-      customer_scope: 'New customers',
+      customer_scope: 'All customers',
       countries: 'all',
       combinations: { product_discount: true, order_discount: false, shipping_discount: false },
       start_date: '2026-01-15 00:00:00', end_date: '', never_expires: true,
@@ -284,6 +280,6 @@
 
   window.DATA_DISCOUNTS = {
     TABS, TYPE_OPTIONS, METHOD_OPTIONS, COMBINES_OPTIONS, TYPE_CARDS,
-    CUSTOMERS_PRESET, TYPE_TEXT, DISCOUNTS, STATUS_COUNTS, DETAILS,
+    TYPE_TEXT, DISCOUNTS, STATUS_COUNTS, DETAILS,
   };
 })();

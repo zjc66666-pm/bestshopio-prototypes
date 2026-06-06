@@ -88,52 +88,52 @@
   // inventory_status: 0 = in stock, 1 = out of stock, 2 = partial / some out of stock
   // spec_type: 1 = has variants, 0 = single
   const PRODUCTS = [
-    { product_id: 50421, store_name: '3D Anti-Cellulite Compression Leggings', image: IMG.legging,
+    { product_id: 50421, store_name: '3D Anti-Cellulite Compression Leggings', image: IMG.legging, cate_id: 12,
       price_min: 39.9, price_max: 49.9, on_sale_stock: 1280, variant_count: 12, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.synced(12), vendor: { name: 'Silix Official' } },
-    { product_id: 50420, store_name: 'High-Waist Pocket Sculpting Leggings', image: IMG.pocket,
+    { product_id: 50420, store_name: 'High-Waist Pocket Sculpting Leggings', image: IMG.pocket, cate_id: 12,
       price_min: 42.0, price_max: 42.0, on_sale_stock: 64, variant_count: 9, inventory_status: 2,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.partial(9, 6), vendor: { name: 'Silix Official' } },
-    { product_id: 50419, store_name: 'Graduated Compression Calf Sleeves', image: IMG.sleeve,
+    { product_id: 50419, store_name: 'Graduated Compression Calf Sleeves', image: IMG.sleeve, cate_id: 11,
       price_min: 18.5, price_max: 18.5, on_sale_stock: 0, variant_count: 4, inventory_status: 1,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.synced(4), vendor: { name: 'Folast' } },
-    { product_id: 50418, store_name: 'Seamless Short Biker Leggings', image: IMG.short,
+    { product_id: 50418, store_name: 'Seamless Short Biker Leggings', image: IMG.short, cate_id: 12,
       price_min: 24.0, price_max: 29.0, on_sale_stock: 530, variant_count: 8, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.processing(8), vendor: { name: 'Silix Official' } },
-    { product_id: 50417, store_name: 'Butt-Lifting Capri Leggings', image: IMG.capri,
+    { product_id: 50417, store_name: 'Butt-Lifting Capri Leggings', image: IMG.capri, cate_id: 12,
       price_min: 37.0, price_max: 37.0, on_sale_stock: 212, variant_count: 6, inventory_status: 0,
       is_show: 0, is_del: 0, spec_type: 1, sku_sync_stats: SY.failed(6, 2), vendor: { name: 'Lovocross' } },
-    { product_id: 50416, store_name: 'Seamless Sculpting Briefs (3-Pack)', image: IMG.brief,
+    { product_id: 50416, store_name: 'Seamless Sculpting Briefs (3-Pack)', image: IMG.brief, cate_id: 21,
       price_min: 15.9, price_max: 15.9, on_sale_stock: 980, variant_count: 5, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.synced(5), vendor: { name: 'BumpBabe' } },
-    { product_id: 50415, store_name: 'Lightweight Racerback Sports Bra', image: IMG.bra,
+    { product_id: 50415, store_name: 'Lightweight Racerback Sports Bra', image: IMG.bra, cate_id: 13,
       price_min: 22.0, price_max: 26.0, on_sale_stock: 47, variant_count: 10, inventory_status: 2,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.partial(10, 7), vendor: { name: 'Silix Official' } },
-    { product_id: 50414, store_name: 'Tummy-Control Shaping Bodysuit', image: IMG.bodysuit,
+    { product_id: 50414, store_name: 'Tummy-Control Shaping Bodysuit', image: IMG.bodysuit, cate_id: 22,
       price_min: 45.0, price_max: 52.0, on_sale_stock: 0, variant_count: 9, inventory_status: 1,
       is_show: 0, is_del: 0, spec_type: 1, sku_sync_stats: SY.none(), vendor: { name: 'Minilizm' } },
-    { product_id: 50413, store_name: 'Cushioned No-Show Ankle Socks (6-Pack)', image: IMG.sock,
+    { product_id: 50413, store_name: 'Cushioned No-Show Ankle Socks (6-Pack)', image: IMG.sock, cate_id: 32,
       price_min: 12.0, price_max: 12.0, on_sale_stock: 3400, variant_count: 0, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 0, sku_sync_stats: SY.synced(1), vendor: { name: 'Folast' } },
-    { product_id: 50412, store_name: 'Classic High-Waist Yoga Leggings', image: IMG.waist,
+    { product_id: 50412, store_name: 'Classic High-Waist Yoga Leggings', image: IMG.waist, cate_id: 12,
       price_min: 34.0, price_max: 34.0, on_sale_stock: 760, variant_count: 12, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.synced(12), vendor: { name: 'Silix Official' } },
-    { product_id: 50411, store_name: 'Seamless Ribbed Tank Top', image: IMG.tank,
+    { product_id: 50411, store_name: 'Seamless Ribbed Tank Top', image: IMG.tank, cate_id: 11,
       price_min: 19.0, price_max: 19.0, on_sale_stock: 88, variant_count: 7, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.partial(7, 5), vendor: { name: 'BumpBabe' } },
-    { product_id: 50410, store_name: 'Cross-Waist Flare Yoga Pants', image: IMG.flare,
+    { product_id: 50410, store_name: 'Cross-Waist Flare Yoga Pants', image: IMG.flare, cate_id: 12,
       price_min: 41.0, price_max: 46.0, on_sale_stock: 0, variant_count: 8, inventory_status: 1,
       is_show: 0, is_del: 1, spec_type: 1, sku_sync_stats: SY.none(), vendor: { name: 'Lovocross' } },
-    { product_id: 50409, store_name: 'No-Show Seamless Thong (5-Pack)', image: IMG.thong,
+    { product_id: 50409, store_name: 'No-Show Seamless Thong (5-Pack)', image: IMG.thong, cate_id: 21,
       price_min: 17.0, price_max: 17.0, on_sale_stock: 1240, variant_count: 5, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.synced(5), vendor: { name: 'BumpBabe' } },
-    { product_id: 50408, store_name: 'Padded Longline Sports Bra', image: IMG.bra,
+    { product_id: 50408, store_name: 'Padded Longline Sports Bra', image: IMG.bra, cate_id: 13,
       price_min: 28.0, price_max: 32.0, on_sale_stock: 156, variant_count: 9, inventory_status: 2,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.failed(9, 1), vendor: { name: 'Silix Official' } },
-    { product_id: 50407, store_name: 'Discontinued Mesh Panel Capris', image: IMG.capri,
+    { product_id: 50407, store_name: 'Discontinued Mesh Panel Capris', image: IMG.capri, cate_id: 12,
       price_min: 33.0, price_max: 33.0, on_sale_stock: 0, variant_count: 6, inventory_status: 1,
       is_show: 0, is_del: 1, spec_type: 1, sku_sync_stats: SY.none(), vendor: { name: 'Minilizm' } },
-    { product_id: 50406, store_name: 'Compression Postpartum Support Shorts', image: IMG.short,
+    { product_id: 50406, store_name: 'Compression Postpartum Support Shorts', image: IMG.short, cate_id: 12,
       price_min: 36.0, price_max: 36.0, on_sale_stock: 420, variant_count: 8, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 1, sku_sync_stats: SY.synced(8), vendor: { name: 'BumpBabe' } },
   ];
@@ -289,6 +289,20 @@
       },
     },
   };
+
+  // Enrich list rows with searchable identifiers (product_spu / sku / barcode / variant_id) so the
+  // keyword-field search behaves realistically. Reuse the detail record's real values when present;
+  // otherwise derive a stable code from the product name + id (mirrors the SPU-XXX / 0850… style).
+  const abbr = (name) => name.replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean)
+    .slice(0, 2).map((w) => w.slice(0, 3).toUpperCase()).join('') || 'PRD';
+  PRODUCTS.forEach((p) => {
+    const d = DETAILS[p.product_id];
+    const base = abbr(p.store_name);
+    p.product_spu = (d && d.product_spu) || ('SPU-' + base + '-' + p.product_id);
+    p.sku = (d && d.sku) || (base + '-' + p.product_id);
+    p.barcode = (d && d.barcode) || ('0850' + String(p.product_id).padStart(9, '0'));
+    p.variant_id = (d && d.attrValue && d.attrValue[0] && d.attrValue[0].unique) || ('V-' + p.product_id);
+  });
 
   // metafield type options (for editor selects)
   const METAFIELD_TYPES = ['Single line text', 'Multi-line text', 'Integer', 'Decimal', 'Boolean', 'URL', 'Date'];
