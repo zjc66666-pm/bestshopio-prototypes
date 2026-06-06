@@ -1,6 +1,20 @@
 // BestVoy Admin · Analytics prototype — chrome + hash router + Overview (S0/S1)
 (function () {
   const { NAV, KPIS, SALES_TREND, BREAKDOWN, SALES_BY_CHANNEL, AOV_TREND, SESSIONS_TREND, FUNNEL, CONV_RATE_TREND, SALES_BY_REFERRER, SESSIONS_BY_REFERRER, PERF_BY_CHANNEL, CITY_COORDS, SALES_BY_PRODUCT, SESSIONS_BY_DEVICE, SESSIONS_BY_LOCATION, SOCIAL_REFERRER, LANDING_PAGES, SELL_THROUGH, COHORT, PAGEVIEWS_TREND, PAID_AMOUNT_TREND, REFUND_TREND, MARKETING_SALES_TREND, ORDERS_FULFILLED_TREND, SESSIONS_BY_COUNTRY, SESSIONS_BY_TRAFFIC, SESSIONS_BY_SOCIAL, PRODUCT_DATA, VARIANT_DATA, COUNTRY_TRAFFIC, REPORTS, REPORT_CATEGORIES, CATALOG } = window.DATA;
+  // ---- Favorites (localStorage-backed) + current report id ----
+  let CURRENT_REPORT = null;
+  const FAV_KEY = 'bestvoy_fav_reports';
+  const FAV = {
+    list() { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch (e) { return []; } },
+    has(id) { return FAV.list().includes(id); },
+    toggle(id) { const l = FAV.list(); const i = l.indexOf(id); if (i >= 0) l.splice(i, 1); else l.push(id); localStorage.setItem(FAV_KEY, JSON.stringify(l)); return FAV.has(id); },
+  };
+  function bindFav(view) {
+    const b = view.querySelector('[data-act="fav"]'); if (!b || !CURRENT_REPORT) return;
+    const sync = () => { b.textContent = FAV.has(CURRENT_REPORT) ? '★ Favorited' : 'Favorites'; };
+    sync();
+    b.onclick = () => { const on = FAV.toggle(CURRENT_REPORT); sync(); toast(on ? 'Added to favorites' : 'Removed from favorites'); };
+  }
   let charts = [];
 
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -181,15 +195,24 @@
 
   // ---------------- Overview view ----------------
   // metric explanations (hover tooltip) + card→report links
+  // SHOPLINE-style "how is this metric calculated" tooltips — adapted to our trimmed model (no tax / tip / duty / points / gift cards)
   const METRIC_INFO = {
-    gross_sales: ['Gross sales', 'Rough sales revenue, before discounts and returns are factored in.'],
-    returning_rate: ['Returning customer rate', 'Percentage of customers who placed an order that were returning customers.', 'Returning customer rate = returning customers / customers'],
-    orders_fulfilled: ['Orders fulfilled', 'Number of orders that have been fulfilled in the selected period.'],
+    gross_sales: ['Gross sales', 'Product revenue before discounts and returns.', 'Gross sales = Σ (unit price × quantity)'],
+    discounts: ['Discounts', 'Total reduction from discount codes and automatic promotions.', 'Discounts = product + order + shipping discounts'],
+    returns: ['Returns', 'Value of items returned during the period.'],
+    net_sales: ['Net sales', 'Sales after discounts and returns, before shipping.', 'Net sales = Gross sales − Discounts − Returns'],
+    total_sales: ['Total sales', 'What your store actually took in.', 'Total sales = Net sales + Shipping  ·  (tax N/A in our model)'],
+    aov: ['Average order value', 'Average value of an order.', 'AOV = Net sales ÷ Orders'],
+    gross_profit: ['Gross profit', 'Profit after cost of goods sold (COGS captured at sale time).', 'Gross profit = Net sales − COGS'],
+    gross_margin: ['Gross margin', 'Gross profit as a share of net sales.', 'Gross margin = Gross profit ÷ Net sales'],
     orders: ['Orders', 'Number of orders placed, across all sales channels.'],
-    total_sales: ['Total sales', 'Net sales plus shipping and taxes — the total your store received.'],
-    aov: ['Average order value', '(Gross sales − discounts) ÷ number of orders.'],
-    sessions: ['Sessions', 'Number of visits to your online store. Source: Sensors (神策).'],
-    conversion_rate: ['Conversion rate', 'Percentage of sessions that resulted in a completed order.'],
+    orders_fulfilled: ['Orders fulfilled', 'Orders fulfilled in the selected period.'],
+    refunds: ['Refund amount', 'Total refunded back to customers in the period.'],
+    returning_rate: ['Returning customer rate', 'Share of ordering customers who were returning.', 'Returning rate = returning customers ÷ customers'],
+    sessions: ['Sessions', 'Visits to your online store. Source: self-hosted Sensors (神策).', 'A session ends after 30 min of inactivity'],
+    page_views: ['Page views', 'Total pages viewed across all sessions. Source: 神策.'],
+    conversion_rate: ['Conversion rate', 'Share of sessions that completed checkout.', 'Conversion rate = completed-checkout sessions ÷ sessions'],
+    attributed_sales: ['Sales attributed to marketing', 'Sales from sessions that arrived via a marketing channel (last-touch attribution).'],
   };
   const KPI_LINK = {
     total_sales: { report: 'sales_over_time', tip: 'total_sales' },
@@ -199,11 +222,11 @@
   };
   const TITLE_MAP = {
     'Sessions': { report: 'sessions_over_time', tip: 'sessions' },
-    'Page views': { report: 'sessions_over_time', tip: 'sessions' },
+    'Page views': { report: 'sessions_over_time', tip: 'page_views' },
     'Orders fulfilled': { report: 'fulfillment_status', tip: 'orders_fulfilled' },
     'Paid amount': { report: 'payments_over_time', tip: 'total_sales' },
-    'Refund amount': { report: 'refunds_over_time' },
-    'Sales attributed to marketing': { report: 'sales_attributed_marketing', tip: 'total_sales' },
+    'Refund amount': { report: 'refunds_over_time', tip: 'refunds' },
+    'Sales attributed to marketing': { report: 'sales_attributed_marketing', tip: 'attributed_sales' },
     'Conversion rate': { report: 'conversion_funnel', tip: 'conversion_rate' },
     'Top products': { report: 'sales_by_product', tip: 'total_sales' },
     'Sessions by device type': { report: 'sessions_by_device', tip: 'sessions' },
@@ -213,6 +236,8 @@
     'Popular sales by referrer source': { report: 'sales_by_referrer', tip: 'total_sales' },
     'Top landing pages by sessions': { report: 'sessions_by_landing', tip: 'sessions' },
     'Customer group analysis': { report: 'customer_cohort' },
+    'New vs returning customers': { report: 'new_vs_returning', tip: 'returning_rate' },
+    'Popular referral websites': { report: 'sessions_by_referrer', tip: 'sessions' },
   };
   function viewOverview(view) {
     view.innerHTML = `<div class="view-wrap">
@@ -249,6 +274,10 @@
       <div class="grid grid-cols-3 gap-4 mb-4">
         <div class="panel card-pad"><div class="card-link-title mb-2">Top landing pages by sessions</div><div id="landing"></div></div>
         <div class="panel card-pad col-span-2"><div class="card-link-title mb-3">Customer group analysis</div><div style="height:300px" id="c-cohort"></div></div>
+      </div>
+      <div class="grid grid-cols-3 gap-4 mb-4">
+        <div class="panel card-pad col-span-2"><div class="card-link-title mb-2">New vs returning customers</div><div class="chart" id="c-newret"></div></div>
+        <div class="panel card-pad"><div class="card-link-title mb-2">Popular referral websites</div><div id="referrals"></div></div>
       </div>
     </div>`;
 
@@ -296,6 +325,18 @@
         <span class="subtle" style="font-size:13px;max-width:68%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.page}</span>
         <span style="font-variant-numeric:tabular-nums">${r.value.toLocaleString()}</span>
       </div>`).join('');
+    // New vs returning customers (behavior — 神策; mock) + Popular referral websites
+    const NEWRET_NEW = SALES_TREND.values.map((v) => Math.round(v / 620));
+    const NEWRET_RET = SALES_TREND.values.map((v, i) => Math.round(v / 1900) + (i % 3));
+    mkChart(document.getElementById('c-newret'), {
+      grid: { left: 40, right: 16, top: 16, bottom: 36 }, tooltip: { trigger: 'axis' },
+      legend: { bottom: 0, icon: 'roundRect', itemHeight: 3, itemWidth: 14, textStyle: { color: '#62708d', fontSize: 12 } },
+      xAxis: { type: 'category', data: SALES_TREND.dates, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#94a3b8', fontSize: 11, interval: 4 } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
+      series: [{ type: 'line', name: 'New customers', data: NEWRET_NEW, smooth: true, symbol: 'none', lineStyle: { color: '#0066e6', width: 2 } }, { type: 'line', name: 'Returning customers', data: NEWRET_RET, smooth: true, symbol: 'none', lineStyle: { color: '#5ab1ef', width: 2 } }],
+    });
+    const REFERRAL_SITES = [['google.com', 134700], ['instagram.com', 81000], ['m.facebook.com', 54200], ['facebook.com', 33100], ['t.co', 12685], ['youtube.com', 7300]];
+    document.getElementById('referrals').innerHTML = `<div class="flex items-center justify-between" style="padding:2px 0 6px;border-bottom:1px solid var(--hair)"><span class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.03em">External referrer website</span><span class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.03em">Sessions</span></div>` + REFERRAL_SITES.map((r) => `<div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--hair)"><span class="subtle" style="font-size:13px">${r[0]}</span><span style="font-variant-numeric:tabular-nums">${r[1].toLocaleString()}</span></div>`).join('');
 
     // every card title → clickable into its report; attach metric tooltips
     view.querySelectorAll('.card-link-title').forEach((t) => {
@@ -460,7 +501,10 @@
       </div>`;
     }
     function render() {
-      const fav = `<div class="rep-card"><div class="rep-card-title">${ICON.star || '★'} My favorites</div><div class="muted" style="font-size:13px;padding:6px 0 2px">You haven't favorited any reports yet.</div></div>`;
+      const favIds = FAV.list().filter((id) => REPORTS.find((r) => r.id === id));
+      const fav = favIds.length
+        ? `<div class="rep-card"><div class="rep-card-title">${ICON.star || '★'} My favorites</div><div class="rep-card-sub" style="margin-top:8px">Report</div>${favIds.map((id) => `<div class="rep-link" data-open="${id}">${REPORTS.find((r) => r.id === id).name}</div>`).join('')}</div>`
+        : `<div class="rep-card"><div class="rep-card-title">${ICON.star || '★'} My favorites</div><div class="muted" style="font-size:13px;padding:6px 0 2px">You haven't favorited any reports yet.</div></div>`;
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3"><h1 class="page-title">Reports</h1><button class="btn btn-primary" data-act="create">Create custom report</button></div>
         <div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap"><span class="muted" style="font-size:13px">Recently viewed</span>${recent.map((r) => `<span class="chip" data-open="${r.id}" style="height:28px;font-size:12.5px">${r.name}</span>`).join('')}</div>
@@ -945,7 +989,7 @@
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       view.querySelector('[data-act="export"]').onclick = () => toast('Exporting…');
       view.querySelector('[data-act="saveas"]').onclick = () => toast('Saved as new report');
-      view.querySelector('[data-act="fav"]').onclick = () => toast('Added to favorites');
+      bindFav(view);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer(CATALOG_FOR(cfg.source), { dims: new Set(), metrics: new Set(state.metrics) }, (res) => { if (res.metrics.length) state.metrics = res.metrics; state.page = 1; render(); });
       view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, CATALOG_FOR(cfg.source).dimensions);
       view.querySelectorAll('[data-rmf]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-rmf'), 1); render(); }));
@@ -970,6 +1014,7 @@
     'Product name': ['3D Anti-Cellulite Leggings', 'Silix Pocket 3D Sculpting Leggings', 'Silix 3D Compression Sleeves', '3D Anti-Cellulite Short Leggings', 'SILIX Butt-Lifting Pocket Capris'],
     'Payment method': ['PayPal', 'Stripe', 'Airwallex'],
     'Customer type': ['New', 'Returning'],
+    'Social platform': ['Facebook', 'Instagram', 'X', 'TikTok', 'YouTube', 'Pinterest'],
   };
   const SOCIAL_PLATFORMS = ['Facebook', 'Instagram', 'X', 'TikTok', 'YouTube', 'Social (other)'];
   function cMetricVal(metric, ts, r) {
@@ -1054,7 +1099,7 @@
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       view.querySelector('[data-act="export"]').onclick = () => toast('Exporting…');
       view.querySelector('[data-act="saveas"]').onclick = () => toast('Saved as new report');
-      view.querySelector('[data-act="fav"]').onclick = () => toast('Added to favorites');
+      bindFav(view);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer(COMMERCE_CAT, { dims: new Set([state.dim]), metrics: new Set(state.metrics) }, (res) => { if (res.dims.length) state.dim = res.dims[0]; if (res.metrics.length) state.metrics = res.metrics; state.sortCol = 0; state.page = 1; state.expanded.clear(); render(); });
       view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, COMMERCE_CAT.dimensions);
       view.querySelectorAll('[data-rmf]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-rmf'), 1); render(); }));
@@ -1104,12 +1149,156 @@
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       view.querySelector('[data-act="export"]').onclick = () => toast('Exporting…');
       view.querySelector('[data-act="saveas"]').onclick = () => toast('Saved as new report');
-      view.querySelector('[data-act="fav"]').onclick = () => toast('Added to favorites');
+      bindFav(view);
       view.querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => toast('Payment channel · ' + b.getAttribute('data-view'))));
       const pickMetric = (slot, el) => openPopover(el, OPTS.filter((o) => !state.chartMetrics.includes(o) || state.chartMetrics[slot] === o).map((o) => `<div class="opt" data-v="${o}">${o}${state.chartMetrics[slot] === o ? ' ✓' : ''}</div>`).join(''), (pop, close) => pop.querySelectorAll('[data-v]').forEach((o) => (o.onclick = () => { state.chartMetrics[slot] = o.getAttribute('data-v'); close(); render(); })));
       view.querySelectorAll('[data-msel]').forEach((el) => (el.onclick = () => pickMetric(+el.getAttribute('data-msel'), el)));
       const madd = view.querySelector('[data-madd]'); if (madd) madd.onclick = () => { state.chartMetrics.push(OPTS.find((o) => !state.chartMetrics.includes(o)) || OPTS[1]); render(); };
       const mdel = view.querySelector('[data-mdel]'); if (mdel) mdel.onclick = () => { state.chartMetrics = [state.chartMetrics[0]]; render(); };
+    }
+    render();
+  }
+
+  // ============ T4 special-viz reports (funnel / cohort table / finance waterfall) ============
+  function t4Header(title) {
+    return `<div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${title}</h1></div>
+      <div class="flex items-center gap-2"><button class="btn btn-default" data-act="export">Export data</button><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+    </div>`;
+  }
+  function t4Bind(view) {
+    view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
+    const m = { export: 'Exporting…', saveas: 'Saved as new report' };
+    Object.keys(m).forEach((a) => { const b = view.querySelector(`[data-act="${a}"]`); if (b) b.onclick = () => toast(m[a]); });
+    bindFav(view);
+  }
+  function viewConversionFunnel(view) {
+    onChipChange = () => render();
+    const STAGES = [['Sessions', 1326165], ['Added to cart', 158520], ['Reached checkout', 79560], ['Added customer info', 68200], ['Added shipping method', 61300], ['Added payment info', 56721], ['Completed checkout', 30559]];
+    function render() {
+      disposeCharts();
+      const top = STAGES[0][1], bottom = STAGES[STAGES.length - 1][1];
+      const kpis = [['Conversion rate', (bottom / top * 100).toFixed(2) + '%'], ['Sessions', top.toLocaleString()], ['Completed checkout', bottom.toLocaleString()], ['Biggest drop-off', 'Cart → Checkout']];
+      view.innerHTML = `<div class="view-wrap">
+        ${t4Header('Conversion rate breakdown')}
+        ${chipBar({})}
+        <div class="grid grid-cols-4 gap-3 mb-4">${kpis.map(([k, v], i) => `<div class="panel card-pad"${i === 0 ? ' style="border:1px solid var(--brand)"' : ''}><div class="muted" style="font-size:13px">${k}</div><div class="stat-value mt-1" style="font-size:22px">${v}</div></div>`).join('')}</div>
+        <div class="panel card-pad"><div class="card-title mb-3">Conversion funnel</div>
+          ${STAGES.map((s, i) => { const pct = s[1] / top * 100; const step = i ? (s[1] / STAGES[i - 1][1] * 100) : null; return `<div style="margin-bottom:12px">
+            <div class="flex items-center justify-between" style="font-size:13px;margin-bottom:4px"><span style="font-weight:500">${s[0]}</span><span class="muted">${s[1].toLocaleString()} · ${pct.toFixed(1)}% of sessions</span></div>
+            <div style="height:26px;background:var(--panel);border-radius:6px;overflow:hidden"><div style="height:100%;width:${Math.max(pct, 1)}%;background:var(--brand);opacity:${1 - i * 0.1}"></div></div>
+            ${step !== null ? `<div class="muted" style="font-size:11px;margin-top:3px">↓ ${step.toFixed(1)}% step conversion · ${(100 - step).toFixed(1)}% drop-off</div>` : ''}
+          </div>`; }).join('')}
+        </div>
+      </div>`;
+      t4Bind(view);
+    }
+    render();
+  }
+  function viewCohort(view) {
+    onChipChange = () => render();
+    function render() {
+      disposeCharts();
+      const n = COHORT.matrix[0].length;
+      const heads = ['Current month', ...Array.from({ length: n }, (_, i) => `Month ${i + 1}`)];
+      const cell = (v) => { if (v == null) return '<td class="num" style="color:#cbd5e1">·</td>'; const a = Math.min(0.88, v / 13); return `<td class="num" style="background:rgba(0,102,230,${a.toFixed(2)});color:${v > 6 ? '#fff' : 'var(--ink)'}">${v.toFixed(2)}%</td>`; };
+      view.innerHTML = `<div class="view-wrap">
+        ${t4Header('Customer group analysis')}
+        ${chipBar({})}
+        <div class="muted mb-3" style="font-size:13px">Retention by signup cohort — % of each cohort that ordered again in later months. Source: derived (神策 + orders).</div>
+        <div class="panel" style="overflow:auto"><table class="tbl"><thead><tr><th>Cohort</th>${heads.map((h) => `<th class="num">${h}</th>`).join('')}</tr></thead><tbody>
+          ${COHORT.cohorts.map((c, ri) => `<tr><td style="white-space:nowrap;font-weight:500">${c}</td><td class="num" style="background:rgba(0,102,230,0.92);color:#fff">100.00%</td>${COHORT.matrix[ri].map(cell).join('')}</tr>`).join('')}
+        </tbody></table></div>
+      </div>`;
+      t4Bind(view);
+    }
+    render();
+  }
+  function viewFinanceSummary(view) {
+    onChipChange = () => render();
+    function render() {
+      disposeCharts();
+      const cur = CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 };
+      const fmt = (val) => { const num = parseFloat(String(val).replace(/[^0-9.\-]/g, '')) || 0; return (num < 0 ? '-' : '') + cur.sym + Math.abs(Math.round(num * cur.rate)).toLocaleString(); };
+      view.innerHTML = `<div class="view-wrap">
+        ${t4Header('Finance summary')}
+        ${chipBar({ currency: true })}
+        <div class="panel"><table class="tbl"><thead><tr><th>Item</th><th class="num">Amount</th></tr></thead><tbody>
+          ${BREAKDOWN.map((b) => `<tr style="${b.strong ? 'font-weight:600;background:var(--panel)' : ''}"><td>${b.label}</td><td class="num" style="${b.neg ? 'color:var(--err)' : ''}">${b.label === 'Taxes' ? '<span class="muted">N/A</span>' : fmt(b.value)}</td></tr>`).join('')}
+        </tbody></table>
+        <div class="p-3 muted" style="border-top:1px solid var(--hair);font-size:12px">Fixed report · no Edit / Manage filters. Net sales = Gross sales − Discounts − Returns; Total sales = Net sales + Shipping (tax not tracked in our model — N/A).</div>
+        </div>
+      </div>`;
+      t4Bind(view);
+    }
+    render();
+  }
+
+  function viewUserPath(view) {
+    onChipChange = () => render();
+    function render() {
+      disposeCharts();
+      view.innerHTML = `<div class="view-wrap">
+        ${t4Header('User path analysis')}
+        ${chipBar({})}
+        <div class="muted mb-3" style="font-size:13px">Most common navigation flows through your store. Source: behavior (神策) page sequences.</div>
+        <div class="panel card-pad"><div id="sankey" style="height:460px"></div></div>
+      </div>`;
+      const nodes = [{ name: 'Landing' }, { name: 'Home' }, { name: 'Collection' }, { name: 'Product' }, { name: 'Search' }, { name: 'Cart' }, { name: 'Checkout' }, { name: 'Purchased' }, { name: 'Exit' }];
+      const links = [
+        { source: 'Landing', target: 'Product', value: 62000 }, { source: 'Landing', target: 'Home', value: 28000 }, { source: 'Landing', target: 'Collection', value: 18000 },
+        { source: 'Home', target: 'Collection', value: 15000 }, { source: 'Home', target: 'Product', value: 9000 }, { source: 'Home', target: 'Exit', value: 4000 },
+        { source: 'Collection', target: 'Product', value: 26000 }, { source: 'Collection', target: 'Exit', value: 7000 }, { source: 'Search', target: 'Product', value: 8000 },
+        { source: 'Product', target: 'Cart', value: 34000 }, { source: 'Product', target: 'Exit', value: 61000 },
+        { source: 'Cart', target: 'Checkout', value: 21000 }, { source: 'Cart', target: 'Exit', value: 13000 },
+        { source: 'Checkout', target: 'Purchased', value: 13000 }, { source: 'Checkout', target: 'Exit', value: 8000 },
+      ];
+      mkChart(document.getElementById('sankey'), { tooltip: { trigger: 'item', triggerOn: 'mousemove' }, series: [{ type: 'sankey', data: nodes, links: links, emphasis: { focus: 'adjacency' }, nodeGap: 14, lineStyle: { color: 'gradient', opacity: 0.45, curveness: 0.5 }, itemStyle: { color: '#0066e6', borderColor: '#0066e6' }, label: { color: '#242833', fontSize: 12 } }] });
+      t4Bind(view);
+    }
+    render();
+  }
+  function viewAttribution(view) {
+    onChipChange = () => render();
+    const CHANNELS = ['Direct', 'Search', 'Social', 'Email', 'Referral', 'Paid'];
+    function render() {
+      disposeCharts();
+      const cur = CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 };
+      const rows = CHANNELS.map((ch, i) => { const r = { s: seedOf('ATTR|' + ch) }; const base = Math.round((320000 - i * 42000) * (0.6 + rand(r) * 0.7)); const first = Math.round(base * (0.9 + rand(r) * 0.4)); const last = Math.round(base * (0.8 + rand(r) * 0.5)); return { ch, first, last, linear: Math.round((first + last) / 2) }; });
+      const m = (v) => cur.sym + Math.round(v * cur.rate).toLocaleString();
+      const sum = (k) => rows.reduce((s, r) => s + r[k], 0);
+      view.innerHTML = `<div class="view-wrap">
+        ${t4Header('Attribution model comparison')}
+        ${chipBar({ currency: true })}
+        <div class="muted mb-3" style="font-size:13px">Attributed sales by channel under different models. Source: behavior (神策) attribution — first-touch / last-touch / linear.</div>
+        <div class="panel"><table class="tbl"><thead><tr><th>Channel</th><th class="num">First-touch</th><th class="num">Last-touch</th><th class="num">Linear</th></tr></thead><tbody>
+          <tr style="font-weight:600;background:var(--panel)"><td>Summary</td><td class="num">${m(sum('first'))}</td><td class="num">${m(sum('last'))}</td><td class="num">${m(sum('linear'))}</td></tr>
+          ${rows.map((r) => `<tr><td>${r.ch}</td><td class="num">${m(r.first)}</td><td class="num">${m(r.last)}</td><td class="num">${m(r.linear)}</td></tr>`).join('')}
+        </tbody></table></div>
+      </div>`;
+      t4Bind(view);
+    }
+    render();
+  }
+  function viewABC(view) {
+    onChipChange = () => render();
+    function render() {
+      disposeCharts();
+      const cur = CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 };
+      let rows = PRODUCT_DATA.map((p) => ({ name: p.name, vendor: p.vendor, rev: p.sales })).sort((a, b) => b.rev - a.rev);
+      const total = rows.reduce((s, r) => s + r.rev, 0);
+      let cum = 0;
+      rows = rows.map((r) => { cum += r.rev; const cumPct = cum / total * 100; return Object.assign(r, { pct: r.rev / total * 100, cumPct, grade: cumPct <= 80 ? 'A' : cumPct <= 95 ? 'B' : 'C' }); });
+      const badge = (g) => `<span style="display:inline-block;padding:1px 8px;border-radius:9999px;font-size:11.5px;font-weight:600;${g === 'A' ? 'background:#e0f2ec;color:#00684a' : g === 'B' ? 'background:#fff7e0;color:#9a6b00' : 'background:#fee2e2;color:#b42318'}">${g}</span>`;
+      view.innerHTML = `<div class="view-wrap">
+        ${t4Header('ABC product analysis')}
+        ${chipBar({ currency: true })}
+        <div class="muted mb-3" style="font-size:13px">Pareto classification by revenue contribution — A: top 80%, B: next 15%, C: last 5%.</div>
+        <div class="panel"><table class="tbl"><thead><tr><th>NO.</th><th>Product</th><th>Vendor</th><th class="num">Revenue</th><th class="num">% of total</th><th class="num">Cumulative %</th><th class="num">Grade</th></tr></thead><tbody>
+          ${rows.map((r, i) => `<tr><td>${i + 1}</td><td><span style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${r.name}</span></td><td>${r.vendor}</td><td class="num">${cur.sym}${Math.round(r.rev * cur.rate).toLocaleString()}</td><td class="num">${r.pct.toFixed(1)}%</td><td class="num">${r.cumPct.toFixed(1)}%</td><td class="num">${badge(r.grade)}</td></tr>`).join('')}
+        </tbody></table></div>
+      </div>`;
+      t4Bind(view);
     }
     render();
   }
@@ -1132,11 +1321,23 @@
     sales_by_billing_location: { title: 'Sales: By country/region', source: 'Commerce', dim: 'Country/Region', metrics: ['Total sales', 'Orders', 'Average order value'] },
     sales_by_discount: { title: 'Sales: By discount code', source: 'Commerce', dim: 'Discount code', metrics: ['Orders', 'Discounts', 'Total sales'] },
     sales_by_variant: { title: 'Sales: By variant (SKU)', source: 'Commerce', dim: 'Variant', metrics: ['Total sales', 'Sales quantity', 'Orders'] },
+    customers_by_location: { title: 'Customers: By location', source: 'Commerce', dim: 'Country/Region', metrics: ['Customers', 'Orders', 'Total sales'] },
+    top_products_units: { title: 'Top products by units sold', source: 'Commerce', dim: 'Product name', metrics: ['Sales quantity', 'Total sales', 'Orders'] },
+    social_referrer_sales: { title: 'Sales by social referrer', source: 'Commerce', dim: 'Social platform', metrics: ['Total sales', 'Orders', 'Average order value'] },
   };
   Object.keys(COMMERCE_DIM_CFG).forEach((id) => (BESPOKE_REPORTS[id] = (view) => viewCommerceDimReport(view, COMMERCE_DIM_CFG[id])));
   BESPOKE_REPORTS.payment_success_rate = viewPaymentSuccess;
+  BESPOKE_REPORTS.conversion_funnel = viewConversionFunnel;
+  BESPOKE_REPORTS.customer_cohort = viewCohort;
+  BESPOKE_REPORTS.retention = viewCohort;
+  BESPOKE_REPORTS.finance_summary = viewFinanceSummary;
+  BESPOKE_REPORTS.sales_breakdown = viewFinanceSummary;
+  BESPOKE_REPORTS.user_path = viewUserPath;
+  BESPOKE_REPORTS.abc_analysis = viewABC;
+  BESPOKE_REPORTS.attribution_model_comparison = viewAttribution;
 
   function viewReportDetail(view, id) {
+    CURRENT_REPORT = id;
     if (BESPOKE_REPORTS[id]) return BESPOKE_REPORTS[id](view, getReport(id));
     const r = getReport(id); if (!r) return viewReports(view);
     const model = buildModel(r);
@@ -1222,8 +1423,8 @@
           document.querySelectorAll('[data-frm]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-frm'), 1); render(); }));
           document.querySelector('[data-act="addfilter"]').onclick = () => { state.filters.push({ op: 'is', value: labelOpts[0] }); render(); };
         }
-        document.querySelector('[data-act="filters"]').onclick = () => { state.fpOpen = !state.fpOpen; render(); };
-        document.querySelector('[data-act="edit"]').onclick = () => toast('Edit columns (prototype)');
+        document.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, CATALOG_FOR(r.source).dimensions);
+        document.querySelector('[data-act="edit"]').onclick = () => editDrawer(CATALOG_FOR(r.source), { dims: new Set(), metrics: new Set((mk || []).map(prettify)) }, () => render());
       }
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       const ctBtn = view.querySelector('[data-chart-type]');

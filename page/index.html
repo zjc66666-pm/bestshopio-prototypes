@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BestShopio · Page</title>
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../assets/tailwind-config.js"></script>
+  <link rel="stylesheet" href="../assets/theme.css?v=1" />
+  <style>
+    /* Module-scoped bits not covered by the shared theme (rich-text editor + SEO drawer keywords) */
+    .rt-wrap { border: 1px solid var(--ctl); border-radius: var(--radius); overflow: hidden; }
+    .rt-toolbar { display: flex; align-items: center; gap: 2px; padding: 6px 8px; background: var(--panel); border-bottom: 1px solid var(--hair); flex-wrap: wrap; }
+    .rt-block { height: 28px; border: 1px solid var(--ctl); border-radius: 6px; background: #fff; font-size: 12.5px; color: var(--ink); padding: 0 6px; cursor: pointer; }
+    .rt-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--ink-body); cursor: pointer; }
+    .rt-btn:hover { background: #fff; border-color: var(--ctl); color: var(--ink); }
+    .rt-sep { width: 1px; height: 18px; background: var(--hair); margin: 0 4px; }
+    .rt-body { min-height: 280px; max-height: 520px; overflow-y: auto; padding: 14px 16px; font-size: 14px; line-height: 1.65; color: var(--ink-body); outline: none; }
+    .rt-body:focus { background: #fff; }
+    .rt-body h2 { font-size: 18px; font-weight: 600; color: var(--ink); margin: 12px 0 8px; }
+    .rt-body h3 { font-size: 15px; font-weight: 600; color: var(--ink); margin: 12px 0 6px; }
+    .rt-body p { margin: 0 0 10px; }
+    .rt-body ul { margin: 0 0 10px; padding-left: 22px; list-style: disc; }
+    .rt-body li { margin: 2px 0; }
+    .rt-body a { color: var(--brand); text-decoration: underline; }
+    .rt-addon { display: inline-flex; align-items: center; height: 36px; padding: 0 10px; background: var(--panel); border: 1px solid var(--ctl); border-radius: var(--radius) 0 0 var(--radius); font-size: 12.5px; color: var(--ink-muted); white-space: nowrap; }
+    .kw-box { border: 1px solid var(--ctl); border-radius: var(--radius); padding: 5px 8px; min-height: 36px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .kw-box:focus-within { border-color: var(--brand); }
+    .kw-chip { display: inline-flex; align-items: center; gap: 4px; background: #eff4ff; color: var(--brand); border: 1px solid #d6e4ff; border-radius: 6px; padding: 2px 6px; font-size: 12.5px; }
+    .kw-x { display: inline-flex; cursor: pointer; color: var(--brand); }
+    .kw-x:hover { color: #0058c4; }
+    .kw-input { flex: 1; min-width: 130px; border: none; outline: none; background: transparent; font-size: 13px; height: 24px; color: var(--ink); }
+    .pg-radio input, .pg-radio span { vertical-align: middle; }
+  </style>
+</head>
+<body class="bg-page text-ink font-sans antialiased">
+  <div id="app" class="flex h-screen overflow-hidden">
+    <div id="content-col" class="flex-1 flex flex-col min-w-0">
+      <main id="view" class="flex-1 overflow-auto scroll-thin"><div class="view-wrap" id="root"></div></main>
+    </div>
+  </div>
+  <script src="../assets/nav.js"></script>
+  <script src="../assets/shell.js" data-base="../" data-active="page"></script>
+  <script src="js/data.js?v=1"></script>
+  <script src="js/app.js?v=1"></script>
+</body>
+</html>

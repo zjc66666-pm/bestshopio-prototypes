@@ -261,7 +261,7 @@ window.DATA = (function () {
     { id: 'sales_by_billing_location', name: 'Sales by country/region', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-15', viz: 'barH', metrics: ['total_sales'], dims: ['billing_country'] },
     { id: 'sales_by_currency', name: 'Total sales by currency', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '—', viz: 'table', metrics: ['total_sales', 'orders'], dims: ['currency'] },
     { id: 'aov_over_time', name: 'Average order value over time', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-25', viz: 'line', metrics: ['aov'], dims: ['day'] },
-    { id: 'daily_conv_jwl', name: '全站每日转化 jwl', cat: 'Sales', source: 'Derived', by: 'wenling jiang', viewed: '2026-05-27', viz: 'line', metrics: ['conversion_rate', 'orders'], dims: ['day'] },
+    { id: 'daily_conv_jwl', name: 'Daily store conversion', cat: 'Sales', source: 'Derived', by: 'wenling jiang', viewed: '2026-05-27', viz: 'line', metrics: ['conversion_rate', 'orders'], dims: ['day'] },
     // Orders
     { id: 'orders_over_time', name: 'Orders over time', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-26', viz: 'line', metrics: ['orders'], dims: ['day'] },
     { id: 'fulfillment_status', name: 'Orders by fulfillment status', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-24', viz: 'donut', metrics: ['orders'], dims: ['fulfillment_status'] },
@@ -287,7 +287,7 @@ window.DATA = (function () {
     { id: 'sessions_by_referrer', name: 'Traffic acquisition: By channel', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'bar', metrics: ['sessions'], dims: ['referrer'] },
     { id: 'user_path', name: 'User path analysis', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '—', viz: 'table', metrics: ['users'], dims: ['path_step'] },
     { id: 'retention', name: 'Retention analysis', cat: 'Behavior', source: 'Behavior', by: 'System', viewed: '2026-05-16', viz: 'cohort', metrics: ['retention_rate'], dims: ['cohort_week', 'weeks_since'] },
-    { id: 'landing_conv_jwl', name: '落地页转化率 jwl', cat: 'Behavior', source: 'Behavior', by: 'wenling jiang', viewed: '2026-05-27', viz: 'table', metrics: ['sessions', 'conversion_rate'], dims: ['landing_page'] },
+    { id: 'landing_conv_jwl', name: 'Landing-page conversion rate', cat: 'Behavior', source: 'Behavior', by: 'wenling jiang', viewed: '2026-05-27', viz: 'table', metrics: ['sessions', 'conversion_rate'], dims: ['landing_page'] },
     // Finances
     { id: 'finance_summary', name: 'Finance summary', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '2026-05-26', viz: 'table', metrics: ['gross_sales', 'discounts', 'net_sales', 'taxes', 'total_sales'], dims: ['metric'] },
     { id: 'sales_breakdown', name: 'Total sales breakdown', cat: 'Finances', source: 'Commerce', by: 'System', viewed: '2026-05-25', viz: 'table', metrics: ['amount'], dims: ['breakdown_item'] },
@@ -310,6 +310,7 @@ window.DATA = (function () {
     { id: 'performance_by_channel', name: 'Performance by referring channel', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-18', viz: 'table', metrics: ['sessions', 'orders', 'attributed_sales'], dims: ['channel'] },
     { id: 'social_referrer_sales', name: 'Total sales by social referrer', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-15', viz: 'barH', metrics: ['total_sales'], dims: ['social_referrer'] },
     { id: 'sales_by_referrer', name: 'Total sales by referrer', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-24', viz: 'barH', metrics: ['total_sales'], dims: ['referrer'] },
+    { id: 'attribution_model_comparison', name: 'Attribution model comparison', cat: 'Marketing', source: 'Behavior', by: 'System', viewed: '2026-05-16', viz: 'table', metrics: ['attributed_sales'], dims: ['channel'] },
   ];
 
   const REPORT_CATEGORIES = ['Sales', 'Orders', 'Customers', 'Behavior', 'Finances', 'Products', 'Marketing'];

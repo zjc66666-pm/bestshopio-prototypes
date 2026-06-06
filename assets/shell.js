@@ -34,6 +34,10 @@
     bell: s('<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'),
     chevDown: s('<path d="m6 9 6 6 6-6"/>'),
     menu: s('<path d="M3 6h18M3 12h18M3 18h18"/>'),
+    collections: s('<path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>'),
+    vendors: s('<path d="M4 4h16l1 5a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/>'),
+    reviews: s('<path d="m12 3 2.9 6 6.1.9-4.5 4.3 1 6.1-5.5-2.9-5.5 2.9 1-6.1L3 9.9 9 9z"/>'),
+    page: s('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/>'),
   };
   window.ICONS = ICONS;
 
@@ -52,6 +56,14 @@
     return '<div class="nav-item planned" title="Planned">' + icon + '<span>' + m.label + '</span><span class="nav-soon">Soon</span></div>';
   }
 
+  function groupedNav() {
+    var order = [], by = {};
+    MODS.forEach(function (m) { var g = m.group || ''; if (!by[g]) { by[g] = []; order.push(g); } by[g].push(m); });
+    return order.map(function (g) {
+      return (g ? '<div class="nav-group-label">' + g + '</div>' : '') + by[g].map(navItem).join('');
+    }).join('');
+  }
+
   function build() {
     var app = document.getElementById('app');
     var col = document.getElementById('content-col');
@@ -65,7 +77,7 @@
         '<div style="font-weight:600;font-size:15px">' + (SITE.store || 'Store') + '</div>' +
         '<div style="margin-left:auto" class="muted">' + ICONS.chevDown + '</div>' +
       '</a>' +
-      '<nav class="nav-scroll scroll-thin">' + MODS.map(navItem).join('') + '</nav>' +
+      '<nav class="nav-scroll scroll-thin">' + groupedNav() + '</nav>' +
       '<div style="border-top:1px solid var(--hair);padding:8px">' + FOOT.map(navItem).join('') + '</div>';
 
     var header = document.createElement('header');

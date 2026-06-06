@@ -44,10 +44,10 @@
           : '<div class="mod-card planned">' + inner + '</div>';
       }
 
-      var SECTIONS = ['Sell', 'Channels & content', 'Insights'];
+      var SECTIONS = ['Catalog', 'Sales', 'Content', 'Channels', 'Insights'];
       var grid = '';
       SECTIONS.forEach(function (sec) {
-        var items = MODS.filter(function (m) { return m.section === sec; });
+        var items = MODS.filter(function (m) { return m.group === sec; });
         if (!items.length) return;
         grid += '<div class="section-label">' + sec + '</div><div class="mod-grid">' + items.map(modCard).join('') + '</div>';
       });

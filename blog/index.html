@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BestShopio · Blog</title>
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../assets/tailwind-config.js"></script>
+  <link rel="stylesheet" href="../assets/theme.css?v=1" />
+  <style>
+    /* Blog module — small extras not covered by theme.css (scoped to blog views) */
+    /* rich-text editor mock (Content > Main body) */
+    .rt-wrap { border: 1px solid var(--ctl); border-radius: 8px; overflow: hidden; }
+    .rt-toolbar { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--hair); background: var(--panel); }
+    .rt-btn { width: 28px; height: 28px; display: grid; place-items: center; border: none; background: transparent; border-radius: 6px; color: var(--ink-body); cursor: pointer; }
+    .rt-btn:hover { background: #e3e6f0; color: var(--ink); }
+    .rt-editor { min-height: 220px; padding: 12px 14px; font-size: 13.5px; line-height: 1.6; color: var(--ink-body); outline: none; }
+    .rt-editor:focus { box-shadow: inset 0 0 0 1px var(--brand); }
+    .rt-editor h2 { font-size: 16px; font-weight: 600; color: var(--ink); margin: 10px 0 6px; }
+    .rt-editor p { margin: 0 0 8px; }
+    /* radio rows (Status) */
+    .rt-radio { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-body); cursor: pointer; }
+    .rt-dot { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ctl); flex: none; position: relative; }
+    .rt-radio:hover .rt-dot { border-color: var(--brand); }
+    .rt-dot.on { border-color: var(--brand); }
+    .rt-dot.on::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--brand); }
+    /* image remove badge */
+    .img-x { position: absolute; right: 8px; top: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgb(0 0 0 / 50%); color: #fff; display: grid; place-items: center; cursor: pointer; }
+    .img-x:hover { background: rgb(0 0 0 / 70%); }
+    .img-pick { border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; cursor: pointer; transition: border-color .15s; }
+    .img-pick:hover { border-color: var(--brand); }
+    /* SEO drawer — keyword tag box + URL addon */
+    .kw-box { display: flex; flex-wrap: wrap; gap: 6px; min-height: 36px; border: 1px solid var(--ctl); border-radius: var(--radius); padding: 5px 8px; }
+    .kw-box:focus-within { border-color: var(--brand); }
+    .kw-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; background: #e6f0ff; border: 1px solid #cfe1ff; color: var(--brand); font-size: 13px; }
+    .kw-x { cursor: pointer; display: inline-flex; }
+    .kw-x:hover { color: #0058c4; }
+    .kw-input { flex: 1; min-width: 120px; border: none; outline: none; font-size: 13px; background: transparent; color: var(--ink); }
+    .addon-before { display: inline-flex; align-items: center; padding: 0 10px; height: 36px; border: 1px solid var(--ctl); border-right: none; border-radius: var(--radius) 0 0 var(--radius); background: var(--panel); color: var(--ink-muted); font-size: 12.5px; white-space: nowrap; max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
+  </style>
+</head>
+<body class="bg-page text-ink font-sans antialiased">
+  <div id="app" class="flex h-screen overflow-hidden">
+    <div id="content-col" class="flex-1 flex flex-col min-w-0">
+      <main id="view" class="flex-1 overflow-auto scroll-thin"><div class="view-wrap" id="root"></div></main>
+    </div>
+  </div>
+  <script src="../assets/nav.js"></script>
+  <script src="../assets/shell.js" data-base="../" data-active="blog"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
