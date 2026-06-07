@@ -349,3 +349,7 @@ a.mod-card:hover { border-color: var(--brand); box-shadow: var(--float-shadow); 
 .set-close { width: 32px; height: 32px; border-radius: 8px; background: #eef0f7; display: grid; place-items: center; color: var(--ink); text-decoration: none; }
 .set-close:hover { background: #e2e6f1; }
 .set-close .nav-ico { width: 16px; height: 16px; }
+
+/* ---- Native <select> -> Ant-style chevron arrow (match the live admin Select), #3 ---- */
+select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2362708d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 9px center; padding-right: 30px; }
+select::-ms-expand { display: none; }
