@@ -193,11 +193,11 @@
           '<thead><tr>' +
             '<th style="width:38px"><input type="checkbox" id="sel-all" ' + (allOnPageSel ? 'checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer" /></th>' +
             '<th>Product</th><th style="width:140px">Price</th><th style="width:300px">Inventory quantity</th>' +
-            '<th style="width:150px">Status</th><th style="width:150px">SKU sync</th><th style="width:80px;text-align:center">Action</th>' +
+            '<th style="width:150px">Status</th><th style="width:80px;text-align:center">Action</th>' +
           '</tr></thead>' +
           '<tbody id="pr-tbody">' +
             (pageRows.length ? pageRows.map(rowHtml).join('')
-              : '<tr><td colspan="7" style="text-align:center;padding:40px" class="muted">No products match these filters.</td></tr>') +
+              : '<tr><td colspan="6" style="text-align:center;padding:40px" class="muted">No products match these filters.</td></tr>') +
           '</tbody>' +
         '</table>' +
         '</div>' +
@@ -226,7 +226,6 @@
       '<td style="font-variant-numeric:tabular-nums;color:var(--ink)">' + priceText(p) + '</td>' +
       '<td>' + inventoryCell(p) + '</td>' +
       '<td>' + statusCell + '</td>' +
-      '<td>' + syncPill(p.sku_sync_stats) + '</td>' +
       '<td style="text-align:center" data-stop><button class="back-btn" data-view="' + p.product_id + '" title="Preview" style="width:30px;height:30px">' + I.eye + '</button></td>' +
     '</tr>';
   }
@@ -431,24 +430,27 @@
     const archived = !!(EDIT.settings && EDIT.settings.archived);
 
     root.innerHTML =
-      // unsaved-changes bar (UnSavedChanges.tsx) — hidden until a field changes
-      '<div id="unsaved-bar" style="display:none;align-items:center;justify-content:space-between;gap:12px;background:#242833;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:16px">' +
-        '<span style="font-size:13.5px">Unsaved changes</span>' +
-        '<div class="flex items-center gap-2">' +
-          '<button class="btn" style="background:rgba(255,255,255,.16);color:#fff" data-act="discard">Discard</button>' +
-          '<button class="btn btn-primary" data-act="save-bar">' + (isEdit ? 'Update' : 'Add') + '</button>' +
+      // fixed 1200px centered container (matches real admin) — .detail-* shared classes in theme.css
+      '<div class="detail-wrap">' +
+        // unsaved-changes bar (UnSavedChanges.tsx) — hidden until a field changes
+        '<div id="unsaved-bar" style="display:none;align-items:center;justify-content:space-between;gap:12px;background:#242833;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:16px">' +
+          '<span style="font-size:13.5px">Unsaved changes</span>' +
+          '<div class="flex items-center gap-2">' +
+            '<button class="btn" style="background:rgba(255,255,255,.16);color:#fff" data-act="discard">Discard</button>' +
+            '<button class="btn btn-primary" data-act="save-bar">' + (isEdit ? 'Update' : 'Add') + '</button>' +
+          '</div>' +
         '</div>' +
-      '</div>' +
-      // header
-      '<div class="flex items-center gap-3 mb-4">' +
-        '<button class="back-btn" data-act="back" title="Back to products">' + I.arrowLeft + '</button>' +
-        '<h1 class="page-title" style="min-width:0;word-break:break-word">' + esc(title) + '</h1>' +
-        (archived ? '<span class="pill pill-gray">' + I.clock + ' Archived</span>' : '') +
-      '</div>' +
-      // two-column body: left sections, right settings rail
-      '<div class="flex gap-4" style="align-items:flex-start;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:340px" id="edit-main"></div>' +
-        '<div style="width:300px;flex:0 0 300px" id="edit-side"></div>' +
+        // header
+        '<div class="flex items-center gap-3 mb-4">' +
+          '<button class="back-btn" data-act="back" title="Back to products">' + I.arrowLeft + '</button>' +
+          '<h1 class="page-title" style="min-width:0;word-break:break-word">' + esc(title) + '</h1>' +
+          (archived ? '<span class="pill pill-gray">' + I.clock + ' Archived</span>' : '') +
+        '</div>' +
+        // two-column body: left sections (flex), right settings rail (fixed 275px)
+        '<div class="detail-cols">' +
+          '<div class="detail-main" id="edit-main"></div>' +
+          '<div class="detail-rail" id="edit-side"></div>' +
+        '</div>' +
       '</div>';
 
     document.getElementById('edit-main').innerHTML =

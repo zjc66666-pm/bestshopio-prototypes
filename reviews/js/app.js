@@ -336,36 +336,38 @@
     const isProduct = r.reviewType === 'product';
 
     root.innerHTML =
-      // header
-      '<div class="flex items-center justify-between mb-4">' +
-        '<div class="flex items-center gap-3">' +
-          '<button class="back-btn" data-act="back" title="Back to reviews">' + I.arrowLeft + '</button>' +
-          '<span class="page-title">Edit review</span>' +
-          '<span class="muted" style="font-size:13px">#' + esc(r.id) + '</span>' +
-          typeTag(r.reviewType) +
-        '</div>' +
-        '<div class="flex items-center gap-2">' +
-          '<button class="btn btn-default" data-act="toggle">' + (r.status === 0 ? I.eyeOff + ' Hide' : I.eye + ' Show') + '</button>' +
-          '<button class="btn btn-primary" data-act="reply">' + I.reply + ' Reply</button>' +
-        '</div>' +
-      '</div>' +
-      // two-column body
-      '<div class="flex gap-6" style="align-items:flex-start;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:340px">' +
-          reviewTypeCard(r, isProduct) +
-          reviewDetailsCard(r) +
-          mediaCard(r) +
-          (r.merchantReplyContent ? replyCard(r) : '') +
-          '<div class="flex gap-2 mt-1" style="justify-content:flex-end">' +
-            '<button class="btn btn-primary" data-act="save">Update</button>' +
-            '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c4ba">' + I.trash + ' Delete review</button>' +
+      '<div class="detail-wrap">' +
+        // header
+        '<div class="flex items-center justify-between mb-4">' +
+          '<div class="flex items-center gap-3">' +
+            '<button class="back-btn" data-act="back" title="Back to reviews">' + I.arrowLeft + '</button>' +
+            '<span class="page-title">Edit review</span>' +
+            '<span class="muted" style="font-size:13px">#' + esc(r.id) + '</span>' +
+            typeTag(r.reviewType) +
+          '</div>' +
+          '<div class="flex items-center gap-2">' +
+            '<button class="btn btn-default" data-act="toggle">' + (r.status === 0 ? I.eyeOff + ' Hide' : I.eye + ' Show') + '</button>' +
+            '<button class="btn btn-primary" data-act="reply">' + I.reply + ' Reply</button>' +
           '</div>' +
         '</div>' +
-        '<div style="width:280px;flex:0 0 280px">' +
-          statusCard(r) +
-          customerCard(r) +
-          recommendCard(r) +
-          themeCard(r) +
+        // two-column body
+        '<div class="detail-cols">' +
+          '<div class="detail-main">' +
+            reviewTypeCard(r, isProduct) +
+            reviewDetailsCard(r) +
+            mediaCard(r) +
+            (r.merchantReplyContent ? replyCard(r) : '') +
+            '<div class="flex gap-2 mt-1" style="justify-content:flex-end">' +
+              '<button class="btn btn-primary" data-act="save">Update</button>' +
+              '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c4ba">' + I.trash + ' Delete review</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="detail-rail">' +
+            statusCard(r) +
+            customerCard(r) +
+            recommendCard(r) +
+            themeCard(r) +
+          '</div>' +
         '</div>' +
       '</div>';
 

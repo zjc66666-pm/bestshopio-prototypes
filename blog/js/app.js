@@ -270,29 +270,32 @@
     const pageTitle = isNew ? 'Add blog' : 'Edit blog';
 
     root.innerHTML =
-      // header
-      '<div class="flex items-center gap-2 mb-5">' +
-        '<button class="back-btn" data-act="back" title="Back to blog">' + I.arrowLeft + '</button>' +
-        '<h1 class="page-title">' + esc(pageTitle) + '</h1>' +
-      '</div>' +
-      // two-column body
-      '<div class="flex gap-4" style="align-items:flex-start;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:340px">' +
-          infoCard() +
-          organizationCard() +
-          contentCard() +
-          // footer actions
-          '<div class="flex justify-end gap-2 mt-1">' +
-            '<button class="btn btn-primary" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
-            (isNew ? '' : '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c2b8">Delete blog</button>') +
-          '</div>' +
+      // fixed 1200px centered container (matches real admin detail width)
+      '<div class="detail-wrap">' +
+        // header
+        '<div class="flex items-center gap-2 mb-5">' +
+          '<button class="back-btn" data-act="back" title="Back to blog">' + I.arrowLeft + '</button>' +
+          '<h1 class="page-title">' + esc(pageTitle) + '</h1>' +
         '</div>' +
-        '<div style="width:284px;flex:0 0 284px">' +
-          statusCard() +
-          recommendCard() +
-          seoCard() +
-          imageCard() +
-          themeCard() +
+        // two-column body
+        '<div class="detail-cols">' +
+          '<div class="detail-main">' +
+            infoCard() +
+            organizationCard() +
+            contentCard() +
+            // footer actions
+            '<div class="flex justify-end gap-2 mt-1">' +
+              '<button class="btn btn-primary" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
+              (isNew ? '' : '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c2b8">Delete blog</button>') +
+            '</div>' +
+          '</div>' +
+          '<div class="detail-rail">' +
+            statusCard() +
+            recommendCard() +
+            seoCard() +
+            imageCard() +
+            themeCard() +
+          '</div>' +
         '</div>' +
       '</div>';
 
@@ -485,7 +488,7 @@
 
   // re-render just the right column cards in place (status/recommend/seo/image/theme)
   function rerenderRight() {
-    const rightCol = root.querySelector('[style*="flex:0 0 284px"]');
+    const rightCol = root.querySelector('.detail-rail');
     if (!rightCol) { paintEdit(); return; }
     rightCol.innerHTML = statusCard() + recommendCard() + seoCard() + imageCard() + themeCard();
     // re-wire right-column interactions

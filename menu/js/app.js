@@ -227,11 +227,11 @@
 
     root.innerHTML =
       '<div id="mnu-savebar-slot"></div>' +
-      '<div class="flex items-center gap-2 mb-4">' +
-        '<button class="back-btn" data-act="back" title="Back to menus">' + I.arrowLeft + '</button>' +
-        '<span class="page-title">' + title + '</span>' +
-      '</div>' +
-      '<div style="max-width:880px">' +
+      '<div class="detail-wrap">' +
+        '<div class="flex items-center gap-2 mb-4">' +
+          '<button class="back-btn" data-act="back" title="Back to menus">' + I.arrowLeft + '</button>' +
+          '<span class="page-title">' + title + '</span>' +
+        '</div>' +
         infoCard() +
         itemsCard() +
         '<div class="flex justify-end gap-2 mt-4">' +

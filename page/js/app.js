@@ -260,6 +260,8 @@
     var headerTitle = isNew ? 'Add page' : (EDIT.title || 'Untitled page');
 
     root.innerHTML =
+      // fixed 1200px centered container (mirrors the real admin edit page width)
+      '<div class="detail-wrap">' +
       // header: back + title  (mirrors back-btn-square + h1 in pages/edit.tsx)
       '<div class="flex items-center justify-between mb-6">' +
         '<div class="flex items-center gap-3">' +
@@ -271,9 +273,9 @@
           '<button class="btn btn-primary" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
         '</div>' +
       '</div>' +
-      // two-column body
-      '<div class="flex gap-6" style="align-items:flex-start;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:360px">' +
+      // two-column body: main (fluid) + 275px right rail
+      '<div class="detail-cols">' +
+        '<div class="detail-main">' +
           titleCard() +
           contentCard() +
           // bottom action row (real layout repeats Add/Update + Delete here)
@@ -282,11 +284,12 @@
             (isNew ? '' : '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:var(--err)">Delete page</button>') +
           '</div>' +
         '</div>' +
-        '<div style="width:300px;flex:none">' +
+        '<div class="detail-rail">' +
           statusCard() +
           seoCard() +
           templateCard() +
         '</div>' +
+      '</div>' +
       '</div>';
 
     wireEdit();

@@ -473,6 +473,7 @@
       ? '<button class="btn btn-default" data-act="raw">' + I.code + ' View raw data</button>' : '';
 
     root.innerHTML =
+      '<div class="detail-wrap">' +
       '<div class="flex items-center justify-between mb-4">' +
         '<div class="flex items-center gap-3">' +
           '<button class="back-btn" data-act="back" title="Back to variants">' + I.arrowLeft + '</button>' +
@@ -494,7 +495,8 @@
       sectionDetailedDescription(a, detail) +
       sectionShippingCampaigns(a) +
       sectionDestinations(a) +
-      sectionShipping(a);
+      sectionShipping(a) +
+      '</div>';
 
     wireVariantEdit(unique, detail, meta);
   }
@@ -731,12 +733,14 @@
 
   function renderMissing(unique, meta) {
     root.innerHTML =
+      '<div class="detail-wrap">' +
       '<div class="flex items-center gap-3 mb-4">' +
         '<button class="back-btn" data-act="back">' + I.arrowLeft + '</button>' +
         '<span class="page-title">Variant ' + esc(unique) + '</span>' +
       '</div>' +
       '<div class="panel placeholder"><div><div style="font-weight:600;margin-bottom:6px">Assembled GMC detail not available in this prototype</div>' +
-        '<div class="muted">Open a variant flagged with sample detail: gmc-510202, gmc-510204, gmc-510205 or gmc-510401.</div></div></div>';
+        '<div class="muted">Open a variant flagged with sample detail: gmc-510202, gmc-510204, gmc-510205 or gmc-510401.</div></div></div>' +
+      '</div>';
     root.querySelector('[data-act="back"]').onclick = () => { location.hash = meta ? '#/variants?product=' + meta.product_id : '#/variants'; };
   }
 
@@ -748,6 +752,7 @@
     const raw = D.RAW_DATA[unique];
     const json = raw ? JSON.stringify(raw, null, 2) : '{}';
     root.innerHTML =
+      '<div class="detail-wrap">' +
       '<div class="flex items-center justify-between mb-4">' +
         '<div class="flex items-center gap-3">' +
           '<button class="back-btn" data-act="back" title="Back to variant detail">' + I.arrowLeft + '</button>' +
@@ -762,6 +767,7 @@
             '<pre class="ql-editor" style="white-space:pre-wrap;word-break:break-word;min-height:auto;margin:0;border:1px solid var(--hair);border-radius:8px;background:var(--panel)">' + esc(json) + '</pre>'
           : '<div class="placeholder"><div><div style="font-weight:600;margin-bottom:6px">No raw data captured for this variant</div>' +
             '<div class="muted">Raw GMC responses are available for submitted variants gmc-510202 and gmc-510401.</div></div></div>') +
+      '</div>' +
       '</div>';
     root.querySelector('[data-act="back"]').onclick = () => { location.hash = '#/variants/' + encodeURIComponent(unique); };
     const cp = root.querySelector('[data-act="copy"]'); if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(json); } catch (e) {} toast('Raw JSON copied'); };

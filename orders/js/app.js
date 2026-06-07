@@ -158,8 +158,8 @@
             // time group
             '<div class="flex" style="min-width:428px">' +
               '<select class="filter-select" id="time-type" style="width:160px;border-top-right-radius:0;border-bottom-right-radius:0">' + timeOpts + '</select>' +
-              '<input class="filter-input" id="date-start" type="date" value="' + esc(LST.dateStart) + '" style="width:135px;border-radius:0;margin-left:-1px" />' +
-              '<input class="filter-input" id="date-end" type="date" value="' + esc(LST.dateEnd) + '" style="width:135px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" />' +
+              '<input class="filter-input" id="date-start" type="text" placeholder="YYYY-MM-DD" value="' + esc(LST.dateStart) + '" style="width:135px;border-radius:0;margin-left:-1px" />' +
+              '<input class="filter-input" id="date-end" type="text" placeholder="YYYY-MM-DD" value="' + esc(LST.dateEnd) + '" style="width:135px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" />' +
             '</div>' +
             // total range chip
             '<div class="sel-trigger" id="total-chip" style="width:240px">' +
@@ -311,30 +311,33 @@
       (showRefund ? '<button class="btn btn-default" data-act="refund">' + I.money + ' Refund</button>' : '');
 
     root.innerHTML =
-      // header
-      '<div class="flex items-center justify-between mb-4">' +
-        '<div class="flex items-center gap-3">' +
-          '<button class="back-btn" data-act="back" title="Back to orders">' + I.arrowLeft + '</button>' +
-          '<div class="flex items-center gap-2">' +
-            '<span class="page-title">' + esc(o.order_sn) + '</span>' +
-            '<button class="back-btn" data-act="copy" title="Copy order number" style="width:30px;height:30px">' + I.copy + '</button>' +
-            pill(ORDER_STATUS, o.status) + pill(PAY_STATUS, o.payment_status) + pill(FULFILL_STATUS, o.fulfillment_status) +
+      // fixed 1200px centered container (matches real admin)
+      '<div class="detail-wrap">' +
+        // header
+        '<div class="flex items-center justify-between mb-4">' +
+          '<div class="flex items-center gap-3">' +
+            '<button class="back-btn" data-act="back" title="Back to orders">' + I.arrowLeft + '</button>' +
+            '<div class="flex items-center gap-2">' +
+              '<span class="page-title">' + esc(o.order_sn) + '</span>' +
+              '<button class="back-btn" data-act="copy" title="Copy order number" style="width:30px;height:30px">' + I.copy + '</button>' +
+              pill(ORDER_STATUS, o.status) + pill(PAY_STATUS, o.payment_status) + pill(FULFILL_STATUS, o.fulfillment_status) +
+            '</div>' +
           '</div>' +
+          '<div class="flex items-center gap-2">' + actions + '</div>' +
         '</div>' +
-        '<div class="flex items-center gap-2">' + actions + '</div>' +
-      '</div>' +
-      // two-column body
-      '<div class="flex gap-4" style="align-items:flex-start;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:320px">' +
-          productsCard(o) +
-          amountCard(o) +
-          shippingAddressCard(o) +
-          shippingLogisticsCard(o) +
-          timelineCard(o) +
-        '</div>' +
-        '<div style="width:300px;flex:0 0 300px">' +
-          notesCard(o) +
-          userCard(o) +
+        // two-column body (main + 275px rail)
+        '<div class="detail-cols">' +
+          '<div class="detail-main">' +
+            productsCard(o) +
+            amountCard(o) +
+            shippingAddressCard(o) +
+            shippingLogisticsCard(o) +
+            timelineCard(o) +
+          '</div>' +
+          '<div class="detail-rail">' +
+            notesCard(o) +
+            userCard(o) +
+          '</div>' +
         '</div>' +
       '</div>';
 

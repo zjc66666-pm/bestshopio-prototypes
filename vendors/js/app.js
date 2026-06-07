@@ -351,28 +351,31 @@
     const heading = IS_EDIT ? (f.name && f.name.trim() ? f.name : 'Edit vendor') : 'Add vendor';
 
     root.innerHTML =
-      // header
-      '<div class="flex items-center gap-2 mb-6">' +
-        '<button class="back-btn" data-act="back" title="Back to vendors">' + I.arrowLeft + '</button>' +
-        '<h1 class="page-title">' + esc(heading) + '</h1>' +
-      '</div>' +
-      // two-column body
-      '<div class="flex gap-6" style="align-items:flex-start;flex-wrap:wrap">' +
-        // main column
-        '<div style="flex:1;min-width:340px">' +
-          vendorDetailsCard(f) +
-          vendorProductsCard(f) +
-          '<div class="flex justify-end gap-2 mt-6">' +
-            '<button class="btn btn-primary" data-act="save">' + (IS_EDIT ? 'Update' : 'Add vendor') + '</button>' +
-            (IS_EDIT ? '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c6bd">Delete vendor</button>' : '') +
-          '</div>' +
+      // fixed 1200px centered container (matches real admin)
+      '<div class="detail-wrap">' +
+        // header
+        '<div class="flex items-center gap-2 mb-6">' +
+          '<button class="back-btn" data-act="back" title="Back to vendors">' + I.arrowLeft + '</button>' +
+          '<h1 class="page-title">' + esc(heading) + '</h1>' +
         '</div>' +
-        // right rail (275px in vendorEdit.tsx)
-        '<div style="width:275px;flex:0 0 275px;min-width:275px">' +
-          statusCard(f) +
-          seoCard(f, seoUrl, pageTitle, metaDesc) +
-          imageCard(f) +
-          templateCard(f) +
+        // two-column body
+        '<div class="detail-cols">' +
+          // main column
+          '<div class="detail-main">' +
+            vendorDetailsCard(f) +
+            vendorProductsCard(f) +
+            '<div class="flex justify-end gap-2 mt-6">' +
+              '<button class="btn btn-primary" data-act="save">' + (IS_EDIT ? 'Update' : 'Add vendor') + '</button>' +
+              (IS_EDIT ? '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c6bd">Delete vendor</button>' : '') +
+            '</div>' +
+          '</div>' +
+          // right rail (275px in vendorEdit.tsx)
+          '<div class="detail-rail">' +
+            statusCard(f) +
+            seoCard(f, seoUrl, pageTitle, metaDesc) +
+            imageCard(f) +
+            templateCard(f) +
+          '</div>' +
         '</div>' +
       '</div>';
 

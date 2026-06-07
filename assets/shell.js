@@ -69,27 +69,34 @@
     var col = document.getElementById('content-col');
     if (!app || !col) return;
 
-    var aside = document.createElement('aside');
-    aside.className = 'app-sidebar scroll-thin';
-    aside.innerHTML =
-      '<a class="brand-row" href="' + BASE + 'index.html" title="Home">' +
-        '<div class="brand-mark">' + String(SITE.store || 'S').charAt(0) + '</div>' +
-        '<div style="font-weight:600;font-size:15px">' + (SITE.store || 'Store') + '</div>' +
-        '<div style="margin-left:auto" class="muted">' + ICONS.chevDown + '</div>' +
-      '</a>' +
-      '<nav class="nav-scroll scroll-thin">' + groupedNav() + '</nav>' +
-      '<div style="border-top:1px solid var(--hair);padding:8px">' + FOOT.map(navItem).join('') + '</div>';
+    app.classList.add('shell-root');
+    var view = document.getElementById('view');
+    if (view) view.classList.add('shell-view');
 
+    // top full-width header: logo only (matches real admin — no search / bell / avatar)
     var header = document.createElement('header');
     header.className = 'app-header';
     header.innerHTML =
       '<button class="sidebar-toggle" aria-label="Menu">' + ICONS.menu + '</button>' +
-      '<div class="search-box">' + ICONS.search + '<span>Search</span><span style="margin-left:auto" class="kbd">Ctrl K</span></div>' +
-      '<button class="hdr-ico" title="Notifications">' + ICONS.bell + '</button>' +
-      '<div class="avatar">' + String(SITE.role || 'U').charAt(0) + '</div>';
+      '<a class="hdr-logo" href="' + BASE + 'index.html" title="Home">' +
+        '<span class="brand-mark">' + String(SITE.store || 'S').charAt(0) + '</span>' +
+        '<span class="hdr-logo-name">' + (SITE.store || 'Store') + '</span>' +
+      '</a>';
 
-    app.insertBefore(aside, app.firstChild);
-    col.insertBefore(header, col.firstChild);
+    // sidebar below the header (no brand block — logo lives in the header)
+    var aside = document.createElement('aside');
+    aside.className = 'app-sidebar scroll-thin';
+    aside.innerHTML =
+      '<nav class="nav-scroll scroll-thin">' + groupedNav() + '</nav>' +
+      '<div class="nav-footer">' + FOOT.map(navItem).join('') + '</div>';
+
+    var body = document.createElement('div');
+    body.className = 'app-body';
+
+    app.insertBefore(header, app.firstChild); // app: [header, col]
+    app.insertBefore(body, col);              // app: [header, body, col]
+    body.appendChild(aside);                  // body: [aside]
+    body.appendChild(col);                    // body: [aside, col]  → app: [header, body]
 
     var backdrop = document.createElement('div');
     backdrop.className = 'sidebar-backdrop';

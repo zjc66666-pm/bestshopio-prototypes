@@ -279,9 +279,9 @@
     pop.innerHTML =
       '<div class="ctrl-label" style="margin-bottom:8px">Start date range</div>' +
       '<div class="flex items-center gap-2">' +
-        '<input class="input" id="d-start" type="date" value="' + esc(LST.dateStart) + '" style="flex:1" />' +
+        '<input class="input" id="d-start" type="text" placeholder="YYYY-MM-DD" value="' + esc(LST.dateStart) + '" style="flex:1" />' +
         '<span class="muted">to</span>' +
-        '<input class="input" id="d-end" type="date" value="' + esc(LST.dateEnd) + '" style="flex:1" />' +
+        '<input class="input" id="d-end" type="text" placeholder="YYYY-MM-DD" value="' + esc(LST.dateEnd) + '" style="flex:1" />' +
       '</div>' +
       '<div class="flex gap-3 mt-3" style="font-size:13px"><span class="lnk" data-sc="week">Last week</span><span class="lnk" data-sc="month">Last month</span></div>' +
       '<div class="flex justify-end gap-2 mt-3"><button class="btn btn-default" data-x>Clear</button><button class="btn btn-primary" data-apply>Apply</button></div>';
@@ -401,6 +401,7 @@
     }
 
     root.innerHTML =
+      '<div class="detail-wrap">' +
       '<div class="flex items-center justify-between mb-4">' +
         '<div class="flex items-center gap-3">' +
           '<button class="back-btn" data-act="back" title="Back to discounts">' + I.arrowLeft + '</button>' +
@@ -409,8 +410,8 @@
         '</div>' +
         '<div class="flex items-center gap-2">' + statusBtn + '</div>' +
       '</div>' +
-      '<div class="flex gap-5" style="align-items:flex-start;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:340px;display:flex;flex-direction:column;gap:16px" id="ed-form">' +
+      '<div class="detail-cols">' +
+        '<div class="detail-main" style="display:flex;flex-direction:column;gap:16px" id="ed-form">' +
           methodCard(e) +
           (e.dimension !== 'shipping' ? valueCard(e) : '') +
           (e.dimension === 'product' ? appliesToCard(e) : '') +
@@ -423,7 +424,8 @@
           (isEdit ? logsCard(e) : '') +
           '<div class="flex justify-end"><button class="btn btn-primary" data-act="save">' + (isEdit ? 'Update' : 'Add') + '</button></div>' +
         '</div>' +
-        '<div style="width:320px;flex:0 0 320px">' + overviewCard(e) + '</div>' +
+        '<div class="detail-rail">' + overviewCard(e) + '</div>' +
+      '</div>' +
       '</div>';
 
     wireEdit(e);
@@ -617,10 +619,10 @@
     const body =
       '<div style="display:flex;flex-direction:column;gap:14px">' +
         '<div><div class="muted" style="font-size:13px;margin-bottom:4px">Start time (UTC+00:00)</div>' +
-          '<input class="input" id="f-start" type="datetime-local" value="' + esc(startVal) + '" style="width:260px" /></div>' +
+          '<input class="input" id="f-start" type="text" placeholder="YYYY-MM-DD HH:mm" value="' + esc(startVal.replace('T', ' ')) + '" style="width:260px" /></div>' +
         (!e.never_expires
           ? '<div><div class="muted" style="font-size:13px;margin-bottom:4px">End time (UTC+00:00)</div>' +
-            '<input class="input" id="f-end" type="datetime-local" value="' + esc(endVal) + '" style="width:260px" /></div>'
+            '<input class="input" id="f-end" type="text" placeholder="YYYY-MM-DD HH:mm" value="' + esc(endVal.replace('T', ' ')) + '" style="width:260px" /></div>'
           : '') +
         checkRow('never', e.never_expires, 'Never expires') +
       '</div>';

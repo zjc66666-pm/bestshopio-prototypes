@@ -246,27 +246,30 @@
     root.innerHTML =
       // unsaved-changes warning bar (UnSavedChanges) — sticky top
       (dirty ? unsavedBar(isNew) : '') +
-      // header
-      '<div class="flex items-center gap-3 mb-5">' +
-        '<button class="back-btn" data-act="back" title="Back to collections">' + I.arrowLeft + '</button>' +
-        '<h1 class="page-title">' + esc(title) + '</h1>' +
-      '</div>' +
-      // two-column layout: main + 275px sidebar
-      '<div class="flex gap-5" style="align-items:flex-start;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:340px">' +
-          detailsCard() +
-          typeCard() +
-          productsCard() +
-          subCollectionsCard() +
-          '<div class="flex justify-end gap-2 mt-5">' +
-            '<button class="btn btn-primary" data-act="save">' + confirmText + '</button>' +
-            (isNew ? '' : '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c4b8">Delete the collection</button>') +
-          '</div>' +
+      // fixed 1200px centered container (matches real admin)
+      '<div class="detail-wrap">' +
+        // header
+        '<div class="flex items-center gap-3 mb-5">' +
+          '<button class="back-btn" data-act="back" title="Back to collections">' + I.arrowLeft + '</button>' +
+          '<h1 class="page-title">' + esc(title) + '</h1>' +
         '</div>' +
-        '<div style="width:275px;flex:0 0 275px">' +
-          seoCard() +
-          imageCard() +
-          templateCard() +
+        // two-column layout: main + 275px rail
+        '<div class="detail-cols">' +
+          '<div class="detail-main">' +
+            detailsCard() +
+            typeCard() +
+            productsCard() +
+            subCollectionsCard() +
+            '<div class="flex justify-end gap-2 mt-5">' +
+              '<button class="btn btn-primary" data-act="save">' + confirmText + '</button>' +
+              (isNew ? '' : '<button class="btn btn-default" data-act="delete" style="color:var(--err);border-color:#f3c4b8">Delete the collection</button>') +
+            '</div>' +
+          '</div>' +
+          '<div class="detail-rail">' +
+            seoCard() +
+            imageCard() +
+            templateCard() +
+          '</div>' +
         '</div>' +
       '</div>';
 

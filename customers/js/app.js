@@ -365,26 +365,29 @@
     if (!c) { renderMissing(id); return; }
 
     root.innerHTML =
-      // header
-      '<div class="flex items-center justify-between mb-4">' +
-        '<div class="flex items-center gap-3">' +
-          '<button class="back-btn" data-act="back" title="Back to customers">' + I.arrowLeft + '</button>' +
-          '<span class="page-title">' + esc(displayName(c)) + '</span>' +
+      // fixed 1200px centered container (mirrors real admin .detail-wrap)
+      '<div class="detail-wrap">' +
+        // header
+        '<div class="flex items-center justify-between mb-4">' +
+          '<div class="flex items-center gap-3">' +
+            '<button class="back-btn" data-act="back" title="Back to customers">' + I.arrowLeft + '</button>' +
+            '<span class="page-title">' + esc(displayName(c)) + '</span>' +
+          '</div>' +
         '</div>' +
-      '</div>' +
-      // two-column body
-      '<div class="flex gap-6" style="align-items:flex-start;flex-wrap:wrap">' +
-        '<div style="flex:1;min-width:340px">' +
-          headerSummaryCard(c) +
-          statsCards(c) +
-          orderListCard(c) +
-          timelineCard(c) +
-        '</div>' +
-        '<div style="width:300px;flex:0 0 300px">' +
-          detailsCard(c) +
-          subscriptionsCard(c) +
-          addressCard(c) +
-          notesCard(c) +
+        // two-column body: main + 275px right rail
+        '<div class="detail-cols">' +
+          '<div class="detail-main">' +
+            headerSummaryCard(c) +
+            statsCards(c) +
+            orderListCard(c) +
+            timelineCard(c) +
+          '</div>' +
+          '<div class="detail-rail">' +
+            detailsCard(c) +
+            subscriptionsCard(c) +
+            addressCard(c) +
+            notesCard(c) +
+          '</div>' +
         '</div>' +
       '</div>';
 

@@ -26,31 +26,29 @@
   function renderChrome() {
     const app = document.getElementById('app');
     app.innerHTML = '';
+    app.classList.add('shell-root');
+
+    // top full-width header: logo only (matches real admin — no search / bell / avatar)
     app.appendChild(h(`
+      <header class="app-header">
+        <a class="hdr-logo" href="../index.html" title="Back to BestShopio modules">
+          <span class="brand-mark">S</span><span class="hdr-logo-name">Silix</span>
+        </a>
+      </header>`));
+
+    const body = h(`<div class="app-body"></div>`);
+    body.appendChild(h(`
       <aside class="app-sidebar scroll-thin">
-        <div class="brand-row">
-          <a href="../index.html" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit" title="Back to BestShopio modules">
-            <div class="brand-mark">S</div>
-            <div style="font-weight:600;font-size:15px">Silix</div>
-          </a>
-          <div style="margin-left:auto" class="muted">${ICON.chevDown}</div>
-        </div>
         <nav class="nav-scroll scroll-thin" id="nav"></nav>
-        <div style="border-top:1px solid var(--hair);padding:8px">
+        <div class="nav-footer">
           <a class="nav-item" data-route="#/m/settings">${ICON.settings}<span>Settings</span></a>
         </div>
       </aside>`));
-
-    const main = h(`
+    body.appendChild(h(`
       <div class="flex-1 flex flex-col min-w-0">
-        <header class="app-header">
-          <div class="search-box">${ICON.search}<span>Search</span><span style="margin-left:auto" class="kbd">Ctrl K</span></div>
-          <button class="hdr-ico" title="Notifications">${ICON.bell}</button>
-          <div class="avatar">S</div>
-        </header>
-        <main id="view" class="flex-1 overflow-auto scroll-thin"></main>
-      </div>`);
-    app.appendChild(main);
+        <main id="view" class="shell-view flex-1 overflow-auto scroll-thin"></main>
+      </div>`));
+    app.appendChild(body);
 
     renderNav();
   }
