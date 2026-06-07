@@ -38,6 +38,16 @@
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
     play: svg('<path d="m8 5 11 7-11 7z"/>', 20),
     help: svg('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', 15),
+    chevRight: svg('<path d="m9 18 6-6-6-6"/>', 15),
+    // rich-text toolbar icons (TinyMCE-style toolbar mock — editor.tsx toolbar groups)
+    undo: svg('<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>', 16),
+    redo: svg('<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>', 16),
+    link: svg('<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>', 16),
+    video: svg('<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4z"/>', 16),
+    table: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>', 16),
+    palette: svg('<circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 2-4 2.5 2.5 0 0 1 2-4h2a4 4 0 0 0 4-4 10 10 0 0 0-10-8z"/>', 16),
+    highlighter: svg('<path d="m9 11-6 6v3h3l6-6"/><path d="M14 4l6 6-7 7-6-6z"/>', 16),
+    alignLeft: svg('<path d="M3 6h18M3 12h12M3 18h15"/>', 16),
   };
 
   const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1900); };
@@ -368,6 +378,7 @@
   // ================= EDIT VIEW =================
   let EDIT = null;     // current form state (deep clone)
   let EDIT_ID = null;  // route id string ('0' = new)
+  let ORIGIN = null;   // JSON snapshot of EDIT at load (edit.tsx hasUnsavedChanges / resetToOrigin)
   let DIRTY = false;
 
   function blankProduct() {
@@ -406,7 +417,22 @@
   }
 
   const isEditMode = () => EDIT_ID !== '0' && EDIT_ID !== 'new';
-  const markDirty = () => { if (!DIRTY) { DIRTY = true; const bar = document.getElementById('unsaved-bar'); if (bar) bar.style.display = 'flex'; } };
+
+  // Dirty = current form differs from the origin snapshot (edit.tsx hasUnsavedChanges,
+  // which tracks an origin snapshot so reverting a change clears the bar again).
+  const snapshot = () => JSON.stringify(EDIT);
+  function recomputeDirty() {
+    DIRTY = ORIGIN !== null && snapshot() !== ORIGIN;
+    syncUnsavedBar();
+  }
+  function syncUnsavedBar() {
+    const bar = document.getElementById('unsaved-bar');
+    if (bar) bar.style.display = DIRTY ? 'flex' : 'none';
+    if (root && root.parentElement) root.parentElement.classList.toggle('has-unsaved-bar', DIRTY);
+  }
+  // markDirty stays as the call site after every mutation; it now diffs against ORIGIN
+  // so edits that cancel out (e.g. type then delete) correctly hide the bar.
+  const markDirty = () => { recomputeDirty(); };
 
   // variant title from detail object (SkuList.tsx getVariantTitle): Object.values join ' • '
   function variantTitle(v) {
@@ -440,18 +466,19 @@
     const title = isEdit ? (EDIT.name || 'Edit product') : 'Add product';
 
     root.innerHTML =
+      // full-width unsaved-changes bar (UnSavedChanges.tsx) — fixed at the very TOP of the page,
+      // dark, square top corners (className override !top-[0px] !rounded-tl/tr-[0px]); hidden until dirty.
+      // layout: left spacer / centered alert + "You have unsaved changes" / right Discard + primary.
+      '<div id="unsaved-bar" class="unsaved-bar" style="display:none">' +
+        '<div style="flex:1"></div>' +
+        '<div class="flex items-center gap-2"><span style="display:inline-flex">' + I.alert + '</span><span style="font-size:13.5px">You have unsaved changes</span></div>' +
+        '<div class="flex items-center justify-end gap-3" style="flex:1">' +
+          '<button class="btn unsaved-discard" data-act="discard">Discard</button>' +
+          '<button class="btn btn-primary" data-act="save-bar">' + (isEdit ? 'Update' : 'Add') + '</button>' +
+        '</div>' +
+      '</div>' +
       // fixed 1200px centered container (productEdit.vue w-[1200px]) — .detail-* shared classes
       '<div class="detail-wrap">' +
-        // unsaved-changes bar (UnSavedChanges.tsx) — dark bar; hidden until a field changes.
-        // layout: left (empty title) / centered alert + "You have unsaved changes" / right Discard + primary.
-        '<div id="unsaved-bar" style="display:none;align-items:center;gap:8px;background:#242833;color:#fff;border-radius:12px;padding:12px 18px;margin-bottom:16px">' +
-          '<div style="flex:1"></div>' +
-          '<div class="flex items-center gap-2" style="color:#fff"><span style="display:inline-flex">' + I.alert + '</span><span style="font-size:13.5px">You have unsaved changes</span></div>' +
-          '<div class="flex items-center justify-end gap-2" style="flex:1">' +
-            '<button class="btn" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)" data-act="discard">Discard</button>' +
-            '<button class="btn btn-primary" data-act="save-bar">' + (isEdit ? 'Update' : 'Add') + '</button>' +
-          '</div>' +
-        '</div>' +
         // header (edit.tsx): back button + title
         '<div class="flex items-center gap-2 mb-4">' +
           '<button class="back-btn" data-act="back" title="Back to products">' + I.arrowLeft + '</button>' +
@@ -467,7 +494,11 @@
     document.getElementById('edit-main').innerHTML = mainHtml(isEdit);
     document.getElementById('edit-side').innerHTML = sideHtml(isEdit);
 
+    // capture origin AFTER the form is fully built; dirty is measured against this.
+    ORIGIN = snapshot();
+    DIRTY = false;
     wireEdit(isEdit);
+    syncUnsavedBar();
     if (root.parentElement) root.parentElement.scrollTop = 0;
   }
 
@@ -519,6 +550,49 @@
       '</div></div>';
   }
 
+  // RichTextEditor mock (editor.tsx). Toolbar groups mirror the real TinyMCE config:
+  //   undo redo | blocks(Paragraph) fontfamily fontsize | bold italic underline strikethrough
+  //   forecolor backcolor | link image media table | align | bullist numlist
+  // The editable area is a contenteditable div that keeps the product's HTML body intact.
+  function richTextEditor(id, htmlValue, ph) {
+    const tb = [
+      '<button class="rt-btn" data-rt="undo" title="Undo">' + I.undo + '</button>',
+      '<button class="rt-btn" data-rt="redo" title="Redo">' + I.redo + '</button>',
+      '<span class="rt-sep"></span>',
+      '<select class="rt-select" data-rt="block" title="Paragraph format">' +
+        '<option value="P">Paragraph</option><option value="H1">Heading 1</option>' +
+        '<option value="H2">Heading 2</option><option value="H3">Heading 3</option>' +
+        '<option value="BLOCKQUOTE">Quote</option><option value="PRE">Code</option></select>',
+      '<select class="rt-select" data-rt="font" title="Font family">' +
+        '<option value="">Font</option><option value="Helvetica,Arial,sans-serif">Sans serif</option>' +
+        '<option value="Georgia,serif">Serif</option><option value="ui-monospace,Menlo,Consolas,monospace">Monospace</option></select>',
+      '<select class="rt-select" data-rt="size" title="Font size">' +
+        '<option value="">Size</option><option value="2">Small</option><option value="3">Normal</option>' +
+        '<option value="5">Large</option><option value="6">Huge</option></select>',
+      '<span class="rt-sep"></span>',
+      '<button class="rt-btn" data-rt="bold" title="Bold"><b>B</b></button>',
+      '<button class="rt-btn" data-rt="italic" title="Italic"><i>I</i></button>',
+      '<button class="rt-btn" data-rt="underline" title="Underline"><u>U</u></button>',
+      '<button class="rt-btn" data-rt="strikeThrough" title="Strikethrough"><s>S</s></button>',
+      '<span class="rt-sep"></span>',
+      '<button class="rt-btn" data-rt="forecolor" title="Text color">' + I.palette + '</button>',
+      '<button class="rt-btn" data-rt="backcolor" title="Highlight">' + I.highlighter + '</button>',
+      '<span class="rt-sep"></span>',
+      '<button class="rt-btn" data-rt="link" title="Insert link">' + I.link + '</button>',
+      '<button class="rt-btn" data-rt="image" title="Insert image">' + I.image + '</button>',
+      '<button class="rt-btn" data-rt="video" title="Insert video">' + I.video + '</button>',
+      '<button class="rt-btn" data-rt="table" title="Insert table">' + I.table + '</button>',
+      '<span class="rt-sep"></span>',
+      '<button class="rt-btn" data-rt="align" title="Align">' + I.alignLeft + '</button>',
+      '<button class="rt-btn" data-rt="bullist" title="Bulleted list">&#8226; List</button>',
+      '<button class="rt-btn" data-rt="numlist" title="Numbered list">1. List</button>',
+    ].join('');
+    return '<div class="rich-text-editor" style="margin-top:4px;border:1px solid var(--ctl);border-radius:8px;overflow:hidden">' +
+      '<div class="rt-toolbar">' + tb + '</div>' +
+      '<div class="rt-editor" id="' + id + '" contenteditable="true" data-ph="' + esc(ph) + '">' + (htmlValue || '') + '</div>' +
+    '</div>';
+  }
+
   // 1) Product information (ProductInformation.tsx)
   function secProductInfo() {
     const idHead = EDIT.product_id
@@ -540,11 +614,11 @@
       '<div class="mb-3">' + lbl('Highlights') + '<div style="margin-top:4px" id="hl-list">' + highlights + '</div></div>' +
       counted('f-desc', 'Description', EDIT.description, 'Describe your product’s main features and benefits to attract customers', 6, 5000) +
       '<div>' + lbl('Detail') +
-        // RichTextEditor stand-in: toolbar + plain editor
-        '<div class="ql-wrap" style="margin-top:4px;border:1px solid var(--ctl);border-radius:8px;overflow:hidden">' +
-          '<div class="ql-head" style="border-bottom:1px solid var(--hair);padding:6px 10px;background:var(--panel)"><div class="flex items-center gap-3 muted" style="font-size:13px"><b>B</b><i>I</i><u>U</u><span>H2</span><span>List</span><span>Link</span><span>Image</span></div></div>' +
-          '<textarea class="ql-editor" id="f-detail" placeholder="Add comprehensive details, user guides, and vendor for this product" style="width:100%;border:0;outline:0;min-height:160px;padding:10px 12px;font-size:13px;resize:vertical;display:block">' + esc((EDIT.detail || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()) + '</textarea>' +
-        '</div></div>';
+        // RichTextEditor (editor.tsx — TinyMCE). Faithful mock: full toolbar (undo/redo, Paragraph,
+        // font family, font size, B/I/U/S, color/highlight, link, image, video, table, align, lists)
+        // over a contenteditable area that preserves the product's HTML body.
+        richTextEditor('f-detail', EDIT.detail || '', 'Add comprehensive details, user guides, and vendor for this product') +
+      '</div>';
     return card('Product information', body, idHead);
   }
 
@@ -755,11 +829,23 @@
     return card(esc(title), body);
   }
 
+  // Resolve a category value to its full label path (TreeCascadeSelect findNodePath) across CATEGORY_TREE.
+  function categoryPath(value, nodes, trail) {
+    nodes = nodes || D.CATEGORY_TREE; trail = trail || [];
+    for (const n of nodes) {
+      const next = trail.concat([n.label]);
+      if (n.value === value) return next;
+      if (n.children) { const r = categoryPath(value, n.children, next); if (r) return r; }
+    }
+    return null;
+  }
+  const categoryLabel = (value) => { const p = value ? categoryPath(value) : null; return p ? p.join(' > ') : ''; };
+
   // Right rail — Product Settings (settings.tsx). NOTE: Tags & Collections are commented out in real admin.
   function secSettings(isEdit) {
     const s = EDIT.settings || {};
     const vendorOpts = '<option value="">Choose a vendor</option>' + D.VENDORS.map((v) => '<option value="' + v.value + '"' + (v.value === s.vendor_id ? ' selected' : '') + '>' + esc(v.label) + '</option>').join('');
-    const cateOpts = '<option value="0">Choose a category</option>' + D.CATEGORIES.filter((c) => c.value !== 0).map((c) => '<option value="' + c.value + '"' + (c.value === s.category ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('');
+    const catLabel = categoryLabel(s.category);
     const archived = !!s.archived;
     const v = (EDIT.attrValue && EDIT.attrValue[0]) || {};
 
@@ -780,14 +866,25 @@
       body += '<div class="mb-3">' + lbl('Weight') + '<div class="flex" style="margin-top:4px"><input class="input" id="set-weight" type="number" min="0" step="0.1" value="' + (w === '' ? '' : w) + '" placeholder="0" style="border-top-right-radius:0;border-bottom-right-radius:0" /><span class="muted" style="display:inline-flex;align-items:center;padding:0 10px;border:1px solid var(--ctl);border-left:0;border-radius:0 8px 8px 0;background:var(--panel);font-size:13px">g</span></div></div>';
     }
     body += '<div class="mb-3">' + lbl('Vendor') + '<select class="input" id="set-vendor" style="margin-top:4px">' + vendorOpts + '</select></div>';
-    body += '<div>' + lbl('Category') + '<select class="input" id="set-category" style="margin-top:4px">' + cateOpts + '</select></div>';
+    // Category — cascading picker (TreeCascadeSelect): readonly input trigger showing the selected
+    // path; clicking opens a drill-in dropdown (top categories -> subcategories).
+    body += '<div>' + lbl('Category') +
+      '<div class="input cascade-trigger" id="set-category" style="margin-top:4px;cursor:pointer" title="' + esc(catLabel) + '">' +
+        '<span class="' + (catLabel ? '' : 'muted') + '" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="set-category-label">' + esc(catLabel || 'Choose a category') + '</span>' +
+        I.chevDown +
+      '</div></div>';
     return card('Product Settings', body);
   }
+
+  // SEO URL prefix (settings.tsx urlPrefix: VITE_SHOP_URL + /listing/{product_id}/).
+  // Live storefront for this shop is minilizm.com (per the SEO card/drawer screenshots).
+  const SHOP_URL = 'https://www.minilizm.com';
+  const seoBase = () => SHOP_URL + '/listing/' + (EDIT.product_id || '{product_id}') + '/';
 
   // Right rail — Search engine optimization card (settings.tsx) — opens SEO drawer
   function secSeo() {
     const s = EDIT.settings || {};
-    const base = 'https://www.bestvoy.com/listing/' + (EDIT.product_id || '{product_id}') + '/';
+    const base = seoBase();
     const body =
       '<div class="muted" style="font-size:12px;word-break:break-all;margin-bottom:6px">' + base + esc(s.urlHandle || '') + '</div>' +
       '<div style="font-size:13.5px;color:var(--brand);word-break:break-word">' + esc(s.metaTitle || EDIT.name || 'Blank Title') + '</div>' +
@@ -819,7 +916,7 @@
     bind('#f-name', (v) => { EDIT.name = v; });
     bindCounted('#f-summary', '#f-summary-cnt', 400, (v) => { EDIT.summary = v; });
     bindCounted('#f-desc', '#f-desc-cnt', 5000, (v) => { EDIT.description = v; });
-    bind('#f-detail', (v) => { EDIT.detail = v; });
+    wireRichText('f-detail', (html) => { EDIT.detail = html; });
 
     // highlights (with live count)
     all('[data-hl-input]').forEach((el) => el.oninput = () => {
@@ -919,13 +1016,14 @@
     bind('#set-spu', (v) => { EDIT.settings.spu = v; });
     bindNum('#set-weight', (v) => { EDIT.settings.weight = v == null ? 0 : v; if (EDIT.attrValue && EDIT.attrValue[0]) EDIT.attrValue[0].weight = v; });
     const sv = q('#set-vendor'); if (sv) sv.onchange = () => { EDIT.settings.vendor_id = sv.value === '' ? undefined : Number(sv.value); markDirty(); };
-    const sc = q('#set-category'); if (sc) sc.onchange = () => { EDIT.settings.category = Number(sc.value); markDirty(); };
+    const sc = q('#set-category'); if (sc) sc.onclick = () => openCategoryCascade(sc, isEdit);
     const st = q('#set-template'); if (st) st.onchange = () => { EDIT.settings.homeTemplate = st.value; markDirty(); rerenderSide(isEdit); };
     const seo = q('[data-act="seo"]'); if (seo) seo.onclick = () => openSeoDrawer(isEdit);
     const design = q('[data-act="design"]'); if (design) design.onclick = () => toast('Visual template designer opens full-screen (roadmap)');
 
-    // footer + bar actions
-    const doSave = () => { DIRTY = false; const bar = document.getElementById('unsaved-bar'); if (bar) bar.style.display = 'none'; toast(isEdit ? 'Product updated' : 'Product added'); };
+    // footer + bar actions. Save commits the current state as the new origin (edit.tsx reloads
+    // the product detail after saving, which makes hasUnsavedChanges false again).
+    const doSave = () => { ORIGIN = snapshot(); DIRTY = false; syncUnsavedBar(); toast(isEdit ? 'Product updated' : 'Product added'); };
     const sb = q('[data-act="save"]'); if (sb) sb.onclick = doSave;
     const sbar = q('[data-act="save-bar"]'); if (sbar) sbar.onclick = doSave;
     const disc = q('[data-act="discard"]'); if (disc) disc.onclick = () => modal({
@@ -943,6 +1041,47 @@
       title: 'Delete the product', width: 460, okText: 'Delete', danger: true,
       body: '<div class="muted" style="font-size:13.5px;line-height:1.6">This permanently deletes the product and cannot be undone.</div>',
       onOk: (m, close) => { close(); toast('Product deleted successfully'); location.hash = '#/products'; },
+    });
+  }
+
+  // RichTextEditor wiring (editor.tsx) — contenteditable + execCommand-driven toolbar mock.
+  function wireRichText(id, fn) {
+    const ed = root.querySelector('#' + id);
+    if (!ed) return;
+    const sync = () => { fn(ed.innerHTML); markDirty(); };
+    ed.addEventListener('input', sync);
+    const exec = (cmd, val) => { ed.focus(); try { document.execCommand(cmd, false, val); } catch (e) {} sync(); };
+    const toolbar = ed.parentElement.querySelector('.rt-toolbar');
+    if (!toolbar) return;
+    toolbar.querySelectorAll('[data-rt]').forEach((btn) => {
+      const cmd = btn.getAttribute('data-rt');
+      if (btn.tagName === 'SELECT') {
+        btn.onchange = () => {
+          const v = btn.value;
+          if (cmd === 'block') exec('formatBlock', v ? '<' + v + '>' : '<P>');
+          else if (cmd === 'font') { if (v) exec('fontName', v); }
+          else if (cmd === 'size') { if (v) exec('fontSize', v); }
+          btn.selectedIndex = 0;
+        };
+        return;
+      }
+      btn.onmousedown = (e) => e.preventDefault(); // keep selection while clicking the button
+      btn.onclick = () => {
+        switch (cmd) {
+          case 'undo': case 'redo':
+          case 'bold': case 'italic': case 'underline': case 'strikeThrough':
+            exec(cmd); break;
+          case 'forecolor': exec('foreColor', '#0066e6'); break;
+          case 'backcolor': exec('hiliteColor', '#fff3bf'); break;
+          case 'align': exec('justifyLeft'); break;
+          case 'bullist': exec('insertUnorderedList'); break;
+          case 'numlist': exec('insertOrderedList'); break;
+          case 'link': { const u = prompt('Link URL', 'https://'); if (u) exec('createLink', u); break; }
+          case 'image': { const u = prompt('Image URL', 'https://'); if (u) exec('insertImage', u); break; }
+          case 'video': { const u = prompt('Video URL (mp4)', 'https://'); if (u) exec('insertHTML', '<video controls src="' + u.replace(/"/g, '&quot;') + '" style="max-width:100%"></video>'); break; }
+          case 'table': exec('insertHTML', '<table><tr><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table>'); break;
+        }
+      };
     });
   }
 
@@ -983,10 +1122,12 @@
     document.getElementById('edit-main').innerHTML = mainHtml(isEdit);
     document.getElementById('edit-side').innerHTML = sideHtml(isEdit);
     wireEdit(isEdit);
+    syncUnsavedBar();
   }
   function rerenderSide(isEdit) {
     document.getElementById('edit-side').innerHTML = sideHtml(isEdit);
     wireEdit(isEdit);
+    syncUnsavedBar();
   }
 
   // regenerate SKU rows from option combinations (SkuList.tsx generateCombinations + buildVariantDetail)
@@ -1155,10 +1296,48 @@
     modal({ title, width: 1000, okText: 'OK', body, onOk: (m, close) => { close(); toast('Variant metafields saved'); } });
   }
 
+  // Category cascade popover (TreeCascadeSelect) — drill into top categories -> subcategories.
+  // Parent rows show a child count + ">"; leaf rows select the value and close.
+  function openCategoryCascade(anchor, isEdit) {
+    closePops();
+    const layer = h('<div class="pop-layer"></div>');
+    const pop = h('<div class="cascade-pop" style="position:fixed"></div>');
+    layer.appendChild(pop); document.body.appendChild(layer);
+    let path = []; // stack of parent nodes drilled into
+
+    const currentNodes = () => path.length ? (path[path.length - 1].children || []) : D.CATEGORY_TREE;
+    const render = () => {
+      const head = path.length
+        ? '<div class="cascade-head" data-back>' + I.arrowLeft + '<span>' + esc(path[path.length - 1].label) + '</span></div>'
+        : '';
+      const rows = currentNodes().map((n, i) => {
+        const kids = n.children && n.children.length;
+        const arrow = kids ? '<span class="cascade-arrow" data-into="' + i + '">' + n.children.length + ' ' + I.chevRight + '</span>' : '';
+        return '<div class="cascade-item" data-pick="' + i + '"><span class="item-label">' + esc(n.label) + '</span>' + arrow + '</div>';
+      }).join('');
+      pop.innerHTML = head + '<div>' + rows + '</div>';
+      const back = pop.querySelector('[data-back]'); if (back) back.onclick = () => { path.pop(); render(); };
+      pop.querySelectorAll('[data-into]').forEach((a) => a.onclick = (e) => {
+        e.stopPropagation(); path.push(currentNodes()[Number(a.getAttribute('data-into'))]); render();
+      });
+      pop.querySelectorAll('[data-pick]').forEach((row) => row.onclick = () => {
+        const node = currentNodes()[Number(row.getAttribute('data-pick'))];
+        if (node.children && node.children.length) { path.push(node); render(); return; } // drill on parent body click
+        EDIT.settings.category = node.value; markDirty(); closePops(); rerenderSide(isEdit);
+      });
+    };
+    render();
+    const r = anchor.getBoundingClientRect();
+    pop.style.top = (r.bottom + 6) + 'px';
+    pop.style.left = Math.max(8, r.right - pop.offsetWidth) + 'px';
+    pop.style.minWidth = Math.max(260, r.width) + 'px';
+    setTimeout(() => document.addEventListener('mousedown', function hh(e) { if (!pop.contains(e.target) && !anchor.contains(e.target)) { closePops(); document.removeEventListener('mousedown', hh); } }), 0);
+  }
+
   // SEO drawer (settings.tsx SEO Drawer) — right slide-in, Confirm footer
   function openSeoDrawer(isEdit) {
     const s = EDIT.settings || {};
-    const base = 'https://www.bestvoy.com/listing/' + (EDIT.product_id || '{product_id}') + '/';
+    const base = seoBase();
     const form = { metaTitle: s.metaTitle || EDIT.name || '', metaDescription: s.metaDescription || EDIT.description || '', urlHandle: s.urlHandle || '', seoKeywords: (s.seoKeywords || []).slice() };
     const backdrop = h('<div class="drawer-backdrop"></div>');
     const drawer = h('<div class="drawer" style="width:480px"></div>');
@@ -1174,10 +1353,10 @@
       '<div class="drawer-body">' +
         '<div class="mb-4"><div class="card-title mb-2">Preview</div><div id="seo-preview">' + preview() + '</div></div>' +
         '<div class="divider mb-4"></div>' +
-        '<div class="mb-4"><div class="flex items-center justify-between mb-1"><span class="flex items-center gap-1" style="font-size:13px;font-weight:500">Page title ' + helpIco('Page titles make it easier for customers to quickly find content. We recommend using simple and intuitive words.') + '</span><span class="muted" id="seo-title-cnt" style="font-size:11px">' + form.metaTitle.length + '</span></div>' +
-          '<input class="input" id="seo-title" value="' + esc(form.metaTitle) + '" placeholder="Product Title" /></div>' +
-        '<div class="mb-4"><div class="flex items-center justify-between mb-1"><span class="flex items-center gap-1" style="font-size:13px;font-weight:500">Meta description ' + helpIco('Try to describe the product features or page contents to attract visitors. Too many keywords may drag down your ranking.') + '</span><span class="muted" id="seo-desc-cnt" style="font-size:11px">' + form.metaDescription.length + '</span></div>' +
-          '<textarea class="input" id="seo-desc" rows="4" placeholder="Product Description" style="height:auto;padding:8px 12px;resize:vertical">' + esc(form.metaDescription) + '</textarea></div>' +
+        '<div class="mb-4"><div class="flex items-center justify-between mb-1"><span class="flex items-center gap-1" style="font-size:13px;font-weight:500">Page title ' + helpIco('Page titles make it easier for customers to quickly find content. We recommend using simple and intuitive words.') + '</span><span class="muted" id="seo-title-cnt" style="font-size:11px">' + form.metaTitle.length + ' / 50</span></div>' +
+          '<input class="input" id="seo-title" maxlength="50" value="' + esc(form.metaTitle) + '" placeholder="Product Title" /></div>' +
+        '<div class="mb-4"><div class="flex items-center justify-between mb-1"><span class="flex items-center gap-1" style="font-size:13px;font-weight:500">Meta description ' + helpIco('Try to describe the product features or page contents to attract visitors. Too many keywords may drag down your ranking.') + '</span><span class="muted" id="seo-desc-cnt" style="font-size:11px">' + form.metaDescription.length + ' / 500</span></div>' +
+          '<textarea class="input" id="seo-desc" rows="4" maxlength="500" placeholder="Product Description" style="height:auto;padding:8px 12px;resize:vertical">' + esc(form.metaDescription) + '</textarea></div>' +
         '<div class="mb-4"><div class="flex items-center gap-1 mb-1"><span style="font-size:13px;font-weight:500">URL</span> ' + helpIco('Short and descriptive (e.g. product-colour-size).') + '</div>' +
           '<div class="muted" style="font-size:11px;margin-bottom:4px;word-break:break-all">' + base + '</div><input class="input" id="seo-url" value="' + esc(form.urlHandle) + '" placeholder="product-colour-size" /></div>' +
         '<div><div class="flex items-center gap-1 mb-1"><span style="font-size:13px;font-weight:500">SEO keywords</span> ' + helpIco("Using relevant keywords can improve ranking and visibility on search engines. Don't use too many keywords as it may drag down your ranking.") + '</div>' +
@@ -1196,8 +1375,8 @@
     };
     drawer.querySelector('[data-x]').onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
-    drawer.querySelector('#seo-title').oninput = (e) => { form.metaTitle = e.target.value; drawer.querySelector('#seo-title-cnt').textContent = e.target.value.length; if (!isEdit) { form.urlHandle = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); drawer.querySelector('#seo-url').value = form.urlHandle; } syncPreview(); };
-    drawer.querySelector('#seo-desc').oninput = (e) => { form.metaDescription = e.target.value; drawer.querySelector('#seo-desc-cnt').textContent = e.target.value.length; syncPreview(); };
+    drawer.querySelector('#seo-title').oninput = (e) => { form.metaTitle = e.target.value; drawer.querySelector('#seo-title-cnt').textContent = e.target.value.length + ' / 50'; if (!isEdit) { form.urlHandle = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); drawer.querySelector('#seo-url').value = form.urlHandle; } syncPreview(); };
+    drawer.querySelector('#seo-desc').oninput = (e) => { form.metaDescription = e.target.value; drawer.querySelector('#seo-desc-cnt').textContent = e.target.value.length + ' / 500'; syncPreview(); };
     drawer.querySelector('#seo-url').oninput = (e) => { form.urlHandle = e.target.value; syncPreview(); };
     drawer.querySelector('#seo-kw').onkeydown = (e) => { if (e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); const v = e.target.value.trim(); if (!form.seoKeywords.includes(v)) { form.seoKeywords.push(v); redrawKw(); } e.target.value = ''; } };
     drawer.querySelector('[data-confirm]').onclick = () => {
@@ -1227,6 +1406,34 @@
   // module-scoped CSS shim: on/off switch (+ Show/Hide labelled variant), danger button, helpers
   const style = document.createElement('style');
   style.textContent =
+    // Unsaved-changes bar (UnSavedChanges.tsx): dark, full-width of the content column, sticky at the
+    // very top of the scroll area (real admin uses fixed top:0 left/right:0). Square top corners,
+    // rounded bottom; centered "You have unsaved changes" with Discard (ghost) + primary on the right.
+    '.unsaved-bar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:8px;background:#242833;color:#fff;padding:12px 24px;border-radius:0 0 12px 12px;box-shadow:0 6px 16px rgba(0,0,0,.18)}' +
+    '.unsaved-bar .btn-primary{height:32px}' +
+    '.unsaved-discard{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.55);height:32px}' +
+    '.unsaved-discard:hover{background:rgba(255,255,255,.12)}' +
+    '.rt-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:2px;border-bottom:1px solid var(--hair);padding:5px 8px;background:var(--panel)}' +
+    '.rt-btn{min-width:28px;height:28px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--ink-body);font-size:13px;cursor:pointer;line-height:1}' +
+    '.rt-btn:hover{background:#fff;border-color:var(--hair);color:var(--ink)}' +
+    '.rt-sep{width:1px;height:18px;background:var(--hair);margin:0 4px}' +
+    '.rt-select{height:28px;border:1px solid var(--hair);border-radius:6px;background:#fff;color:var(--ink-body);font-size:12.5px;padding:0 4px;cursor:pointer}' +
+    '.rt-editor{min-height:200px;padding:12px 14px;font-size:13px;color:var(--ink);outline:none;line-height:1.6;overflow:auto}' +
+    '.rt-editor:empty:before{content:attr(data-ph);color:var(--ink-muted)}' +
+    '.rt-editor h1,.rt-editor h2,.rt-editor h3{margin:.4em 0;font-weight:600}.rt-editor h2{font-size:1.25em}.rt-editor h3{font-size:1.1em}' +
+    '.rt-editor p{margin:.4em 0}.rt-editor ul,.rt-editor ol{margin:.4em 0;padding-left:1.4em}' +
+    '.rt-editor table{border-collapse:collapse;margin:.5em 0}.rt-editor td{border:1px solid var(--ctl);padding:4px 8px;min-width:48px}' +
+    '.rt-editor img{max-width:100%}' +
+    // Cascading category trigger + dropdown (TreeCascadeSelect): drill into top categories with a
+    // child count + chevron, header row to go back, leaf rows select and close.
+    '.cascade-trigger{display:flex;align-items:center;justify-content:space-between;gap:6px}' +
+    '.cascade-pop{background:#fff;border:1px solid var(--hair);border-radius:10px;box-shadow:var(--float-shadow);min-width:260px;max-height:320px;overflow:auto;padding:6px}' +
+    '.cascade-head{display:flex;align-items:center;gap:6px;padding:7px 8px;border-bottom:1px solid var(--hair);margin-bottom:4px;cursor:pointer;color:var(--ink-body);font-size:13px;font-weight:500}' +
+    '.cascade-head:hover{color:var(--ink)}' +
+    '.cascade-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;color:var(--ink);cursor:pointer}' +
+    '.cascade-item:hover{background:#e6f0ff}' +
+    '.cascade-arrow{display:inline-flex;align-items:center;gap:4px;color:var(--ink-muted);font-size:12px}' +
+    '.cascade-arrow:hover{color:var(--brand)}' +
     '.sw{position:relative;display:inline-block;width:34px;height:18px;border-radius:9999px;background:var(--ctl);cursor:pointer;transition:background .15s;flex:none;vertical-align:middle}' +
     '.sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}' +
     '.sw.on{background:var(--brand)}.sw.on::after{transform:translateX(16px)}' +

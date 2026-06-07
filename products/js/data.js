@@ -28,6 +28,8 @@
   ];
 
   // ---- Category tree (settings.tsx / TreeCascadeSelect; cate_id) ----
+  // Flat list — used by the LIST view filter <select> ("Parent / Child" labels; parent value
+  // includes its children). cate_id on products/details points at these leaf values.
   const CATEGORIES = [
     { value: 0, label: 'All categories' },
     { value: 11, label: 'Activewear' },
@@ -37,6 +39,45 @@
     { value: 22, label: 'Shapewear / Bodysuits' },
     { value: 31, label: 'Accessories' },
     { value: 32, label: 'Accessories / Socks' },
+  ];
+
+  // Nested tree — used by the EDIT rail's cascading Category picker (TreeCascadeSelect):
+  // top categories each show a child count + ">" and drill into subcategories. childrenCount is the
+  // displayed badge; leaf rows (no children) select & close. Top-level mirrors the live admin
+  // (Games and toys, School supplies, Clothes, Shoes, Accessories, Supplements, Babies & Kids);
+  // the Clothes > Activewear / Shapewear and Accessories branches reuse the leaf IDs above so a
+  // product's saved cate_id (e.g. 12, 32) resolves to a readable path.
+  const CATEGORY_TREE = [
+    { value: 100, label: 'Games and toys', children: [
+      { value: 101, label: 'Board games' }, { value: 102, label: 'Puzzles' },
+      { value: 103, label: 'Outdoor toys' }, { value: 104, label: 'Educational toys' },
+    ] },
+    { value: 110, label: 'School supplies', children: [
+      { value: 111, label: 'Notebooks' }, { value: 112, label: 'Pens & pencils' },
+      { value: 113, label: 'Backpacks' },
+    ] },
+    { value: 120, label: 'Clothes', children: [
+      { value: 11, label: 'Activewear', children: [
+        { value: 12, label: 'Leggings' }, { value: 13, label: 'Sports bras' },
+        { value: 121, label: 'Tank tops' },
+      ] },
+      { value: 21, label: 'Shapewear', children: [
+        { value: 22, label: 'Bodysuits' }, { value: 122, label: 'Briefs' }, { value: 123, label: 'Thongs' },
+      ] },
+      { value: 124, label: 'Dresses' }, { value: 125, label: 'Outerwear' },
+    ] },
+    { value: 130, label: 'Shoes', children: [
+      { value: 131, label: 'Sneakers' }, { value: 132, label: 'Sandals' }, { value: 133, label: 'Boots' },
+    ] },
+    { value: 31, label: 'Accessories', children: [
+      { value: 32, label: 'Socks' }, { value: 141, label: 'Hats' }, { value: 142, label: 'Bags' },
+    ] },
+    { value: 150, label: 'Supplements', children: [
+      { value: 151, label: 'Protein' }, { value: 152, label: 'Vitamins' }, { value: 153, label: 'Pre-workout' },
+    ] },
+    { value: 160, label: 'Babies & Kids', children: [
+      { value: 161, label: 'Clothing' }, { value: 162, label: 'Feeding' }, { value: 163, label: 'Strollers' },
+    ] },
   ];
 
   // ---- Vendors (settings.tsx vendor select; getVendorList) ----
@@ -57,9 +98,10 @@
     { value: 'one_page_checkout', label: 'One page checkout' },
   ];
 
-  // ---- Media support text (AddImageVideo DEFAULT_SUPPORT_TEXT, utils/upload extensions) ----
-  const IMAGE_EXTS = '.jpg, .jpeg, .png, .gif, .webp';
-  const VIDEO_EXTS = '.mp4, .mov, .webm';
+  // ---- Media support text (AddImageVideo DEFAULT_SUPPORT_TEXT, utils/upload IMAGE/VIDEO_FILE_EXTENSIONS) ----
+  // Mirrors the live admin's full extension lists verbatim.
+  const IMAGE_EXTS = '.jpg, .jpeg, .png, .gif, .webp, .avif, .heic, .heif, .tiff, .tif, .bmp, .jfif, .svg, .ico';
+  const VIDEO_EXTS = '.mp4, .avi, .wmv, .rm, .mpg, .mpeg, .mov, .flv, .swf, .mkv, .webm';
   const MEDIA_SUPPORT_TEXT =
     'Supports images in ' + IMAGE_EXTS + ' formats and videos in ' + VIDEO_EXTS +
     ' formats. Files smaller than 4MB work better, and .gif files shouldn’t be larger than 8MB. Maximum file size 10MB.';
@@ -342,7 +384,7 @@
   });
 
   window.DATA_PRODUCTS = {
-    TABS, SEARCH_FIELDS, CATEGORIES, VENDORS, OPTION_NAMES, TEMPLATES,
+    TABS, SEARCH_FIELDS, CATEGORIES, CATEGORY_TREE, VENDORS, OPTION_NAMES, TEMPLATES,
     MEDIA_SUPPORT_TEXT, IMAGE_EXTS, VIDEO_EXTS,
     SHOP_PRODUCT_DEFS, GOOGLE_PRODUCT_DEFS, SHOP_VARIANT_DEFS, GOOGLE_VARIANT_DEFS,
     PRODUCTS, DETAILS,
