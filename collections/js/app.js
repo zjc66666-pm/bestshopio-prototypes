@@ -5,7 +5,7 @@
    CollectionProductsTable, CollectionSubCollectionsTable, ProductSelect). */
 (function () {
   const D = window.DATA_COLLECTIONS;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.collections.render(el, rest)
 
   // tiny html -> element helper
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -990,17 +990,14 @@
     return '<div class="pg">' + item('&lsaquo;', page - 1, { disabled: page <= 1 }) + nums + item('&rsaquo;', page + 1, { disabled: page >= pages }) + '</div>';
   }
 
-  // ================= ROUTER =================
+  // ================= ROUTER (SPA: registered with the shell router) =================
   function goEdit(id) { location.hash = '#/collections/' + id; }
 
-  function route() {
-    const hash = location.hash || '#/collections';
-    const m = hash.match(/^#\/collections\/(.+)$/);
-    if (m) { renderEdit(decodeURIComponent(m[1])); root.parentElement.scrollTop = 0; }
+  function route(rest) {
+    if (rest) { renderEdit(decodeURIComponent(rest)); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
     else { ST = null; ORIG = null; renderList(); }
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/collections';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.collections = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

@@ -3,7 +3,7 @@
    Mirrors reference/bestvoy-admin admin/google components. Reads window.DATA_GOOGLE from js/data.js. */
 (function () {
   const D = window.DATA_GOOGLE;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.google.render(el, rest)
 
   // tiny html -> element helper (same convention as orders/app.js)
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -414,7 +414,7 @@
   }
 
   function wireVariants() {
-    root.querySelector('[data-act="back"]').onclick = () => { location.hash = '#/products'; };
+    root.querySelector('[data-act="back"]').onclick = () => { location.hash = '#/google/products'; };
     root.querySelectorAll('#vl-tabs .tab').forEach((t) => t.onclick = () => { VL.tab = Number(t.getAttribute('data-tab')); VL.page = 1; renderVariants(); });
     const kwType = root.querySelector('#vl-kw-type');
     const kwInput = root.querySelector('#vl-kw');
@@ -724,7 +724,7 @@
 
   function wireVariantEdit(unique, detail, meta) {
     root.querySelector('[data-act="back"]').onclick = () => {
-      location.hash = meta ? '#/variants?product=' + meta.product_id : '#/variants';
+      location.hash = meta ? '#/google/variants?product=' + meta.product_id : '#/google/variants';
     };
     const sync = root.querySelector('[data-act="sync"]'); if (sync) sync.onclick = () => toast('Sync queued · ' + (detail.gmc_assembled_data && detail.gmc_assembled_data.offer_id || unique));
     const ep = root.querySelector('[data-act="edit-product"]'); if (ep) ep.onclick = () => toast('Opens the storefront product editor (roadmap)');
@@ -741,7 +741,7 @@
       '<div class="panel placeholder"><div><div style="font-weight:600;margin-bottom:6px">Assembled GMC detail not available in this prototype</div>' +
         '<div class="muted">Open a variant flagged with sample detail: gmc-510202, gmc-510204, gmc-510205 or gmc-510401.</div></div></div>' +
       '</div>';
-    root.querySelector('[data-act="back"]').onclick = () => { location.hash = meta ? '#/variants?product=' + meta.product_id : '#/variants'; };
+    root.querySelector('[data-act="back"]').onclick = () => { location.hash = meta ? '#/google/variants?product=' + meta.product_id : '#/google/variants'; };
   }
 
   // ============================================================
@@ -769,7 +769,7 @@
             '<div class="muted">Raw GMC responses are available for submitted variants gmc-510202 and gmc-510401.</div></div></div>') +
       '</div>' +
       '</div>';
-    root.querySelector('[data-act="back"]').onclick = () => { location.hash = '#/variants/' + encodeURIComponent(unique); };
+    root.querySelector('[data-act="back"]').onclick = () => { location.hash = '#/google/variants/' + encodeURIComponent(unique); };
     const cp = root.querySelector('[data-act="copy"]'); if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(json); } catch (e) {} toast('Raw JSON copied'); };
   }
 
@@ -837,28 +837,29 @@
   // ============================================================
   // ROUTER
   // ============================================================
-  function goVariants(pid) { location.hash = '#/variants?product=' + encodeURIComponent(pid); }
-  function goVariantEdit(unique) { location.hash = '#/variants/' + encodeURIComponent(unique); }
-  function goVariantRaw(unique) { location.hash = '#/variants/' + encodeURIComponent(unique) + '/raw'; }
+  function goVariants(pid) { location.hash = '#/google/variants?product=' + encodeURIComponent(pid); }
+  function goVariantEdit(unique) { location.hash = '#/google/variants/' + encodeURIComponent(unique); }
+  function goVariantRaw(unique) { location.hash = '#/google/variants/' + encodeURIComponent(unique) + '/raw'; }
 
-  function route() {
-    const hash = location.hash || '#/products';
-    const scrollTop = () => { if (root.parentElement) root.parentElement.scrollTop = 0; };
+  // `rest` is the hash tail after the `google` segment (e.g. '', 'products',
+  // 'variants', 'variants?product=5', 'variants/<id>', 'variants/<id>/raw').
+  function route(rest) {
+    rest = rest || '';
+    const scrollTop = () => { if (root && root.parentElement) root.parentElement.scrollTop = 0; };
 
     let m;
-    if ((m = hash.match(/^#\/variants\/([^/]+)\/raw$/))) { renderVariantRaw(decodeURIComponent(m[1])); scrollTop(); return; }
-    if ((m = hash.match(/^#\/variants\/([^/?]+)$/))) { renderVariantEdit(decodeURIComponent(m[1])); scrollTop(); return; }
-    if (hash.indexOf('#/variants') === 0) {
-      const q = hash.match(/[?&]product=([^&]+)/);
+    if ((m = rest.match(/^variants\/([^/]+)\/raw$/))) { renderVariantRaw(decodeURIComponent(m[1])); scrollTop(); return; }
+    if ((m = rest.match(/^variants\/([^/?]+)$/))) { renderVariantEdit(decodeURIComponent(m[1])); scrollTop(); return; }
+    if (rest.indexOf('variants') === 0) {
+      const q = rest.match(/[?&]product=([^&]+)/);
       const pid = q ? decodeURIComponent(q[1]) : null;
       if (pid !== VL.productId) { VL.productId = pid; VL.tab = 0; VL.kw = ''; VL.kwApplied = ''; VL.priceApplied = null; VL.invApplied = null; VL.page = 1; VL.selected = {}; }
       renderVariants(); scrollTop(); return;
     }
-    // default: products list
+    // default: products list (rest === '' or 'products')
     renderProducts(); scrollTop();
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/products';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.google = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

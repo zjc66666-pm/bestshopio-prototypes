@@ -4,7 +4,7 @@
    (products.vue, productEdit.vue, components/list/*, components/edit/*). */
 (function () {
   const D = window.DATA_PRODUCTS;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.products.render(el, rest)
 
   // ---- tiny helpers ----
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -994,11 +994,9 @@
       onOk: (m, close) => { DIRTY = false; close(); go(); } });
   }
 
-  function route() {
+  function route(rest) {
     closePops();
-    const hash = location.hash || '#/products';
-    const m = hash.match(/^#\/products\/(.+)$/);
-    if (m) renderEdit(decodeURIComponent(m[1]));
+    if (rest) renderEdit(decodeURIComponent(rest));
     else renderList();
   }
 
@@ -1011,7 +1009,6 @@
     '.pr-row-meta{font-size:12px;color:var(--ink-muted)}';
   document.head.appendChild(style);
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/products';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.products = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

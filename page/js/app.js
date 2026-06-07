@@ -7,7 +7,7 @@
 (function () {
   var D = window.DATA_PAGE;
   var I = window.ICONS || {};
-  var root = document.getElementById('root');
+  var root; // set by the SPA shell router via VIEWS.page.render(el, rest)
 
   // tiny html -> element helper
   var h = function (html) { var t = document.createElement('template'); t.innerHTML = String(html).trim(); return t.content.firstElementChild; };
@@ -614,56 +614,12 @@
   // ===================================================================
   function goEdit(id) { location.hash = '#/page/' + id; }
 
-  function route() {
+  function route(rest) {
     closePops();
-    var hash = location.hash || '#/page';
-    var m = hash.match(/^#\/page\/(.+)$/);
-    if (m) { renderEdit(decodeURIComponent(m[1])); root.parentElement.scrollTop = 0; }
+    if (rest) { renderEdit(decodeURIComponent(rest)); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
     else { renderList(); }
   }
 
-  // ===================================================================
-  // SIDEBAR ACTIVE STATE
-  // The shared manifest (assets/nav.js) still lists this module as `planned`,
-  // so shell.js renders the "Page" entry greyed-out and non-clickable. This
-  // prototype IS built, so promote its own sidebar item to an active, clickable
-  // link once shell.js has drawn the chrome — without touching the shared asset.
-  // (Proper fix lives in nav.js: flip the `page` module to status:'scaffold'.)
-  // ===================================================================
-  function activateSidebar() {
-    // shell.js draws the sidebar on DOMContentLoaded; if it isn't there yet,
-    // retry on the next frame until the chrome exists (bounded ~1s).
-    var aside = document.querySelector('.app-sidebar');
-    if (!aside) {
-      activateSidebar._tries = (activateSidebar._tries || 0) + 1;
-      if (activateSidebar._tries < 60) requestAnimationFrame(activateSidebar);
-      return;
-    }
-    var items = aside.querySelectorAll('.nav-item');
-    for (var i = 0; i < items.length; i++) {
-      var node = items[i];
-      var label = node.querySelector('span');
-      if (!label || label.textContent.trim() !== 'Page') continue;
-      if (node.classList.contains('active') && !node.classList.contains('planned')) return;
-      node.classList.remove('planned');
-      node.classList.add('active');
-      node.removeAttribute('title');
-      var soon = node.querySelector('.nav-soon');
-      if (soon) soon.remove();
-      node.style.cursor = 'pointer';
-      if (!node.dataset.pageBound) {
-        node.dataset.pageBound = '1';
-        node.addEventListener('click', function () { location.hash = '#/page'; route(); });
-      }
-      return;
-    }
-  }
-
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/page';
-  route();
-  // shell.js builds the sidebar on DOMContentLoaded (it loads just before this
-  // file), so defer the active-state promotion until the chrome is in the DOM.
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', activateSidebar);
-  else activateSidebar();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.page = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

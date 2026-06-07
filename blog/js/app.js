@@ -6,7 +6,7 @@
    plus the SEO right-drawer and discard/delete confirm modals). */
 (function () {
   const D = window.DATA_BLOG;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.blog.render(el, rest)
 
   // tiny html -> element helper
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -708,19 +708,17 @@
   }
 
   // ===========================================================================
-  // ROUTER
+  // ROUTER (SPA: registered with the shell router)
   // ===========================================================================
   function goEdit(id) { location.hash = '#/blog/edit/' + id; }
 
-  function route() {
+  function route(rest) {
     closePops();
-    const hash = location.hash || '#/blog';
-    const m = hash.match(/^#\/blog\/edit\/(.+)$/);
-    if (m) { renderEdit(decodeURIComponent(m[1])); root.parentElement.scrollTop = 0; }
+    const m = (rest || '').match(/^edit\/(.+)$/);
+    if (m) { renderEdit(decodeURIComponent(m[1])); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
     else { renderList(); }
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/blog';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.blog = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

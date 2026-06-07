@@ -5,7 +5,7 @@
    UI mock, not a real editor. */
 (function () {
   const D = window.DATA_ONLINE_STORE;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS['online-store'].render(el, rest)
 
   // tiny html -> element helper
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -844,17 +844,17 @@
   }
 
   // ========================================================================
-  //  ROUTER
+  //  ROUTER (SPA: registered with the shell router)
   // ========================================================================
-  function route() {
+  // `rest` is the hash part after `online-store` (e.g. '' for the list,
+  // 'edit/<handle>' for the builder).
+  function route(rest) {
     closePops();
-    const hash = location.hash || '#/online-store';
-    const m = hash.match(/^#\/online-store\/edit\/(.+)$/);
+    const m = (rest || '').match(/^edit\/(.+)$/);
     if (m) { renderBuilder(decodeURIComponent(m[1])); }
     else { renderList(); }
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/online-store';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS['online-store'] = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

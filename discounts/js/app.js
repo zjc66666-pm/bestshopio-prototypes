@@ -4,7 +4,7 @@
    components/list/search.tsx, components/edit/*). */
 (function () {
   const D = window.DATA_DISCOUNTS;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.discounts.render(el, rest)
 
   // tiny html -> element helper
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -866,16 +866,15 @@
     else { toast('Discount created successfully'); location.hash = '#/discounts'; }
   }
 
-  // ================= ROUTER =================
+  // ================= ROUTER (SPA: registered with the shell router) =================
   function goDetail(id) { location.hash = '#/discounts/' + id; }
   function goNew(dim) { location.hash = '#/discounts/new/' + dim; }
 
-  function route() {
+  function route(rest) {
     closePops();
-    const hash = location.hash || '#/discounts';
-    let m = hash.match(/^#\/discounts\/new\/(product|order|shipping)$/);
+    let m = rest.match(/^new\/(product|order|shipping)$/);
     if (m) { ED = buildNewState(m[1]); renderEdit(); root.parentElement.scrollTop = 0; return; }
-    m = hash.match(/^#\/discounts\/(\d+)$/);
+    m = rest.match(/^(\d+)$/);
     if (m) {
       const rec = D.DETAILS[m[1]] || D.DETAILS[Number(m[1])];
       if (rec) { ED = cloneDetail(rec); renderEdit(); root.parentElement.scrollTop = 0; return; }
@@ -892,7 +891,6 @@
     const b = root.querySelector('[data-act="back"]'); if (b) b.onclick = () => { location.hash = '#/discounts'; };
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/discounts';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.discounts = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

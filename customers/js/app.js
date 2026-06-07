@@ -4,7 +4,7 @@
    .../views/admin/customer (customer.vue / detial.tsx + detail cards). */
 (function () {
   const D = window.DATA_CUSTOMERS;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.customers.render(el, rest)
 
   // tiny html -> element helper
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -647,18 +647,15 @@
     ta.oninput = () => { count.textContent = ta.value.length + '/' + maxLen; if (ta.value.trim()) ctrl.m.querySelector('#n-err').textContent = ''; };
   }
 
-  // ================= ROUTER =================
+  // ================= ROUTER (SPA: registered with the shell router) =================
   function goDetail(id) { DET.orderPage = 1; location.hash = '#/customers/' + id; }
 
-  function route() {
+  function route(rest) {
     closePops();
-    const hash = location.hash || '#/customers';
-    const m = hash.match(/^#\/customers\/(.+)$/);
-    if (m) { renderDetail(decodeURIComponent(m[1])); root.parentElement.scrollTop = 0; }
+    if (rest) { renderDetail(decodeURIComponent(rest)); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
     else { renderList(); }
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/customers';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.customers = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

@@ -343,3 +343,9 @@ a.mod-card:hover { border-color: var(--brand); box-shadow: var(--float-shadow); 
   .view-wrap { padding: 16px 18px 40px; }
   .search-box { display: none; }
 }
+
+/* ---- Settings menu context (sidebar header bar + close X), mirrors basic.vue ---- */
+.settings-bar { height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; font-weight: 600; font-size: 16px; color: var(--ink); }
+.set-close { width: 32px; height: 32px; border-radius: 8px; background: #eef0f7; display: grid; place-items: center; color: var(--ink); text-decoration: none; }
+.set-close:hover { background: #e2e6f1; }
+.set-close .nav-ico { width: 16px; height: 16px; }

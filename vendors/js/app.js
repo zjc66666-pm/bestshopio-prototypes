@@ -4,7 +4,7 @@
    (vendorsList / search / table / vendorEdit / VendorProductsTable). */
 (function () {
   const D = window.DATA_VENDORS;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.vendors.render(el, rest)
 
   // ---- tiny html -> element helper ----
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -826,20 +826,15 @@
 
   const closePops = () => document.querySelectorAll('.pop-layer').forEach((p) => p.remove());
 
-  // =====================================================================
-  //  ROUTER
-  // =====================================================================
+  // ================= ROUTER (SPA: registered with the shell router) =================
   function goEdit(id) { location.hash = '#/vendors/' + id; }
 
-  function route() {
+  function route(rest) {
     closePops();
-    const hash = location.hash || '#/vendors';
-    const m = hash.match(/^#\/vendors\/(.+)$/);
-    if (m) { renderEdit(decodeURIComponent(m[1])); root.parentElement.scrollTop = 0; }
+    if (rest) { renderEdit(decodeURIComponent(rest)); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
     else { renderList(); }
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/vendors';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.vendors = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

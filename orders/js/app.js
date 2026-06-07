@@ -4,7 +4,7 @@
 (function () {
   const D = window.DATA_ORDERS;
   const ICO = window.ICONS || {};
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.orders.render(el, rest)
 
   // tiny html -> element helper
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -697,18 +697,15 @@
     });
   }
 
-  // ================= ROUTER =================
+  // ================= ROUTER (SPA: registered with the shell router) =================
   function goDetail(id) { location.hash = '#/orders/' + id; }
 
-  function route() {
+  function route(rest) {
     closePops();
-    const hash = location.hash || '#/orders';
-    const m = hash.match(/^#\/orders\/(.+)$/);
-    if (m) { renderDetail(decodeURIComponent(m[1])); root.parentElement.scrollTop = 0; }
+    if (rest) { renderDetail(decodeURIComponent(rest)); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
     else { renderList(); }
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/orders';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.orders = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

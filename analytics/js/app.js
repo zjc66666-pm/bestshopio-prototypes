@@ -1,6 +1,12 @@
-// BestVoy Admin · Analytics prototype — chrome + hash router + Overview (S0/S1)
+// BestVoy Admin · Analytics prototype — content + secondary nav for the SPA shell.
+// Chrome (sidebar + header) is injected by ../assets/shell.js; this file only
+// renders the module body into the passed `root`, with its OWN horizontal tab
+// bar (Overview / Reports / Live View) as secondary navigation, and registers
+// itself as window.VIEWS.analytics for the shell's hash router.
 (function () {
-  const { NAV, KPIS, SALES_TREND, BREAKDOWN, SALES_BY_CHANNEL, AOV_TREND, SESSIONS_TREND, FUNNEL, CONV_RATE_TREND, SALES_BY_REFERRER, SESSIONS_BY_REFERRER, PERF_BY_CHANNEL, CITY_COORDS, SALES_BY_PRODUCT, SESSIONS_BY_DEVICE, SESSIONS_BY_LOCATION, SOCIAL_REFERRER, LANDING_PAGES, SELL_THROUGH, COHORT, PAGEVIEWS_TREND, PAID_AMOUNT_TREND, REFUND_TREND, MARKETING_SALES_TREND, ORDERS_FULFILLED_TREND, SESSIONS_BY_COUNTRY, SESSIONS_BY_TRAFFIC, SESSIONS_BY_SOCIAL, PRODUCT_DATA, VARIANT_DATA, COUNTRY_TRAFFIC, REPORTS, REPORT_CATEGORIES, CATALOG } = window.DATA;
+  let root; // set by the SPA shell router via VIEWS.analytics.render(el, rest)
+  const ICON = window.ICON || window.ICONS || {}; // icons.js loads first; fallback just in case
+  const { KPIS, SALES_TREND, BREAKDOWN, SALES_BY_CHANNEL, AOV_TREND, SESSIONS_TREND, FUNNEL, CONV_RATE_TREND, SALES_BY_REFERRER, SESSIONS_BY_REFERRER, PERF_BY_CHANNEL, CITY_COORDS, SALES_BY_PRODUCT, SESSIONS_BY_DEVICE, SESSIONS_BY_LOCATION, SOCIAL_REFERRER, LANDING_PAGES, SELL_THROUGH, COHORT, PAGEVIEWS_TREND, PAID_AMOUNT_TREND, REFUND_TREND, MARKETING_SALES_TREND, ORDERS_FULFILLED_TREND, SESSIONS_BY_COUNTRY, SESSIONS_BY_TRAFFIC, SESSIONS_BY_SOCIAL, PRODUCT_DATA, VARIANT_DATA, COUNTRY_TRAFFIC, REPORTS, REPORT_CATEGORIES, CATALOG } = window.DATA;
   // ---- Favorites (localStorage-backed) + current report id ----
   let CURRENT_REPORT = null;
   const FAV_KEY = 'bestvoy_fav_reports';
@@ -22,71 +28,26 @@
   const mkChart = (node, opt) => { const c = echarts.init(node); c.setOption(opt); charts.push(c); return c; };
   window.addEventListener('resize', () => charts.forEach((c) => c.resize()));
 
-  // ---------------- Chrome ----------------
-  function renderChrome() {
-    const app = document.getElementById('app');
-    app.innerHTML = '';
-    app.classList.add('shell-root');
-
-    // top full-width header: logo only (matches real admin — no search / bell / avatar)
-    app.appendChild(h(`
-      <header class="app-header">
-        <a class="hdr-logo" href="../index.html" title="Back to BestShopio modules">
-          <span class="brand-mark">S</span><span class="hdr-logo-name">Silix</span>
-        </a>
-      </header>`));
-
-    const body = h(`<div class="app-body"></div>`);
-    body.appendChild(h(`
-      <aside class="app-sidebar scroll-thin">
-        <nav class="nav-scroll scroll-thin" id="nav"></nav>
-        <div class="nav-footer">
-          <a class="nav-item" data-route="#/m/settings">${ICON.settings}<span>Settings</span></a>
-        </div>
-      </aside>`));
-    body.appendChild(h(`
-      <div class="flex-1 flex flex-col min-w-0">
-        <main id="view" class="shell-view flex-1 overflow-auto scroll-thin"></main>
-      </div>`));
-    app.appendChild(body);
-
-    renderNav();
+  // ---------------- Secondary nav (analytics' own sub-views) ----------------
+  // Rendered as a horizontal tab bar at the top of the analytics content. The
+  // shared shell owns the sidebar + header; this is the in-module navigation
+  // between Overview / Reports / Live View. Active is highlighted by `seg`.
+  const SUBNAV = [
+    { seg: 'overview', label: 'Overview', route: '#/analytics/overview' },
+    { seg: 'reports', label: 'Reports', route: '#/analytics/reports' },
+    { seg: 'live', label: 'Live View', route: '#/analytics/live' },
+  ];
+  function subNavHTML(active) {
+    // Horizontal padding mirrors .view-wrap so the tab bar lines up with the
+    // page content below it; the content view keeps its own .view-wrap padding.
+    return `<div class="an-subnav" style="padding:14px 30px 0">
+      <div class="tabs">${SUBNAV.map((t) =>
+        `<div class="tab${t.seg === active ? ' active' : ''}" data-route="${t.route}">${t.label}</div>`).join('')}</div>
+    </div>`;
   }
-
-  function navItemHTML(it) {
-    if (it.children) {
-      const subs = it.children.map((c) => `<a class="nav-sub" data-route="${c.route}">${c.label}</a>`).join('');
-      const head = it.route
-        ? `<a class="nav-item nav-parent" data-route="${it.route}">${ICON[it.icon]}<span>${it.label}</span></a>`
-        : `<div class="nav-item nav-parent" data-toggle="${it.id}">${ICON[it.icon]}<span>${it.label}</span>${ICON.caret}</div>`;
-      return `<div class="nav-group" data-group="${it.id}">${head}<div class="nav-subs collapsed" data-subs="${it.id}">${subs}</div></div>`;
-    }
-    return `<a class="nav-item" data-route="${it.route}">${ICON[it.icon]}<span>${it.label}</span>${it.badge ? `<span class="nav-badge">${it.badge}</span>` : ''}</a>`;
-  }
-
-  function renderNav() {
-    const nav = document.getElementById('nav');
-    nav.innerHTML = NAV.main.map(navItemHTML).join('');
-    nav.querySelectorAll('a[data-route]').forEach((a) => a.addEventListener('click', () => { location.hash = a.getAttribute('data-route'); }));
-    nav.querySelectorAll('[data-toggle]').forEach((d) => d.addEventListener('click', () => {
-      const id = d.getAttribute('data-toggle');
-      nav.querySelector(`[data-subs="${id}"]`).classList.toggle('collapsed');
-      d.querySelector('.nav-caret').classList.toggle('open');
-    }));
-  }
-
-  function setActiveNav(route) {
-    document.querySelectorAll('.nav-item, .nav-sub').forEach((n) => n.classList.remove('active'));
-    document.querySelectorAll('.nav-subs').forEach((s) => s.classList.add('collapsed'));
-    document.querySelectorAll('.nav-caret').forEach((c) => c.classList.remove('open'));
-    const el = document.querySelector(`[data-route="${route}"]`);
-    if (!el) return;
-    el.classList.add('active');
-    const grp = el.closest('.nav-group');
-    if (grp) {
-      const subs = grp.querySelector('.nav-subs'); if (subs) subs.classList.remove('collapsed');
-      const caret = grp.querySelector('.nav-caret'); if (caret) caret.classList.add('open');
-    }
+  function wireSubNav(scope) {
+    (scope || root).querySelectorAll('.tabs [data-route]').forEach((t) =>
+      (t.onclick = () => { location.hash = t.getAttribute('data-route'); }));
   }
 
   // ---------------- Reusable UI ----------------
@@ -389,16 +350,6 @@
     };
   }
 
-  // ---------------- Placeholder views (next slices) ----------------
-  function placeholder(view, title, note) {
-    view.innerHTML = `<div class="view-wrap">${topBar(title, '')}
-      <div class="panel placeholder">
-        <div>
-          <div style="font-size:15px;color:var(--ink);font-weight:600;margin-bottom:6px">${title}</div>
-          <div class="muted" style="max-width:520px">${note}</div>
-        </div>
-      </div></div>`;
-  }
   // ============ Reports library + report detail/builder (S2 + S3) ============
   const prettify = (s) => String(s).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const isMoney = (m) => /sales|profit|amount|spent|aov|refund|discount|tax/i.test(m);
@@ -1516,36 +1467,36 @@
       set('lv-visitors', v); set('lv-map-visitors', v); set('lv-sessions', s.toLocaleString()); set('lv-orders', o); set('lv-sales', '$' + sales.toLocaleString());
     }, 2200);
   }
-  const viewModule = (v, id) => placeholder(v, id.charAt(0).toUpperCase() + id.slice(1), 'This screen is outside the Analytics prototype scope — shown only so the surrounding navigation feels real.');
-
-  // ---------------- Router ----------------
-  function router() {
+  // ---------------- Router (SPA: driven by the shell via VIEWS.analytics.render) ----------------
+  // `rest` is the hash part after the module id, e.g. '' / 'overview' / 'reports'
+  // / 'reports/<id>' / 'live'. We render analytics' own secondary tab bar at the
+  // top of `root` (for the three top-level sub-views), then the view body into a
+  // child content element. Report detail pages get no tab bar (they have a back
+  // button to Reports), matching the detail-page convention.
+  function route(rest) {
     disposeCharts();
     document.querySelectorAll('.tipbox').forEach((t) => (t.style.display = 'none'));
     document.querySelectorAll('.pop-layer').forEach((p) => p.remove());
     onChipChange = null;
-    const view = document.getElementById('view');
-    if (!view) { renderChrome(); }
-    const v = document.getElementById('view');
-    let hash = location.hash || '#/analytics/overview';
-    const parts = hash.replace(/^#\//, '').split('/');
+    if (!root) return;
 
-    if (parts[0] === 'analytics') {
-      const seg = parts[1] || 'overview';
-      if (seg === 'explore') { location.hash = '#/analytics/reports'; return; }
-      if (seg === 'overview') viewOverview(v);
-      else if (seg === 'reports' && parts[2]) viewReportDetail(v, parts[2]);
-      else if (seg === 'reports') viewReports(v);
-      else if (seg === 'live') viewLive(v);
-      else viewOverview(v);
-      setActiveNav((seg === 'reports' && parts[2]) ? '#/analytics/reports' : `#/analytics/${seg}`);
-    } else if (parts[0] === 'm') {
-      viewModule(v, parts[1] || 'home');
-      setActiveNav(hash);
-    } else {
-      location.hash = '#/analytics/overview';
-    }
-    v.scrollTop = 0;
+    const parts = String(rest || '').split('/').filter(Boolean);
+    const seg = parts[0] || 'overview';
+    if (seg === 'explore') { location.hash = '#/analytics/reports'; return; }
+
+    // top-level sub-views show the secondary tab bar; report detail does not
+    const isDetail = seg === 'reports' && parts[1];
+    const activeSeg = ['overview', 'reports', 'live'].includes(seg) ? seg : 'overview';
+    root.innerHTML = (isDetail ? '' : subNavHTML(activeSeg)) + '<div id="an-content"></div>';
+    if (!isDetail) wireSubNav(root);
+    const v = root.querySelector('#an-content');
+
+    if (isDetail) viewReportDetail(v, parts[1]);
+    else if (seg === 'reports') viewReports(v);
+    else if (seg === 'live') viewLive(v);
+    else viewOverview(v);
+
+    if (root.parentElement) root.parentElement.scrollTop = 0;
   }
 
   // ---------------- Tooltips (metric explanations) ----------------
@@ -1564,10 +1515,25 @@
     document.addEventListener('mouseout', (e) => { if (e.target.closest('[data-tip]')) tip.style.display = 'none'; });
   }
 
-  // ---------------- Boot ----------------
-  renderChrome();
+  // ---------------- Boot (one-time, on module load) ----------------
+  // The shell loads this script once and caches it; these are global, idempotent
+  // listeners (a single tooltip box + chip-popover delegation). No chrome, no
+  // hash router, no initial render here — the shell drives render()/unmount().
   initTooltips();
   document.addEventListener('click', (e) => { const c = e.target.closest('[data-chip]'); if (c) openChip(c); });
-  window.addEventListener('hashchange', router);
-  if (!location.hash) location.hash = '#/analytics/overview'; else router();
+
+  // ---------------- SPA shell registration ----------------
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.analytics = {
+    render: function (el, rest) { root = el; route(rest || ''); },
+    unmount: function () {
+      // dispose all ECharts instances + clear the live-view interval/timers so
+      // charts/timers don't leak when navigating away (and back).
+      disposeCharts();
+      if (window.__liveTimer) { clearInterval(window.__liveTimer); window.__liveTimer = null; }
+      onChipChange = null;
+      document.querySelectorAll('.tipbox').forEach((t) => (t.style.display = 'none'));
+      document.querySelectorAll('.pop-layer').forEach((p) => p.remove());
+    },
+  };
 })();

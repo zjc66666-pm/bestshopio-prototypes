@@ -10,7 +10,7 @@
    Items show by sort DESC ("Higher sort show first"). Link may be empty. */
 (function () {
   const D = window.DATA_MENU;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.menu.render(el, rest)
 
   // tiny html -> element helper
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -669,17 +669,14 @@
     location.hash = '#/menu';
   }
 
-  // ================= ROUTER =================
+  // ================= ROUTER (SPA: registered with the shell router) =================
   function goEdit(id) { location.hash = '#/menu/' + id; }
 
-  function route() {
-    const hash = location.hash || '#/menu';
-    const m = hash.match(/^#\/menu\/(.+)$/);
-    if (m) { renderEdit(decodeURIComponent(m[1])); root.parentElement.scrollTop = 0; }
+  function route(rest) {
+    if (rest) { renderEdit(decodeURIComponent(rest)); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
     else { renderList(); }
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/menu';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.menu = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

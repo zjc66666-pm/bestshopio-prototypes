@@ -4,7 +4,7 @@
    reviews (reviewsList / table / search / reviewEdit / replyModal). */
 (function () {
   const D = window.DATA_REVIEWS;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.reviews.render(el, rest)
 
   // tiny html -> element helper
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -687,18 +687,15 @@
     };
   }
 
-  // ================= ROUTER =================
+  // ================= ROUTER (SPA: registered with the shell router) =================
   function goDetail(id) { location.hash = '#/reviews/' + id; }
 
-  function route() {
+  function route(rest) {
     closePops();
-    const hash = location.hash || '#/reviews';
-    const m = hash.match(/^#\/reviews\/(.+)$/);
-    if (m) { renderDetail(decodeURIComponent(m[1])); root.parentElement.scrollTop = 0; }
+    if (rest) { renderDetail(decodeURIComponent(rest)); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
     else { renderList(); }
   }
 
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/reviews';
-  route();
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.reviews = { render: function (el, rest) { root = el; route(rest || ''); } };
 })();

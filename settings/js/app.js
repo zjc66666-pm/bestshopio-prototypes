@@ -1,12 +1,14 @@
-/* BestShopio Admin · Settings prototype — one page, internal LEFT sub-nav of 7
-   tabs, each driven by an internal hash sub-route (#/<tab>). Default = Base.
-   Chrome (global sidebar + header) is injected by ../assets/shell.js; this file
-   only renders the module body into #root and reuses ../assets/theme.css classes.
+/* BestShopio Admin · Settings prototype — SPA sub-module of the shared shell.
+   When the route is #/settings/* the shell (../assets/shell.js) renders the
+   settings sidebar (7 items) + a "Settings" bar with a close X, then mounts this
+   module via window.VIEWS.settings.render(rootEl, rest). This file renders ONLY
+   the content of the active settings sub-page into #root (full width — NO internal
+   left sub-nav). `rest` (the part after #/settings/) selects the sub-page.
    Mirrors reference/bestvoy-admin web-antd settings/** field shapes.
    SECURITY: secret fields render masked placeholders only — never plaintext keys. */
 (function () {
   const D = window.DATA_SETTINGS;
-  const root = document.getElementById('root');
+  let root; // set by the SPA shell router via VIEWS.settings.render(el, rest)
 
   // tiny html -> element helper (same pattern as orders prototype)
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -36,7 +38,6 @@
     tagSm:  svg('<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.3"/>', 14),
     grid:   svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>', 14),
   };
-  const ICON_BY_KEY = { base: I.store, payments: I.card, currency: I.coins, checkout: I.cart, metafields: I.braces, locations: I.pin, rates: I.truck };
 
   // ---- toast (same as orders) ----
   const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1900); };
@@ -78,27 +79,14 @@
   };
 
   // ===========================================================================
-  // SHELL: left sub-nav rail + content panel (renders into #root)
+  // PAINT: the shell already renders the settings sidebar + "Settings" bar, so
+  // we render ONLY the active sub-page content into #root (full width, no rail).
   // ===========================================================================
-  function renderShell(activeTab, bodyHtml) {
-    const items = D.TABS.map((t) =>
-      '<button class="set-nav' + (t.key === activeTab ? ' active' : '') + '" data-tab="' + t.key + '">' +
-        '<span class="set-nav-ico">' + (ICON_BY_KEY[t.key] || I.store) + '</span>' +
-        '<span class="set-nav-txt"><span class="set-nav-label">' + esc(t.label) + '</span>' +
-        '<span class="set-nav-desc">' + esc(t.desc) + '</span></span>' +
-      '</button>').join('');
-
+  function renderShell(_activeTab, bodyHtml) {
     root.innerHTML =
       '<style>' + STYLES + '</style>' +
-      '<div class="flex items-center justify-between mb-4">' +
-        '<h1 class="page-title">Settings</h1>' +
-      '</div>' +
-      '<div class="set-layout">' +
-        '<aside class="set-rail panel">' + items + '</aside>' +
-        '<section class="set-body">' + bodyHtml + '</section>' +
-      '</div>';
+      '<div class="set-body">' + bodyHtml + '</div>';
 
-    root.querySelectorAll('.set-nav').forEach((b) => b.onclick = () => { location.hash = '#/' + b.getAttribute('data-tab'); });
     // wire generic toggles (visual only)
     root.querySelectorAll('[data-toggle]').forEach((el) => el.onclick = () => el.classList.toggle('on'));
   }
@@ -856,40 +844,40 @@
   }
 
   // ===========================================================================
-  // ROUTER  (internal hash sub-routes per tab; default = base)
+  // ROUTER  (SPA: shell passes `rest` = the part after #/settings/)
+  // Maps the shell's sidebar sub-page id -> this module's renderer. Two ids
+  // differ from the internal renderer names (shippable-locations, shipping-rates).
+  // Deeper segments (rest after the sub-page id) pre-seed the in-page drill state
+  // so deep links to a metafield resource / shipping profile keep working.
   // ===========================================================================
   const ROUTES = {
-    base: renderBase, payments: renderPayments, currency: renderCurrency,
-    checkout: renderCheckout, metafields: renderMetafields, locations: renderLocations, rates: renderRates,
+    base: renderBase,
+    payments: renderPayments,
+    currency: renderCurrency,
+    checkout: renderCheckout,
+    metafields: renderMetafields,
+    'shippable-locations': renderLocations,
+    'shipping-rates': renderRates,
   };
 
-  function route() {
-    const hash = (location.hash || '').replace(/^#\//, '');
-    const key = ROUTES[hash] ? hash : 'base';
-    // reset drill-down sub-states when leaving a tab
-    if (key !== 'metafields') mfResource = null;
-    if (key !== 'rates') rateProfile = null;
+  function show(rest) {
+    const parts = String(rest || '').split('/').filter(Boolean);
+    const key = ROUTES[parts[0]] ? parts[0] : 'base';
+    const sub = parts[1];
+    // reset / seed drill-down sub-states for the active sub-page
+    mfResource = (key === 'metafields' && sub) ? decodeURIComponent(sub) : null;
+    rateProfile = (key === 'shipping-rates' && sub != null && sub !== '') ? Number(decodeURIComponent(sub)) : null;
     ROUTES[key]();
-    if (root.parentElement) root.parentElement.scrollTop = 0;
+    if (root && root.parentElement) root.parentElement.scrollTop = 0;
   }
 
   // ===========================================================================
   // page-scoped styles (Settings-only widgets layered on top of theme.css)
-  // Declared before the router bootstrap below so renderShell() can read it.
+  // Declared before the VIEWS registration below so renderShell() can read it.
+  // The settings sidebar/sub-nav now lives in the shared shell, so no rail CSS here.
   // ===========================================================================
   const STYLES = `
-  .set-layout { display: flex; gap: 16px; align-items: flex-start; }
-  .set-rail { width: 248px; flex: 0 0 248px; padding: 8px; position: sticky; top: 0; }
-  .set-body { flex: 1; min-width: 0; }
-  .set-nav { display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; padding: 10px 10px; border: none; background: transparent; border-radius: 8px; cursor: pointer; color: var(--ink-body); }
-  .set-nav:hover { background: var(--panel); }
-  .set-nav.active { background: #e6f0ff; }
-  .set-nav.active .set-nav-label { color: var(--brand); font-weight: 600; }
-  .set-nav.active .set-nav-ico { color: var(--brand); }
-  .set-nav-ico { color: var(--ink-muted); flex: 0 0 18px; margin-top: 1px; }
-  .set-nav-txt { display: flex; flex-direction: column; min-width: 0; }
-  .set-nav-label { font-size: 14px; color: var(--ink); }
-  .set-nav-desc { font-size: 11.5px; color: var(--ink-muted); line-height: 1.35; margin-top: 1px; }
+  .set-body { min-width: 0; }
 
   /* switch */
   .set-switch { display: inline-flex; align-items: center; width: 40px; height: 22px; border-radius: 9999px; background: var(--ctl); cursor: pointer; transition: background .15s; flex: none; padding: 2px; }
@@ -963,17 +951,9 @@
   .rate-empty { border: 1px solid var(--hair); border-radius: 8px; background: var(--panel); padding: 16px; text-align: center; }
   .rate-free { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 6px; background: var(--ok-bg); color: #00684a; font-size: 12px; font-weight: 600; }
   .rate-price { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 6px; background: #e6f0ff; color: #0058c4; font-size: 12px; font-weight: 600; }
-
-  @media (max-width: 860px) {
-    .set-layout { flex-direction: column; }
-    .set-rail { width: 100%; flex: none; position: static; display: flex; flex-wrap: wrap; gap: 4px; }
-    .set-nav { width: auto; flex: 1 1 45%; }
-    .set-nav-desc { display: none; }
-  }
   `;
 
-  // ---- bootstrap (after STYLES so renderShell can inline it) ----
-  window.addEventListener('hashchange', route);
-  if (!location.hash) location.hash = '#/base';
-  route();
+  // ---- SPA registration (the shell drives render + renders the sidebar) ----
+  window.VIEWS = window.VIEWS || {};
+  window.VIEWS.settings = { render: function (el, rest) { root = el; show(rest || 'base'); } };
 })();
