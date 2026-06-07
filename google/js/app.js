@@ -20,15 +20,14 @@
   const I = {
     search: svg('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'),
     arrowLeft: svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', 18),
-    sync: svg('<path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'),
-    code: svg('<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>'),
-    edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 15),
     check: svg('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>'),
     clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
     x: svg('<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>'),
     chevDown: svg('<path d="m6 9 6 6 6-6"/>', 14),
-    external: svg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', 14),
+    // Free Listings logo (google.svg in real)
     google: svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'),
+    // Shopping Ads / Display Ads logo (google_ads.svg in real) — distinct triangular Ads mark
+    googleAds: svg('<path d="M10 3 3 15a3 3 0 0 0 5.2 3L15.2 6A3 3 0 0 0 10 3Z"/><path d="m14 3 7 12a3 3 0 0 1-5.2 3"/><circle cx="6" cy="18" r="2"/>'),
   };
 
   // ---- toast ----
@@ -123,20 +122,17 @@
       : '';
 
     root.innerHTML =
-      '<div class="flex items-center justify-between mb-4">' +
+      // header — real products/list.tsx renders only the title (no actions / account chip)
+      '<div class="flex items-center gap-3 mb-4">' +
         '<h1 class="page-title">Products</h1>' +
-        '<div class="flex items-center gap-2">' + accountChip() +
-          '<button class="btn btn-primary" data-act="batch-sync">' + I.sync + ' Batch sync</button>' +
-        '</div>' +
       '</div>' +
       '<div class="panel">' +
         '<div class="tabs" style="padding:0 8px" id="pl-tabs">' + tabsHtml + '</div>' +
-        // selection toolbar (mirrors selection-toolbar in table.tsx)
+        // selection toolbar (mirrors selection-toolbar in products/table.tsx: "{n} Selected" + Sync GMC)
         (selIds.length
           ? '<div class="card-pad flex items-center gap-3" style="padding-bottom:0">' +
               '<span class="subtle"><strong>' + selIds.length + ' Selected</strong></span>' +
-              '<button class="btn btn-default" style="height:28px" data-act="sync-selected">' + I.sync + ' Sync GMC</button>' +
-              '<button class="lnk" data-act="clear-sel">Clear selection</button>' +
+              '<button class="btn btn-default" style="height:28px" data-act="sync-selected">Sync GMC</button>' +
             '</div>'
           : '') +
         // filter bar
@@ -151,15 +147,15 @@
         '</div>' +
         '<div style="overflow-x:auto">' +
         '<table class="tbl" style="min-width:1100px">' +
+          // columns mirror products/table.tsx exactly: Product, Variants, GMC issues summary, Last sync, Status (no Actions column)
           '<thead><tr>' +
             '<th style="width:38px"><input type="checkbox" id="pl-all" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer"' + (pageRows.length && pageRows.every((p) => PL.selected[p.product_id]) ? ' checked' : '') + ' /></th>' +
             '<th>Product</th><th>Variants</th><th style="width:300px">GMC issues summary</th>' +
-            '<th style="width:180px">Last sync</th><th style="width:160px">Status</th>' +
-            '<th style="text-align:center;width:120px">Actions</th>' +
+            '<th style="width:180px">Last sync</th><th style="width:150px">Status</th>' +
           '</tr></thead>' +
           '<tbody id="pl-tbody">' +
             (pageRows.length ? pageRows.map(productRowHtml).join('')
-              : '<tr><td colspan="7" style="text-align:center;padding:40px" class="muted">No products match these filters.</td></tr>') +
+              : '<tr><td colspan="6" style="text-align:center;padding:40px" class="muted">No products match these filters.</td></tr>') +
           '</tbody>' +
         '</table>' +
         '</div>' +
@@ -179,23 +175,20 @@
       (is.disapproved > 0 ? '<span class="pill pill-red" style="padding:2px 10px;font-size:11.5px"><span class="dot"></span>' + is.disapproved + ' Disapproved</span>' : '') +
       (is.demoted > 0 ? '<span class="pill pill-orange" style="padding:2px 10px;font-size:11.5px"><span class="dot"></span>' + is.demoted + ' Demoted</span>' : '') +
       (is.not_impacted > 0 ? '<span class="pill pill-gray" style="padding:2px 10px;font-size:11.5px"><span class="dot"></span>' + is.not_impacted + ' Not impacted</span>' : '');
+    // Variants cell mirrors products/table.tsx: "{approved} Approved / {submitted} Submitted / {total} Total"
+    // (number plain, the label word is colored: Approved #52c41a green, Submitted #006be6 blue, Total plain)
     return '<tr data-id="' + p.product_id + '">' +
-      '<td onclick="event.stopPropagation()"><input type="checkbox" class="pl-pick" data-id="' + p.product_id + '" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer"' + (PL.selected[p.product_id] ? ' checked' : '') + ' /></td>' +
+      '<td><input type="checkbox" class="pl-pick" data-id="' + p.product_id + '" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer"' + (PL.selected[p.product_id] ? ' checked' : '') + ' /></td>' +
       '<td><div class="flex items-center gap-2">' +
         '<img src="' + esc(p.image) + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none;object-fit:cover" onerror="this.style.visibility=\'hidden\'" />' +
-        '<span class="lnk" style="font-weight:500">' + esc(p.store_name) + '</span>' +
+        '<span class="lnk" data-variants="' + p.product_id + '" style="font-weight:500;cursor:pointer">' + esc(p.store_name) + '</span>' +
       '</div></td>' +
-      '<td><span style="color:var(--ok);font-weight:600">' + vs.approved + '</span> Approved / ' +
-        '<span style="color:var(--brand);font-weight:600">' + vs.submitted + '</span> Submitted / ' +
-        '<span style="font-weight:600;color:var(--ink)">' + vs.total + '</span> Total</td>' +
+      '<td>' + vs.approved + ' <span style="color:#52c41a">Approved</span> / ' +
+        vs.submitted + ' <span style="color:#006be6">Submitted</span> / ' +
+        vs.total + ' <span>Total</span></td>' +
       '<td><div class="flex items-center gap-1" style="flex-wrap:wrap">' + (issueChips || '<span class="muted">—</span>') + '</div></td>' +
       '<td class="muted">' + esc(fmtTs(p.last_sync_time)) + '</td>' +
       '<td>' + submitPill(p.submit_status) + '</td>' +
-      '<td style="text-align:center" onclick="event.stopPropagation()">' +
-        '<button class="lnk" data-variants="' + p.product_id + '">View variants</button>' +
-        '<span class="muted" style="margin:0 6px">·</span>' +
-        '<button class="lnk" data-sync="' + p.product_id + '">Sync</button>' +
-      '</td>' +
     '</tr>';
   }
 
@@ -215,21 +208,18 @@
     const all = root.querySelector('#pl-all');
     if (all) all.onchange = () => { productRows().slice((PL.page - 1) * PL.size, (PL.page - 1) * PL.size + PL.size).forEach((p) => PL.selected[p.product_id] = all.checked); renderProducts(); };
     root.querySelectorAll('.pl-pick').forEach((c) => c.onchange = () => { PL.selected[c.getAttribute('data-id')] = c.checked; renderProducts(); });
-    const clearSel = root.querySelector('[data-act="clear-sel"]'); if (clearSel) clearSel.onclick = () => { PL.selected = {}; renderProducts(); };
-    const syncSel = root.querySelector('[data-act="sync-selected"]'); if (syncSel) syncSel.onclick = () => { const n = Object.keys(PL.selected).filter((k) => PL.selected[k]).length; toast('Sync queued for ' + n + ' product(s) to Google Merchant Center'); };
+    // selection toolbar "Sync GMC" (Popconfirm in real -> confirm() here) → batchProductsSkuGmc
+    const syncSel = root.querySelector('[data-act="sync-selected"]'); if (syncSel) syncSel.onclick = () => { const n = Object.keys(PL.selected).filter((k) => PL.selected[k]).length; if (confirm('Are you sure to sync GMC?')) toast('Sync GMC successfully (' + n + ' product(s))'); };
     // pagination + size
     wirePager('pl', PL, renderProducts);
-    // row -> variants
-    root.querySelectorAll('#pl-tbody tr[data-id]').forEach((tr) => tr.onclick = () => goVariants(tr.getAttribute('data-id')));
+    // navigation: only the product-name link opens variants (real products/table.tsx wraps store_name in a RouterLink; rows are not clickable)
     root.querySelectorAll('[data-variants]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); goVariants(b.getAttribute('data-variants')); });
-    root.querySelectorAll('[data-sync]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const p = D.PRODUCTS.find((x) => String(x.product_id) === b.getAttribute('data-sync')); toast('Sync queued · ' + (p ? p.store_name : b.getAttribute('data-sync'))); });
-    const bs = root.querySelector('[data-act="batch-sync"]'); if (bs) bs.onclick = () => toast('Batch sync queued for all products in the current view');
   }
 
   // ============================================================
   // VARIANTS LIST  (#/variants  &  #/variants?product=:id)
   // ============================================================
-  const VL = { productId: null, tab: 0, kwType: 'variant', kw: '', kwApplied: '', priceApplied: null, invApplied: null, page: 1, size: 20, selected: {} };
+  const VL = { productId: null, tab: 0, kwType: 'variant', kw: '', kwApplied: '', priceApplied: null, invApplied: null, page: 1, size: 20, selected: {}, allInProduct: false };
 
   function variantsForProduct(pid) {
     if (pid && D.VARIANTS[pid]) return D.VARIANTS[pid];
@@ -271,7 +261,6 @@
 
   function renderVariants() {
     VL.page = VL.page || 1;
-    const product = VL.productId ? D.PRODUCTS.find((p) => String(p.product_id) === String(VL.productId)) : null;
     const all = variantsForProduct(VL.productId);
     const rows = variantRows(all);
     const totalRecords = rows.length;
@@ -313,27 +302,26 @@
         '</div>' +
       '</div>';
 
-    const subtitle = product
-      ? '<span class="muted" style="font-size:13px;margin-left:10px">' + esc(product.store_name) + ' · Product ID ' + esc(product.product_id) + '</span>'
-      : '<span class="muted" style="font-size:13px;margin-left:10px">All variants across products</span>';
-
+    // header — real variants/list.tsx renders back button + title only (no actions / subtitle)
     root.innerHTML =
-      '<div class="flex items-center justify-between mb-4">' +
-        '<div class="flex items-center gap-3">' +
-          '<button class="back-btn" data-act="back" title="Back to products">' + I.arrowLeft + '</button>' +
-          '<span class="page-title">Variants</span>' + subtitle +
-        '</div>' +
-        '<div class="flex items-center gap-2">' +
-          '<button class="btn btn-primary" data-act="batch-sync">' + I.sync + ' Batch sync</button>' +
-        '</div>' +
+      '<div class="flex items-center gap-3 mb-4">' +
+        '<button class="back-btn" data-act="back" title="Back to products">' + I.arrowLeft + '</button>' +
+        '<span class="page-title">Variants</span>' +
       '</div>' +
       '<div class="panel">' +
         '<div class="tabs" style="padding:0 8px" id="vl-tabs">' + tabsHtml + '</div>' +
+        // selection toolbar (variants/table.tsx): "{n} Selected"/"All in this product selected" + chevron menu, then Sync GMC
         (selIds.length
           ? '<div class="card-pad flex items-center gap-3" style="padding-bottom:0">' +
-              '<span class="subtle"><strong>' + selIds.length + ' Selected</strong></span>' +
-              '<button class="btn btn-default" style="height:28px" data-act="sync-selected">' + I.sync + ' Sync GMC</button>' +
-              '<button class="lnk" data-act="clear-sel">Clear selection</button>' +
+              '<div style="position:relative">' +
+                '<span class="subtle flex items-center gap-1" id="vl-sel-trigger" style="cursor:pointer"><strong>' +
+                  (VL.allInProduct ? 'All in this product selected' : (selIds.length + ' Selected')) + '</strong>' + I.chevDown + '</span>' +
+                '<div id="vl-sel-menu" class="panel" style="display:none;position:absolute;z-index:30;top:26px;left:0;min-width:200px;padding:4px;box-shadow:var(--float-shadow)">' +
+                  '<div class="vl-sel-opt" style="padding:8px 12px;border-radius:6px;cursor:pointer;font-size:13px">' +
+                    (VL.allInProduct ? 'Unselect all' : 'Select all in this product') + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<button class="btn btn-default" style="height:28px" data-act="sync-selected">Sync GMC</button>' +
             '</div>'
           : '') +
         '<div class="card-pad" style="padding-bottom:8px">' +
@@ -355,7 +343,7 @@
             '<th style="width:38px"><input type="checkbox" id="vl-all" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer"' + (pageRows.length && pageRows.every((v) => VL.selected[v.unique]) ? ' checked' : '') + ' /></th>' +
             '<th>Variant</th><th style="width:180px">SKU</th><th style="width:90px" class="num">Price</th>' +
             '<th style="width:90px" class="num">Inventory</th><th style="width:150px">Variant ID</th><th style="width:130px">Status</th>' +
-            '<th>' + destHeader('Free Listings') + '</th><th>' + destHeader('Shopping Ads') + '</th><th>' + destHeader('Display Ads') + '</th>' +
+            '<th>' + destHeader('Free Listings', I.google) + '</th><th>' + destHeader('Shopping Ads', I.googleAds) + '</th><th>' + destHeader('Display Ads', I.googleAds) + '</th>' +
           '</tr></thead>' +
           '<tbody id="vl-tbody">' +
             (pageRows.length ? pageRows.map(variantRowHtml).join('')
@@ -372,7 +360,8 @@
     wireVariants();
   }
 
-  const destHeader = (label) => '<span class="flex items-center gap-1" style="color:var(--ink-muted)">' + I.google + esc(label) + '</span>';
+  // column header logo mirrors variants/table.tsx: Free Listings -> GoogleLogo, Shopping/Display Ads -> GoogleAds
+  const destHeader = (label, ico) => '<span class="flex items-center gap-1" style="color:var(--ink-muted)">' + (ico || I.google) + esc(label) + '</span>';
 
   // destination status cell (mirrors renderStatusCell in table.tsx)
   function destCell(dest) {
@@ -397,10 +386,10 @@
     const text = Object.values(v.detail || {}).join(' / ') || v.sku;
     const dests = v.gmc_destinations || {};
     return '<tr data-id="' + esc(v.unique) + '">' +
-      '<td onclick="event.stopPropagation()"><input type="checkbox" class="vl-pick" data-id="' + esc(v.unique) + '" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer"' + (VL.selected[v.unique] ? ' checked' : '') + ' /></td>' +
+      '<td><input type="checkbox" class="vl-pick" data-id="' + esc(v.unique) + '" style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer"' + (VL.selected[v.unique] ? ' checked' : '') + ' /></td>' +
       '<td><div class="flex items-center gap-2">' +
         '<img src="' + esc(v.image) + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none;object-fit:cover" onerror="this.style.visibility=\'hidden\'" />' +
-        '<span class="lnk" style="font-weight:500">' + esc(text) + '</span>' +
+        '<span class="lnk" data-edit="' + esc(v.unique) + '" style="font-weight:500;cursor:pointer">' + esc(text) + '</span>' +
       '</div></td>' +
       '<td class="muted">' + esc(v.sku) + '</td>' +
       '<td class="num" style="color:var(--ink);font-weight:500">$' + esc(v.price) + '</td>' +
@@ -432,13 +421,31 @@
     wireRange('price', (v) => { VL.priceApplied = v; });
     wireRange('inv', (v) => { VL.invApplied = v; });
     const all = root.querySelector('#vl-all');
-    if (all) all.onchange = () => { variantRows(variantsForProduct(VL.productId)).slice((VL.page - 1) * VL.size, (VL.page - 1) * VL.size + VL.size).forEach((v) => VL.selected[v.unique] = all.checked); renderVariants(); };
-    root.querySelectorAll('.vl-pick').forEach((c) => c.onchange = () => { VL.selected[c.getAttribute('data-id')] = c.checked; renderVariants(); });
-    const clearSel = root.querySelector('[data-act="clear-sel"]'); if (clearSel) clearSel.onclick = () => { VL.selected = {}; renderVariants(); };
-    const syncSel = root.querySelector('[data-act="sync-selected"]'); if (syncSel) syncSel.onclick = () => { const n = Object.keys(VL.selected).filter((k) => VL.selected[k]).length; toast('Sync queued for ' + n + ' variant(s)'); };
-    const bs = root.querySelector('[data-act="batch-sync"]'); if (bs) bs.onclick = () => toast('Batch sync queued for the variants in this view');
+    if (all) all.onchange = () => { VL.allInProduct = false; variantRows(variantsForProduct(VL.productId)).slice((VL.page - 1) * VL.size, (VL.page - 1) * VL.size + VL.size).forEach((v) => VL.selected[v.unique] = all.checked); renderVariants(); };
+    root.querySelectorAll('.vl-pick').forEach((c) => c.onchange = () => { VL.allInProduct = false; VL.selected[c.getAttribute('data-id')] = c.checked; renderVariants(); });
+    // selection "{n} Selected" chevron menu: Select all in this product / Unselect all (variants/table.tsx Popover+Menu)
+    const selTrigger = root.querySelector('#vl-sel-trigger');
+    const selMenu = root.querySelector('#vl-sel-menu');
+    if (selTrigger && selMenu) {
+      const closeMenu = () => { selMenu.style.display = 'none'; document.removeEventListener('mousedown', onSelDoc); };
+      const onSelDoc = (e) => { if (!selMenu.contains(e.target) && !selTrigger.contains(e.target)) closeMenu(); };
+      selTrigger.onclick = () => {
+        if (selMenu.style.display === 'block') { closeMenu(); return; }
+        selMenu.style.display = 'block';
+        setTimeout(() => document.addEventListener('mousedown', onSelDoc), 0);
+      };
+      const opt = selMenu.querySelector('.vl-sel-opt');
+      if (opt) opt.onclick = () => {
+        if (VL.allInProduct) { VL.selected = {}; VL.allInProduct = false; }
+        else { VL.selected = {}; variantsForProduct(VL.productId).forEach((v) => VL.selected[v.unique] = true); VL.allInProduct = true; }
+        renderVariants();
+      };
+    }
+    // Sync GMC (Popconfirm in real -> confirm() here) → batchSkuGmc
+    const syncSel = root.querySelector('[data-act="sync-selected"]'); if (syncSel) syncSel.onclick = () => { if (confirm('Are you sure to sync GMC?')) toast('Sync GMC successfully'); };
     wirePager('vl', VL, renderVariants);
-    root.querySelectorAll('#vl-tbody tr[data-id]').forEach((tr) => tr.onclick = () => goVariantEdit(tr.getAttribute('data-id')));
+    // navigation: only the variant-name link opens the editor (real variants/table.tsx wraps variant.text in a RouterLink)
+    root.querySelectorAll('[data-edit]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); goVariantEdit(b.getAttribute('data-edit')); });
   }
 
   // ============================================================
@@ -459,31 +466,30 @@
 
     const a = detail.gmc_assembled_data || {};
     const dests = detail.gmc_destinations || {};
-    const title = a.title || (meta ? meta.sku : unique);
 
-    // destination cards (mirrors renderStatusCards in detail.tsx)
+    // destination cards (mirrors renderStatusCards in detail.tsx): Free Listings -> GoogleLogo, Ads -> GoogleAds
     const cards = [
-      { key: 'FREE_LISTINGS', label: 'Free Listings' },
-      { key: 'SHOPPING_ADS', label: 'Shopping Ads' },
-      { key: 'DISPLAY_ADS', label: 'Display Ads' },
-    ].map((c) => destinationCard(c.label, dests[c.key])).join('');
+      { key: 'FREE_LISTINGS', label: 'Free Listings', ico: I.google },
+      { key: 'SHOPPING_ADS', label: 'Shopping Ads', ico: I.googleAds },
+      { key: 'DISPLAY_ADS', label: 'Display Ads', ico: I.googleAds },
+    ].map((c) => destinationCard(c.label, dests[c.key], c.ico)).join('');
 
     // raw data button only when Submitted (status 2) — mirrors detail.tsx `status.value === 2`
+    // real detail.tsx: Edit Product / View raw data / Sync GMC are all type="primary" with plain text
     const rawBtn = detail.submit_status === 2
-      ? '<button class="btn btn-default" data-act="raw">' + I.code + ' View raw data</button>' : '';
+      ? '<button class="btn btn-primary" data-act="raw">View raw data</button>' : '';
 
     root.innerHTML =
       '<div class="detail-wrap">' +
+      // header mirrors detail.tsx renderStatusCards(): back button + "Variant Detail" title, actions on the right
       '<div class="flex items-center justify-between mb-4">' +
         '<div class="flex items-center gap-3">' +
           '<button class="back-btn" data-act="back" title="Back to variants">' + I.arrowLeft + '</button>' +
           '<span class="page-title">Variant Detail</span>' +
-          '<span class="muted" style="font-size:13px">' + esc(title) + '</span>' +
-          submitPill(detail.submit_status) +
         '</div>' +
         '<div class="flex items-center gap-2">' +
-          '<button class="btn btn-default" data-act="edit-product">' + I.external + ' Edit Product</button>' + rawBtn +
-          '<button class="btn btn-primary" data-act="sync">' + I.sync + ' Sync GMC</button>' +
+          '<button class="btn btn-primary" data-act="edit-product">Edit Product</button>' + rawBtn +
+          '<button class="btn btn-primary" data-act="sync">Sync GMC</button>' +
         '</div>' +
       '</div>' +
       '<div class="flex gap-4 mb-4" style="flex-wrap:wrap">' + cards + '</div>' +
@@ -502,7 +508,7 @@
   }
 
   // one destination status card
-  function destinationCard(label, dest) {
+  function destinationCard(label, dest, logo) {
     const status = (dest && dest.destinationStatuses) || 'Unsubmitted';
     const grouped = dest ? groupIssues(dest) : {};
     const hasIssues = Object.keys(grouped).length > 0;
@@ -515,7 +521,7 @@
         '<span style="color:var(--err);font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(desc) + '">' + esc(desc) + '</span></div>';
     }));
     return '<div class="panel card-pad" style="flex:1;min-width:240px">' +
-      '<div class="flex items-center gap-2">' + I.google + '<span class="muted" style="font-size:13px">' + esc(label) + '</span></div>' +
+      '<div class="flex items-center gap-2">' + (logo || I.google) + '<span class="muted" style="font-size:13px">' + esc(label) + '</span></div>' +
       '<div class="flex items-center gap-2" style="margin-top:8px">' +
         '<span style="color:' + color + '">' + conf.ico + '</span>' +
         '<span style="font-size:16px;font-weight:600;color:' + color + '">' + esc(status) + '</span>' +
@@ -524,62 +530,77 @@
   }
 
   // ---- spec-link footer (mirrors renderCardTitle "Product data specification:" + "Merchant API—" in module/utils.tsx) ----
-  // real Google support taxonomy labels + hrefs from module/link.json (sample/reference data only)
+  // label -> href map taken VERBATIM from module/link.json (getLinkByText). Empty href -> '#'.
+  const B = 'https://support.google.com/merchants/answer/';
   const SPEC_LINKS = {
-    'Item group ID': 'https://support.google.com/merchants/answer/6324507',
-    'feedLabel': 'https://support.google.com/merchants/answer/14994087',
-    'Title': 'https://support.google.com/merchants/answer/6324415',
-    'Description': 'https://support.google.com/merchants/answer/6324468',
-    'Link': 'https://support.google.com/merchants/answer/6324416',
-    'Image link': 'https://support.google.com/merchants/answer/6324350',
-    'Additional Image link': 'https://support.google.com/merchants/answer/6324370',
-    '3D model link': 'https://support.google.com/merchants/answer/13674896',
-    'Mobile link': 'https://support.google.com/merchants/answer/6324459',
-    'Canonical link': 'https://support.google.com/merchants/answer/9340054',
-    'Structured title': 'https://support.google.com/merchants/answer/6324415',
-    'Structured description': 'https://support.google.com/merchants/answer/6324468',
-    'Availability': 'https://support.google.com/merchants/answer/6324448',
-    'Availability date': 'https://support.google.com/merchants/answer/6324470',
-    'Cost of goods sold': 'https://support.google.com/merchants/answer/9017895',
-    'Expiration date': 'https://support.google.com/merchants/answer/6324499',
-    'Price': 'https://support.google.com/merchants/answer/6324371',
-    'Sale price': 'https://support.google.com/merchants/answer/6324471',
-    'Sale price effective date': 'https://support.google.com/merchants/answer/6324460',
-    'Google product category': 'https://support.google.com/merchants/answer/6324436',
-    'Product type': 'https://support.google.com/merchants/answer/6324406',
-    'Brand': 'https://support.google.com/merchants/answer/6324351',
-    'GTIN': 'https://support.google.com/merchants/answer/6324461',
-    'MPN': 'https://support.google.com/merchants/answer/6324482',
-    'Identifier exists': 'https://support.google.com/merchants/answer/6324478',
-    'Condition': 'https://support.google.com/merchants/answer/6324469',
-    'Adult': 'https://support.google.com/merchants/answer/6324508',
-    'Multipack': 'https://support.google.com/merchants/answer/6324488',
-    'Bundle': 'https://support.google.com/merchants/answer/6324449',
-    'Age group': 'https://support.google.com/merchants/answer/6324463',
-    'Color': 'https://support.google.com/merchants/answer/6324487',
-    'Gender': 'https://support.google.com/merchants/answer/6324479',
-    'Material': 'https://support.google.com/merchants/answer/6324410',
-    'Pattern': 'https://support.google.com/merchants/answer/6324483',
-    'Size': 'https://support.google.com/merchants/answer/6324492',
-    'Size type': 'https://support.google.com/merchants/answer/6324497',
-    'Size system': 'https://support.google.com/merchants/answer/6324502',
-    'Ads redirect': 'https://support.google.com/merchants/answer/7501026',
-    'Custom label 0-4': 'https://support.google.com/merchants/answer/6324473',
-    'Promotion ID': 'https://support.google.com/merchants/answer/7050148',
-    'Lifestyle Image link': 'https://support.google.com/merchants/answer/9103186',
-    'Excluded destination': 'https://support.google.com/merchants/answer/6324486',
-    'Included destination': 'https://support.google.com/merchants/answer/7501026',
-    'Pause': 'https://support.google.com/merchants/answer/6324486',
-    'Shipping': 'https://support.google.com/merchants/answer/6324484',
-    'Shipping label': 'https://support.google.com/merchants/answer/6324504',
-    'Shipping weight': 'https://support.google.com/merchants/answer/6324503',
-    'Free shipping threshold': 'https://support.google.com/merchants/answer/6324484',
+    'Item group ID': B + '6324507',
+    'feedLabel': B + '14994087',
+    'Title': B + '6324415',
+    'Description': B + '6324468',
+    'Link': B + '6324416',
+    'Image link': B + '6324350',
+    'Additional Image link': B + '6324370',
+    '3D model link': B + '13674896',
+    'Mobile link': B + '6324459',
+    'Canonical link': B + '9340054',
+    'Structured title': B + '6324415',
+    'Structured description': B + '6324468',
+    'Availability': B + '6324448',
+    'Availability date': B + '6324470',
+    'Cost of goods sold': B + '9017895',
+    'Expiration date': B + '6324499',
+    'Price': B + '6324371',
+    'Sale price': B + '6324471',
+    'Sale price effective date': B + '6324460',
+    'Unit pricing measure': '#',
+    'Unit pricing base measure': '#',
+    'Google product category': B + '6324436',
+    'Product type': B + '6324406',
+    'Brand': B + '6324351',
+    'GTIN': B + '6324461',
+    'MPN': B + '6324482',
+    'Identifier exists': B + '6324478',
+    'Condition': B + '6324469',
+    'Adult': B + '6324508',
+    'Multipack': B + '6324488',
+    'Bundle': B + '6324449',
+    'Age group': B + '6324463',
+    'Color': B + '6324487',
+    'Gender': B + '6324479',
+    'Material': B + '6324410',
+    'Pattern': B + '6324483',
+    'Size': B + '6324492',
+    'Size type': B + '6324497',
+    'Size system': B + '6324502',
+    'Product length': B + '11018531',
+    'Product width': B + '11018531',
+    'Product height': B + '11018531',
+    'Product weight': B + '11018531',
+    'Product detail': B + '9218260',
+    'Product highlight': B + '9216100',
+    'Ads redirect': B + '6324450',
+    'Custom label 0-4': B + '6324473',
+    'Promotion ID': B + '7050148',
+    'Lifestyle Image link': B + '9103186',
+    'Excluded destination': B + '6324486',
+    'Included destination': B + '7501026',
+    'Pause': B + '11909930',
+    'Shipping': B + '6324484',
+    'Shipping label': B + '6324504',
+    'Shipping weight': B + '6324503',
+    'Shipping length': B + '6324498',
+    'Shipping width': B + '6324498',
+    'Shipping height': B + '6324498',
+    'Free shipping threshold': B + '14768922',
   };
+  // merchantApi accepts an array of {text, href} (link.json basicInformation.merchantApi has 2 entries),
+  // each rendered on its own "Merchant API—<link>" line (utils.tsx renderCardTitle).
   function specFoot(links, merchantApi) {
     let out = '';
     if (merchantApi) {
-      out += '<div style="font-size:12.5px;margin-top:10px">Merchant API—' +
-        '<a class="lnk" href="' + esc(merchantApi.href) + '" target="_blank" rel="noopener">' + esc(merchantApi.text) + '</a></div>';
+      const apis = Array.isArray(merchantApi) ? merchantApi : [merchantApi];
+      out += apis.map((m) => '<div style="font-size:12.5px;margin-top:10px">Merchant API—' +
+        '<a class="lnk" href="' + esc(m.href) + '" target="_blank" rel="noopener">' + esc(m.text) + '</a></div>').join('');
     }
     if (links && links.length) {
       const parts = links.map((t) => '<a class="lnk" href="' + esc(SPEC_LINKS[t] || '#') + '" target="_blank" rel="noopener">' + esc(t) + '</a>').join(', ');
@@ -614,11 +635,19 @@
     '<div style="font-size:13px;min-width:0">' + valHtml + '</div></div>';
 
   function sectionBasicInformation(a) {
-    return section('Basic information', '', grid2([
-      dRow('name', a.name), dRow('offerId', a.offer_id),
-      dRow('itemGroupId', a.item_group_id), dRow('contentLanguage', a.content_language),
-      dRow('feedLabel', a.feed_label), dRow('versionNumber', a.version_number),
-    ]), specFoot(['Item group ID', 'feedLabel'], { text: 'REST Resource: accounts.products', href: 'https://developers.google.com/merchant/api/reference/rest/products_v1/accounts.products' }));
+    // BasicInformation.tsx: single column (grid-cols-1); order name, offerId, itemGroupId,
+    // contentLanguage, feedLabel, versionNumber. link.json basicInformation.merchantApi = 2 links.
+    return section('Basic information', '',
+      dRow('name', a.name) +
+      dRow('offerId', a.offer_id) +
+      dRow('itemGroupId', a.item_group_id) +
+      dRow('contentLanguage', a.content_language) +
+      dRow('feedLabel', a.feed_label) +
+      dRow('versionNumber', a.version_number),
+      specFoot(['Item group ID', 'feedLabel'], [
+        { text: 'REST Resource: accounts.productInputs', href: 'https://developers.google.com/merchant/api/reference/rest/products_v1/accounts.productInputs' },
+        { text: 'REST Resource: accounts.products', href: 'https://developers.google.com/merchant/api/reference/rest/products_v1/accounts.products' },
+      ]));
   }
   function sectionBasicProductData(a) {
     const body =
@@ -682,7 +711,7 @@
         dRow('Sale price effective date', a.sale_price_effective_date), dRow('Auto pricing min price', a.auto_pricing_min_price ? a.auto_pricing_min_price + ' ' + (a.price_currency || '') : ''),
         dRow('Sell on Google quantity', a.sell_on_google_quantity), dRow('', ''),
       ]),
-      specFoot(['Availability', 'Availability date', 'Cost of goods sold', 'Expiration date', 'Price', 'Sale price', 'Sale price effective date']));
+      specFoot(['Availability', 'Availability date', 'Cost of goods sold', 'Expiration date', 'Price', 'Sale price', 'Sale price effective date', 'Unit pricing measure', 'Unit pricing base measure']));
   }
   function sectionShippingCampaigns(a) {
     return section('Shopping campaigns and other configurations',
@@ -726,7 +755,9 @@
     root.querySelector('[data-act="back"]').onclick = () => {
       location.hash = meta ? '#/google/variants?product=' + meta.product_id : '#/google/variants';
     };
-    const sync = root.querySelector('[data-act="sync"]'); if (sync) sync.onclick = () => toast('Sync queued · ' + (detail.gmc_assembled_data && detail.gmc_assembled_data.offer_id || unique));
+    // Sync GMC — real wraps in a Popconfirm ("Are you sure to sync GMC?") then batchSkuGmc → success toast
+    const sync = root.querySelector('[data-act="sync"]'); if (sync) sync.onclick = () => { if (confirm('Are you sure to sync GMC?')) toast('Sync GMC successfully'); };
+    // Edit Product — real opens the storefront product editor in a new tab (window.open VITE_URL/admin/product/addProduct/:id)
     const ep = root.querySelector('[data-act="edit-product"]'); if (ep) ep.onclick = () => toast('Opens the storefront product editor (roadmap)');
     const raw = root.querySelector('[data-act="raw"]'); if (raw) raw.onclick = () => goVariantRaw(unique);
   }
@@ -748,41 +779,26 @@
   // VARIANT RAW DATA  (#/variants/:id/raw)
   // ============================================================
   function renderVariantRaw(unique) {
-    const meta = findVariantMeta(unique);
+    // mirrors rawData.tsx: back button + "Raw data" title, then a Card with a plain <pre> of the JSON
+    // (real has no copy button / caption / unique label; empty data renders as "{}").
     const raw = D.RAW_DATA[unique];
     const json = raw ? JSON.stringify(raw, null, 2) : '{}';
     root.innerHTML =
       '<div class="detail-wrap">' +
-      '<div class="flex items-center justify-between mb-4">' +
-        '<div class="flex items-center gap-3">' +
-          '<button class="back-btn" data-act="back" title="Back to variant detail">' + I.arrowLeft + '</button>' +
-          '<span class="page-title">Raw data</span>' +
-          '<span class="muted" style="font-size:13px;font-variant-numeric:tabular-nums">' + esc(unique) + '</span>' +
-        '</div>' +
-        '<button class="btn btn-default" data-act="copy">Copy JSON</button>' +
+      '<div class="flex items-center gap-2 mb-4">' +
+        '<button class="back-btn" data-act="back" title="Back to variant detail">' + I.arrowLeft + '</button>' +
+        '<span class="page-title">Raw data</span>' +
       '</div>' +
       '<div class="panel card-pad">' +
-        (raw
-          ? '<div class="muted" style="font-size:12.5px;margin-bottom:10px">GMC API response (products.get) — the assembled payload synced to Google Merchant Center.</div>' +
-            '<pre class="ql-editor" style="white-space:pre-wrap;word-break:break-word;min-height:auto;margin:0;border:1px solid var(--hair);border-radius:8px;background:var(--panel)">' + esc(json) + '</pre>'
-          : '<div class="placeholder"><div><div style="font-weight:600;margin-bottom:6px">No raw data captured for this variant</div>' +
-            '<div class="muted">Raw GMC responses are available for submitted variants gmc-510202 and gmc-510401.</div></div></div>') +
+        '<pre class="ql-editor" style="white-space:pre-wrap;word-break:break-word;min-height:auto;margin:0;border:1px solid var(--hair);border-radius:8px;background:var(--panel)">' + esc(json) + '</pre>' +
       '</div>' +
       '</div>';
     root.querySelector('[data-act="back"]').onclick = () => { location.hash = '#/google/variants/' + encodeURIComponent(unique); };
-    const cp = root.querySelector('[data-act="copy"]'); if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(json); } catch (e) {} toast('Raw JSON copied'); };
   }
 
   // ============================================================
-  // shared: account chip, pagination
+  // shared: pagination
   // ============================================================
-  function accountChip() {
-    const ac = D.ACCOUNT || {};
-    return '<span class="chip" title="Linked Google Merchant Center account">' + I.google +
-      '<span>' + esc(ac.account_name || 'Merchant Center') + '</span>' +
-      '<span class="muted">· ID ' + esc(ac.merchant_id || '') + '</span></span>';
-  }
-
   function pagerHtml(page, pages, ns) {
     const item = (label, p, opts) => {
       opts = opts || {};
@@ -853,7 +869,7 @@
     if (rest.indexOf('variants') === 0) {
       const q = rest.match(/[?&]product=([^&]+)/);
       const pid = q ? decodeURIComponent(q[1]) : null;
-      if (pid !== VL.productId) { VL.productId = pid; VL.tab = 0; VL.kw = ''; VL.kwApplied = ''; VL.priceApplied = null; VL.invApplied = null; VL.page = 1; VL.selected = {}; }
+      if (pid !== VL.productId) { VL.productId = pid; VL.tab = 0; VL.kw = ''; VL.kwApplied = ''; VL.priceApplied = null; VL.invApplied = null; VL.page = 1; VL.selected = {}; VL.allInProduct = false; }
       renderVariants(); scrollTop(); return;
     }
     // default: products list (rest === '' or 'products')
