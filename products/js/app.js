@@ -1409,7 +1409,7 @@
     // Unsaved-changes bar (UnSavedChanges.tsx): dark, full-width of the content column, sticky at the
     // very top of the scroll area (real admin uses fixed top:0 left/right:0). Square top corners,
     // rounded bottom; centered "You have unsaved changes" with Discard (ghost) + primary on the right.
-    '.unsaved-bar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:8px;background:#242833;color:#fff;padding:12px 24px;border-radius:0 0 12px 12px;box-shadow:0 6px 16px rgba(0,0,0,.18)}' +
+    '.unsaved-bar{position:fixed;top:0;left:0;right:0;z-index:80;min-height:60px;display:flex;align-items:center;gap:8px;background:#242833;color:#fff;padding:0 24px;box-shadow:0 4px 12px rgba(0,0,0,.18)}' +
     '.unsaved-bar .btn-primary{height:32px}' +
     '.unsaved-discard{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.55);height:32px}' +
     '.unsaved-discard:hover{background:rgba(255,255,255,.12)}' +

@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260607j'; // cache-bust for lazy-loaded module scripts
+  var V = '20260607k'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -67,8 +67,7 @@
         return '<a class="nav-sub' + (c.id === activeId ? ' active' : '') + '" href="' + c.route + '">' + c.label + '</a>';
       }).join('');
       return '<div class="nav-group">' +
-        '<a class="nav-item nav-parent' + (it.id === activeId ? ' active' : '') + '" href="' + it.route + '">' + icon + '<span>' + it.label + '</span>' +
-          '<span class="nav-caret' + (open ? ' open' : '') + '">' + ICONS.caret + '</span></a>' +
+        '<a class="nav-item nav-parent' + (it.id === activeId ? ' active' : '') + '" href="' + it.route + '">' + icon + '<span>' + it.label + '</span></a>' +
         '<div class="nav-subs' + (open ? '' : ' collapsed') + '">' + subs + '</div>' +
       '</div>';
     }
