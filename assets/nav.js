@@ -26,7 +26,10 @@ window.NAV_MENU = [
     { id: 'page',        label: 'Page',        route: '#/page',        desc: 'Custom pages (About, Contact, policies).' },
     { id: 'menu',        label: 'Menu',        route: '#/menu',        desc: 'Storefront navigation menus (two-level tree).' },
   ] },
-  { id: 'analytics',    label: 'Analytics',    icon: 'analytics',    route: '#/analytics',    desc: 'Reports engine, funnels, behavior (Sensors) and live view.' },
+  { id: 'analytics',    label: 'Analytics',    icon: 'analytics',    route: '#/analytics',    desc: 'Reports engine, funnels, behavior (Sensors) and live view.', children: [
+    { id: 'analytics-reports', label: 'Reports',   route: '#/analytics/reports' },
+    { id: 'analytics-live',    label: 'Live View', route: '#/analytics/live' },
+  ] },
   { id: 'online-store', label: 'Online store', icon: 'globe',        route: '#/online-store', desc: 'Theme list and the visual store builder.' },
   { id: 'google',       label: 'Google',       icon: 'google',       route: '#/google',       desc: 'Google Merchant Center product / variant sync.' },
 ];

@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260607e'; // cache-bust for lazy-loaded module scripts
+  var V = '20260607f'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -138,6 +138,7 @@
     var p = parse();
     var moduleId = ROUTE_MODULE[p.first] || p.first;
     var activeId = p.settings ? (p.rest.split('/')[0] || 'base') : p.first;
+    if (p.first === 'analytics') { var asub = p.rest.split('/')[0]; activeId = asub ? 'analytics-' + asub : 'analytics'; }
     renderSidebar(p, activeId);
     settingsBar.style.display = p.settings ? 'flex' : 'none';
     if (current && current !== moduleId && window.VIEWS[current] && window.VIEWS[current].unmount) {

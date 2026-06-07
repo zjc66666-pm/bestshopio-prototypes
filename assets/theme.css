@@ -51,8 +51,9 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
 .app-header { height: var(--header-h); flex: 0 0 var(--header-h); background: #f2f5ff; display: flex; align-items: center; gap: 12px; padding: 0 24px 0 12px; }
 /* ---- App shell: top full-width header + body(sidebar + white content card), mirrors bestvoy-admin basic.vue ---- */
 .shell-root { flex-direction: column; background: #f2f5ff; }
-.app-body { flex: 1; min-height: 0; display: flex; }
-.shell-view { background: #fff; border-radius: 24px 24px 0 0; }
+.app-body { flex: 1; min-height: 0; display: flex; background: #fff; border-radius: 24px 24px 0 0; overflow: hidden; }
+.shell-view { background: transparent; }
+#root { padding: 20px 24px 40px; }
 .hdr-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
 .hdr-logo-name { font-weight: 600; font-size: 18px; color: var(--ink); letter-spacing: -.01em; }
 .nav-footer { padding: 8px; margin-top: auto; }
@@ -69,7 +70,7 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
 .avatar { width: 28px; height: 28px; border-radius: 7px; background: #111827; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 600; }
 
 /* ---------- Page / content ---------- */
-.view-wrap { padding: 16px 30px 40px; }
+.view-wrap { padding: 0; }
 .page-title { font-size: 20px; font-weight: 600; color: var(--ink); }
 .muted { color: var(--ink-muted); }
 .subtle { color: var(--ink-body); }

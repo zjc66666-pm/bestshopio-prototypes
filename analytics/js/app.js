@@ -1487,8 +1487,7 @@
     // top-level sub-views show the secondary tab bar; report detail does not
     const isDetail = seg === 'reports' && parts[1];
     const activeSeg = ['overview', 'reports', 'live'].includes(seg) ? seg : 'overview';
-    root.innerHTML = (isDetail ? '' : subNavHTML(activeSeg)) + '<div id="an-content"></div>';
-    if (!isDetail) wireSubNav(root);
+    root.innerHTML = '<div id="an-content"></div>';
     const v = root.querySelector('#an-content');
 
     if (isDetail) viewReportDetail(v, parts[1]);
