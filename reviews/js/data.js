@@ -62,10 +62,10 @@
   ];
 
   // ---------- Status meta (utils.ts REVIEW_STATUS_META) — 0 Visible, 1 Hidden ----------
-  // Mapped to theme pills: Visible -> blue, Hidden -> gray.
+  // Exact inline colors from the real admin: Visible blue, Hidden gray (bg + dot/text).
   const STATUS = {
-    0: { text: 'Visible', cls: 'pill-blue' },
-    1: { text: 'Hidden',  cls: 'pill-gray' },
+    0: { text: 'Visible', bg: '#DCE6FC', dot: '#2563EB' },
+    1: { text: 'Hidden',  bg: '#E4E5E8', dot: '#6B7280' },
   };
 
   // ---------- Reviews (ReviewListItem-shaped; detail superset fields included) ----------

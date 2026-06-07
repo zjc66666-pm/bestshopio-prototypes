@@ -25,6 +25,7 @@
     plus: svg('<path d="M12 5v14M5 12h14"/>'),
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
     info: svg('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>', 14),
+    alert: svg('<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>', 14),
   };
   const TYPE_ICON = { 1: I.inbox, 2: I.tag, 3: I.truck };
   const DIM_ICON = { order: I.inbox, product: I.tag, shipping: I.truck };
@@ -359,7 +360,7 @@
 
   function buildNewState(dim) {
     return {
-      activity_id: 0, dimension: dim, run_status: '', status: 0,
+      activity_id: 0, dimension: dim, run_status: '', status: 0, dirty: false,
       method: 'code', discount_code: '', title: '',
       discount_value_type: 'percentage', discount_value: '',
       applies_to: dim === 'product' ? 'specific_products' : 'all_order',
@@ -376,7 +377,14 @@
 
   // deep-ish clone of a detail record into the editable working state
   function cloneDetail(rec) {
-    return JSON.parse(JSON.stringify(rec));
+    const c = JSON.parse(JSON.stringify(rec));
+    c.dirty = false;
+    return c;
+  }
+
+  // mark the working copy dirty and refresh so the unsaved bar appears
+  function markDirty() {
+    if (ED && !ED.dirty) { ED.dirty = true; renderEdit(); }
   }
 
   function dimTitle(dim) {
@@ -393,14 +401,17 @@
       ? (e.method === 'code' ? (e.discount_code || 'Discount') : (e.title || 'Discount'))
       : ('Add ' + (e.dimension === 'product' ? 'product' : e.dimension === 'order' ? 'order' : 'shipping') + ' discount');
 
-    // Turn on/off button visibility (mirrors index.tsx header logic)
+    // Turn on/off button visibility (mirrors index.tsx header logic):
+    //   Turn on  when isEdit && (status === 0 || run_status === 'Scheduled')
+    //   Turn off when isEdit && status === 1
     let statusBtn = '';
     if (isEdit) {
-      if (e.status === 1) statusBtn = '<button class="btn btn-default" data-act="turnoff" style="color:var(--err);border-color:var(--err)">Turn off</button>';
-      else statusBtn = '<button class="btn btn-primary" data-act="turnon">Turn on</button>';
+      if (e.status === 1) statusBtn = '<button class="btn btn-primary" data-act="turnoff" style="background:var(--err);border-color:var(--err)">Turn off</button>';
+      else if (e.status === 0 || e.run_status === 'Scheduled') statusBtn = '<button class="btn btn-primary" data-act="turnon">Turn on</button>';
     }
 
     root.innerHTML =
+      (e.dirty ? unsavedBar(isEdit) : '') +
       '<div class="detail-wrap">' +
       '<div class="flex items-center justify-between mb-4">' +
         '<div class="flex items-center gap-3">' +
@@ -429,6 +440,20 @@
       '</div>';
 
     wireEdit(e);
+  }
+
+  // ---- Unsaved-changes bar (mirrors components/UnSavedChanges.tsx; dark #242833) ----
+  // Real layout: left zone (title — empty for discounts), centered CircleAlert +
+  // "You have unsaved changes", right zone Discard (ghost) + primary Update/Add.
+  function unsavedBar(isEdit) {
+    return '<div class="dsc-unsaved" style="position:sticky;top:0;z-index:30;margin:-20px -24px 16px;background:#242833;color:#fff;display:flex;align-items:center;padding:11px 24px;border-top-left-radius:0;border-top-right-radius:0">' +
+      '<div style="flex:1"></div>' +
+      '<div class="flex items-center gap-2" style="white-space:nowrap"><span style="display:inline-flex;color:#fff">' + I.alert + '</span><span style="font-size:13.5px">You have unsaved changes</span></div>' +
+      '<div class="flex items-center justify-end gap-2" style="flex:1">' +
+        '<button class="btn btn-default" data-act="discard" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">Discard</button>' +
+        '<button class="btn btn-primary" data-act="save">' + (isEdit ? 'Update' : 'Add') + '</button>' +
+      '</div>' +
+    '</div>';
   }
 
   function sectionCard(title, body, rightHtml) {
@@ -519,20 +544,28 @@
   // ---- Minimum purchase ----
   function minimumCard(e) {
     const t = e.minimum_purchase_type;
+    // Note text mirrors minimumPurchase.tsx note() exactly:
+    //   non-product → "Applies to all products"
+    //   product + amount   → "Applies only to selected collections"
+    //   product + quantity → "Applies only to selected products"
+    const noteFor = (type) => {
+      if (e.dimension !== 'product') return 'Applies to all products';
+      return type === 'amount' ? 'Applies only to selected collections' : 'Applies only to selected products';
+    };
     let extra = '';
     if (t === 'amount') {
       extra = '<div class="mt-2 flex gap-3 items-center" style="padding-left:24px">' +
         '<div style="display:inline-flex;align-items:stretch;border:1px solid var(--ctl);border-radius:8px;overflow:hidden;height:36px;width:190px">' +
           '<span style="display:grid;place-items:center;padding:0 10px;background:var(--panel);font-size:13px;border-right:1px solid var(--ctl)">$</span>' +
           '<input class="dsc-bare" id="f-min" type="number" step="0.01" min="0.01" placeholder="0.01" value="' + esc(e.minimum_purchase_value) + '" style="flex:1;border:none;outline:none;padding:0 10px;font-size:13px;width:100%" /></div>' +
-        '<span class="muted" style="font-size:12px">' + (e.dimension === 'product' ? 'Applies only to selected products' : 'Applies to all products') + '</span>' +
+        '<span class="muted" style="font-size:12px">' + noteFor('amount') + '</span>' +
       '</div>';
     } else if (t === 'quantity') {
       extra = '<div class="mt-2 flex gap-3 items-center" style="padding-left:24px">' +
         '<div style="display:inline-flex;align-items:stretch;border:1px solid var(--ctl);border-radius:8px;overflow:hidden;height:36px;width:190px">' +
           '<input class="dsc-bare" id="f-min" type="number" min="1" step="1" placeholder="1" value="' + esc(e.minimum_purchase_value) + '" style="flex:1;border:none;outline:none;padding:0 10px;font-size:13px;width:100%" />' +
           '<span style="display:grid;place-items:center;padding:0 10px;background:var(--panel);font-size:13px;border-left:1px solid var(--ctl)">item(s)</span></div>' +
-        '<span class="muted" style="font-size:12px">' + (e.dimension === 'product' ? 'Applies only to selected products' : 'Applies to all products') + '</span>' +
+        '<span class="muted" style="font-size:12px">' + noteFor('quantity') + '</span>' +
       '</div>';
     }
     const body =
@@ -580,9 +613,10 @@
   // ---- Combinations ----
   function combinationsCard(e) {
     const c = e.combinations;
+    // Mirrors combinations.tsx renderNote() exactly (incl. the order/product quirk).
     const note = (key) => {
       if (e.dimension === 'order') {
-        if (key === 'product_discount') return 'All eligible product discounts will apply';
+        if (key === 'product_discount') return 'Customers must enter this code at checkout.';
         if (key === 'order_discount') return 'All eligible order discounts will apply';
         return 'The largest eligible shipping discount will apply in addition to eligible order discounts';
       }
@@ -597,7 +631,7 @@
     const banner =
       '<div class="mt-4" style="border:1px solid var(--hair);border-radius:10px;padding:12px">' +
         '<div style="font-size:13px;color:var(--ink-body)">This discount could combine with <span class="lnk" data-act="combinable">' + count + ' discounts</span> at checkout</div>' +
-        '<div class="info-banner" style="margin-top:10px;margin-bottom:0">' + I.info + '<span style="font-size:12.5px">Test different combinations to avoid unexpected reductions.</span></div>' +
+        '<div class="info-banner" style="margin-top:10px;margin-bottom:0">' + I.info + '<span style="font-size:12.5px">Test different combinations to avoid unexpected reductions</span></div>' +
       '</div>';
     return sectionCard('Combinations', rows + banner);
   }
@@ -614,12 +648,15 @@
 
   // ---- Active time ----
   function activeTimeCard(e) {
+    const isEdit = e.activity_id !== 0;
     const startVal = (e.start_date || '').replace(' ', 'T').slice(0, 16);
     const endVal = (e.end_date || '').replace(' ', 'T').slice(0, 16);
+    // Real activeTime.tsx disables the Start time picker on existing records.
+    const startDisabled = isEdit ? ' disabled style="width:260px;background:var(--panel);color:var(--ink-muted);cursor:not-allowed"' : ' style="width:260px"';
     const body =
       '<div style="display:flex;flex-direction:column;gap:14px">' +
         '<div><div class="muted" style="font-size:13px;margin-bottom:4px">Start time (UTC+00:00)</div>' +
-          '<input class="input" id="f-start" type="text" placeholder="YYYY-MM-DD HH:mm" value="' + esc(startVal.replace('T', ' ')) + '" style="width:260px" /></div>' +
+          '<input class="input" id="f-start" type="text" placeholder="YYYY-MM-DD HH:mm" value="' + esc(startVal.replace('T', ' ')) + '"' + startDisabled + ' /></div>' +
         (!e.never_expires
           ? '<div><div class="muted" style="font-size:13px;margin-bottom:4px">End time (UTC+00:00)</div>' +
             '<input class="input" id="f-end" type="text" placeholder="YYYY-MM-DD HH:mm" value="' + esc(endVal.replace('T', ' ')) + '" style="width:260px" /></div>'
@@ -678,8 +715,9 @@
     else comboText = 'Combines with ' + entries.join(', ') + ' discounts';
 
     const li = (t) => '<li>' + esc(t) + '</li>';
+    // Real overview.tsx hardcodes "All customers" (eligibility has the single option).
     const details =
-      li(e.customer_scope || 'All customers') + li(valueText) + li(minText) +
+      li('All customers') + li(valueText) + li(minText) +
       (muPieces.length ? li(muPieces.join(', ')) : '') + li(comboText) +
       (e.start_date ? li('Start at ' + e.start_date) : '') +
       (e.end_date ? li('End at ' + e.end_date) : '');
@@ -707,26 +745,36 @@
     const isEdit = e.activity_id !== 0;
     // header
     const back = root.querySelector('[data-act="back"]'); if (back) back.onclick = () => { location.hash = '#/discounts'; };
-    const on = root.querySelector('[data-act="turnon"]'); if (on) on.onclick = () => { e.status = 1; e.run_status = e.run_status === 'Expired' ? 'Expired' : 'Active'; toast('Turned on successfully'); renderEdit(); };
-    const off = root.querySelector('[data-act="turnoff"]'); if (off) off.onclick = () => { e.status = 0; toast('Turned off successfully'); renderEdit(); };
-    const save = root.querySelector('[data-act="save"]'); if (save) save.onclick = () => doSave(e, isEdit);
+    // Turn on/off: real index.tsx blocks status change while the form is dirty.
+    const on = root.querySelector('[data-act="turnon"]'); if (on) on.onclick = () => {
+      if (e.dirty) { toast('Please save changes before updating status.'); return; }
+      e.status = 1; e.run_status = e.run_status === 'Expired' ? 'Expired' : 'Active'; toast('Turned on successfully'); renderEdit();
+    };
+    const off = root.querySelector('[data-act="turnoff"]'); if (off) off.onclick = () => {
+      if (e.dirty) { toast('Please save changes before updating status.'); return; }
+      e.status = 0; toast('Turned off successfully'); renderEdit();
+    };
+    // Save (inline footer button + the dark unsaved bar both use data-act="save")
+    root.querySelectorAll('[data-act="save"]').forEach((s) => s.onclick = () => doSave(e, isEdit));
+    // Discard (only on the dark bar) — confirm then revert/leave (mirrors handleDiscard)
+    root.querySelectorAll('[data-act="discard"]').forEach((d) => d.onclick = () => handleDiscard(e, isEdit));
 
     // segmented buttons (method / valuetype)
     root.querySelectorAll('.dsc-seg-btn').forEach((b) => b.onclick = () => {
       const seg = b.closest('.dsc-seg').getAttribute('data-seg');
       const v = b.getAttribute('data-v');
-      if (seg === 'method') { if (e.method !== v) { e.method = v; renderEdit(); } }
-      else if (seg === 'valuetype') { if (e.discount_value_type !== v) { e.discount_value_type = v; e.discount_value = ''; renderEdit(); } }
+      if (seg === 'method') { if (e.method !== v) { e.method = v; e.dirty = true; renderEdit(); } }
+      else if (seg === 'valuetype') { if (e.discount_value_type !== v) { e.discount_value_type = v; e.discount_value = ''; e.dirty = true; renderEdit(); } }
     });
 
     // radios
     root.querySelectorAll('.dsc-radio').forEach((r) => r.onclick = () => {
       const name = r.getAttribute('data-radio'); const v = r.getAttribute('data-v');
       if (name === 'appliesto') e.applies_to = v;
-      else if (name === 'minimum') { e.minimum_purchase_type = v; if (v === 'none') e.minimum_purchase_value = ''; renderEdit(); return; }
+      else if (name === 'minimum') { e.minimum_purchase_type = v; if (v === 'none') e.minimum_purchase_value = ''; }
       else if (name === 'countries') e.countries = v;
-      else if (name === 'eligibility') { e.customer_scope = v; renderEdit(); return; }
-      renderEdit();
+      else if (name === 'eligibility') e.customer_scope = v;
+      e.dirty = true; renderEdit();
     });
 
     // checkboxes
@@ -739,13 +787,13 @@
       else if (name === 'cmb-order') e.combinations.order_discount = !e.combinations.order_discount;
       else if (name === 'cmb-shipping') e.combinations.shipping_discount = !e.combinations.shipping_discount;
       else if (name === 'never') { e.never_expires = !e.never_expires; if (e.never_expires) e.end_date = ''; }
-      renderEdit();
+      e.dirty = true; renderEdit();
     });
 
-    // text/number inputs — keep state on input (no re-render to preserve focus)
-    const bind = (id, fn) => { const el = root.querySelector(id); if (el) el.oninput = () => fn(el.value); };
-    bind('#f-code', (v) => e.discount_code = v.toUpperCase());
-    const codeEl = root.querySelector('#f-code'); if (codeEl) codeEl.oninput = () => { e.discount_code = codeEl.value; };
+    // text/number inputs — keep state on input (no re-render to preserve focus).
+    // First keystroke flips dirty and reveals the bar imperatively (focus stays put).
+    const bind = (id, fn) => { const el = root.querySelector(id); if (el) el.oninput = () => { fn(el.value); markDirtyLive(isEdit); }; };
+    const codeEl = root.querySelector('#f-code'); if (codeEl) codeEl.oninput = () => { e.discount_code = codeEl.value; markDirtyLive(isEdit); };
     bind('#f-title', (v) => e.title = v);
     bind('#f-value', (v) => e.discount_value = v);
     bind('#f-min', (v) => e.minimum_purchase_value = v);
@@ -763,14 +811,14 @@
     const gen = root.querySelector('[data-act="gencode"]'); if (gen) gen.onclick = () => {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = '';
       for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)];
-      e.discount_code = s; renderEdit();
+      e.discount_code = s; e.dirty = true; renderEdit();
     };
 
     // applies-to product picker + remove
     const pick = root.querySelector('[data-act="pick-products"]'); if (pick) pick.onclick = () => openProductPicker(e);
     root.querySelectorAll('.dsc-prod-x').forEach((x) => x.onclick = () => {
       const pid = Number(x.getAttribute('data-pid'));
-      e.products = (e.products || []).filter((p) => p.id !== pid); renderEdit();
+      e.products = (e.products || []).filter((p) => p.id !== pid); e.dirty = true; renderEdit();
     });
 
     // copy in overview
@@ -778,6 +826,52 @@
 
     // combinable modal
     const comb = root.querySelector('[data-act="combinable"]'); if (comb) comb.onclick = () => openCombinableModal(e);
+  }
+
+  // Reveal the unsaved bar on the first dirty keystroke without re-rendering
+  // (so the focused input keeps focus). Subsequent keystrokes are no-ops.
+  function markDirtyLive(isEdit) {
+    if (!ED || ED.dirty) return;
+    ED.dirty = true;
+    if (root.querySelector('.dsc-unsaved')) return;
+    const bar = h(unsavedBar(isEdit));
+    root.insertBefore(bar, root.firstChild);
+    bar.querySelectorAll('[data-act="save"]').forEach((s) => s.onclick = () => doSave(ED, isEdit));
+    bar.querySelectorAll('[data-act="discard"]').forEach((d) => d.onclick = () => handleDiscard(ED, isEdit));
+  }
+
+  // Discard: confirm, then revert to the saved record (edit) or leave (new).
+  function handleDiscard(e, isEdit) {
+    confirmModal({
+      title: 'Discard changes?',
+      text: 'All unsaved changes will be lost.',
+      okText: 'Discard',
+      onOk: () => {
+        if (isEdit) {
+          const rec = D.DETAILS[e.activity_id];
+          if (rec) { ED = cloneDetail(rec); renderEdit(); }
+          else { ED.dirty = false; renderEdit(); }
+        } else {
+          location.hash = '#/discounts';
+        }
+      },
+    });
+  }
+
+  // Lightweight confirm dialog (Modal.confirm analogue)
+  function confirmModal(opts) {
+    const backdrop = h('<div class="modal-backdrop"></div>');
+    const m = h('<div class="modal" style="width:420px"></div>');
+    m.innerHTML =
+      '<div class="modal-head">' + esc(opts.title) + '</div>' +
+      '<div class="modal-body"><div class="muted" style="font-size:13.5px">' + esc(opts.text || '') + '</div></div>' +
+      '<div class="modal-foot"><button class="btn btn-default" data-cancel>' + esc(opts.cancelText || 'Cancel') + '</button>' +
+        '<button class="btn btn-primary" data-ok style="background:var(--err);border-color:var(--err)">' + esc(opts.okText || 'OK') + '</button></div>';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    m.querySelector('[data-cancel]').onclick = close;
+    backdrop.onclick = (ev) => { if (ev.target === backdrop) close(); };
+    m.querySelector('[data-ok]').onclick = () => { close(); opts.onOk && opts.onOk(); };
   }
 
   // ---- Product picker modal (subset of the real ProductSelectModal) ----
@@ -861,8 +955,8 @@
     if (e.method === 'code' && !e.discount_code.trim()) { toast("Discount code can't be blank"); return; }
     if (e.method === 'automatic' && !e.title.trim()) { toast("Title can't be blank"); return; }
     if (e.dimension !== 'shipping' && !e.discount_value) { toast("Discount value can't be blank"); return; }
-    if (e.dimension === 'product' && !(e.products || []).length) { toast('Please select at least one product'); return; }
-    if (isEdit) { toast('Updated successfully'); renderEdit(); }
+    if (e.dimension === 'product' && !(e.products || []).length) { toast('Please select at least one product or variant'); return; }
+    if (isEdit) { e.dirty = false; toast('Updated successfully'); renderEdit(); }
     else { toast('Discount created successfully'); location.hash = '#/discounts'; }
   }
 

@@ -46,6 +46,7 @@
   const LST = {
     field: 'title', kw: '', kwApplied: '',
     status: [],          // multi-select of 0 / 1
+    sel: [],             // selected row ids (row-selection checkboxes)
     page: 1, size: 20,
   };
 
@@ -60,7 +61,12 @@
   }
 
   function renderList() {
+    ensureBlogStyles();
     LST.page = LST.page || 1;
+    // "no data ever" → rich empty state (mirrors hasEverHadData=false branch in list.tsx + table.tsx)
+    const hasEverHadData = D.POSTS.length > 0;
+    if (!hasEverHadData) { renderEmptyList(); return; }
+
     const rows = filteredRows();
     const total = rows.length;
     const pages = Math.max(1, Math.ceil(total / LST.size));
@@ -78,6 +84,9 @@
     const tags = [];
     if (LST.kwApplied) tags.push('<span class="field-pill" data-clear="kw">' + esc(fieldLabel) + ': ' + esc(LST.kwApplied) + ' <span class="x">&times;</span></span>');
     if (LST.status.length) tags.push('<span class="field-pill" data-clear="status">Status: ' + esc(LST.status.map((v) => (D.STATUS_OPTIONS.find((o) => o.value === v) || {}).label).join(', ')) + ' <span class="x">&times;</span></span>');
+
+    // header checkbox: checked when every visible row is selected
+    const allOnPage = pageRows.length > 0 && pageRows.every((p) => LST.sel.includes(p.article_id));
 
     root.innerHTML =
       '<div class="flex items-center justify-between mb-4">' +
@@ -107,14 +116,15 @@
         '</div>' +
         // table
         '<div style="overflow-x:auto">' +
-        '<table class="tbl" style="min-width:760px">' +
+        '<table class="tbl" style="min-width:800px">' +
           '<thead><tr>' +
+            '<th style="width:44px"><input type="checkbox" class="row-ck" id="bl-ckall"' + (allOnPage ? ' checked' : '') + ' /></th>' +
             '<th>Blog title</th><th style="width:140px">Status</th><th style="width:160px">Author</th>' +
             '<th style="width:180px">Last updated</th><th style="width:80px;text-align:center">Action</th>' +
           '</tr></thead>' +
           '<tbody id="bl-tbody">' +
             (pageRows.length ? pageRows.map(rowHtml).join('')
-              : '<tr><td colspan="5" style="text-align:center;padding:40px" class="muted">No blogs match these filters.</td></tr>') +
+              : '<tr><td colspan="6" style="text-align:center;padding:40px" class="muted">No blogs match these filters.</td></tr>') +
           '</tbody>' +
         '</table>' +
         '</div>' +
@@ -128,8 +138,47 @@
     wireList();
   }
 
+  // rich empty state (mirrors renderEmptyState in table.tsx): illustration + copy + Add blog
+  function renderEmptyList() {
+    root.innerHTML =
+      '<div class="flex items-center justify-between mb-4">' +
+        '<h1 class="page-title">Blog</h1>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<div class="flex flex-col items-center justify-center" style="padding:80px 24px;text-align:center">' +
+          '<div style="margin-bottom:24px">' + emptyArt() + '</div>' +
+          '<h3 style="font-size:20px;font-weight:600;color:var(--ink);margin:0 0 8px">Add and manage your blog</h3>' +
+          '<p class="muted" style="font-size:13.5px;max-width:420px;margin:0 0 24px">Blogs are great tools for giving your brand a voice and promoting new products and promotions.</p>' +
+          '<button class="btn btn-primary" data-act="add" style="height:40px;padding:0 20px;font-size:14px">Add blog</button>' +
+        '</div>' +
+      '</div>';
+    const add = root.querySelector('[data-act="add"]'); if (add) add.onclick = () => goEdit('0');
+  }
+
+  // empty-state illustration (mirrors the inline SVG in table.tsx)
+  function emptyArt() {
+    return '<svg width="180" height="180" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="100" cy="100" r="80" fill="#DBEAFE" opacity="0.3"/>' +
+      '<rect x="60" y="70" width="80" height="60" rx="4" fill="white" stroke="#E5E7EB" stroke-width="2"/>' +
+      '<rect x="60" y="70" width="80" height="8" fill="#6B7280"/>' +
+      '<rect x="70" y="85" width="20" height="15" rx="2" fill="#E5E7EB"/>' +
+      '<path d="M75 92 L78 89 L81 92 L85 88" stroke="#9CA3AF" stroke-width="1.5" fill="none"/>' +
+      '<rect x="95" y="86" width="35" height="3" rx="1.5" fill="#E5E7EB"/>' +
+      '<rect x="95" y="92" width="25" height="2" rx="1" fill="#E5E7EB"/>' +
+      '<rect x="70" y="105" width="50" height="2" rx="1" fill="#E5E7EB"/>' +
+      '<rect x="70" y="110" width="40" height="2" rx="1" fill="#E5E7EB"/>' +
+      '<rect x="70" y="115" width="45" height="2" rx="1" fill="#E5E7EB"/>' +
+      '<circle cx="40" cy="100" r="18" fill="#3B82F6"/><circle cx="40" cy="100" r="14" fill="white"/>' +
+      '<path d="M40 94 L40 106 M34 100 L46 100 M36 96 L44 104 M36 104 L44 96" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>' +
+      '<circle cx="160" cy="100" r="18" fill="#3B82F6"/><circle cx="160" cy="100" r="14" fill="white"/>' +
+      '<path d="M160 94 L160 106 M154 100 L166 100" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round"/>' +
+    '</svg>';
+  }
+
   function rowHtml(p) {
-    return '<tr data-id="' + p.article_id + '">' +
+    const on = LST.sel.includes(p.article_id);
+    return '<tr data-id="' + p.article_id + '"' + (on ? ' class="sel-row"' : '') + '>' +
+      '<td><input type="checkbox" class="row-ck" data-ck="' + p.article_id + '"' + (on ? ' checked' : '') + ' /></td>' +
       '<td>' +
         '<div class="flex items-center gap-3">' +
           '<img src="' + p.image_input + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none;background:#f3f4f6" />' +
@@ -183,6 +232,25 @@
     // row + eye -> edit
     root.querySelectorAll('#bl-tbody tr[data-id]').forEach((tr) => tr.onclick = () => goEdit(tr.getAttribute('data-id')));
     root.querySelectorAll('[data-edit]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); goEdit(b.getAttribute('data-edit')); });
+    // row-selection checkboxes (per row + header select-all on current page)
+    root.querySelectorAll('#bl-tbody .row-ck[data-ck]').forEach((ck) => {
+      ck.onclick = (e) => e.stopPropagation();
+      ck.onchange = () => {
+        const id = Number(ck.getAttribute('data-ck'));
+        LST.sel = LST.sel.filter((x) => x !== id);
+        if (ck.checked) LST.sel.push(id);
+        const tr = ck.closest('tr'); if (tr) tr.classList.toggle('sel-row', ck.checked);
+        const head = root.querySelector('#bl-ckall');
+        if (head) { const pageIds = filteredRows().slice((LST.page - 1) * LST.size, (LST.page - 1) * LST.size + LST.size).map((p) => p.article_id); head.checked = pageIds.length > 0 && pageIds.every((x) => LST.sel.includes(x)); }
+      };
+    });
+    const ckAll = root.querySelector('#bl-ckall');
+    if (ckAll) ckAll.onchange = () => {
+      const pageIds = filteredRows().slice((LST.page - 1) * LST.size, (LST.page - 1) * LST.size + LST.size).map((p) => p.article_id);
+      if (ckAll.checked) pageIds.forEach((id) => { if (!LST.sel.includes(id)) LST.sel.push(id); });
+      else LST.sel = LST.sel.filter((x) => !pageIds.includes(x));
+      renderList();
+    };
     const add = root.querySelector('[data-act="add"]'); if (add) add.onclick = () => goEdit('0');
   }
 
@@ -222,7 +290,17 @@
   // ===========================================================================
   // working copy of the blog being edited (mirrors blogStore.formData + settings)
   let F = null;
+  let ORIG = null;        // JSON snapshot used to detect unsaved changes (mirrors blogStore.resetToOrigin)
   let isNew = false;
+  let saved = false;      // set when we intentionally leave (save/discard/delete) — suppresses the leave guard
+
+  // normalize for dirty-compare: drop internal __ helper keys
+  const snap = (o) => {
+    const c = JSON.parse(JSON.stringify(o || {}));
+    delete c.__createCat; delete c.__catTitle;
+    return JSON.stringify(c);
+  };
+  const isDirty = () => snap(F) !== ORIG;
 
   function blankForm() {
     return {
@@ -250,6 +328,8 @@
       } : {});
     }
     F.seo_keywords = F.seo_keywords || [];
+    ORIG = snap(F);
+    saved = false;
   }
 
   const categoryHandle = () => {
@@ -267,11 +347,22 @@
   }
 
   function paintEdit() {
+    ensureBlogStyles();
     const pageTitle = isNew ? 'Add blog' : 'Edit blog';
 
     root.innerHTML =
-      // fixed 1200px centered container (matches real admin detail width)
+      // fixed 1200px centered container (matches real admin detail width; the
+      // dark unsaved bar lives inside it, exactly like the real blogEdit.vue)
       '<div class="detail-wrap">' +
+        // dark "Unsaved changes" bar — sticky at top, shown only when dirty
+        // (mirrors UnSavedChanges in pages/edit.tsx: confirmText = isEdit ? 'Update' : 'Add')
+        '<div class="bl-unsaved-bar" id="bl-unsaved"' + (isDirty() ? '' : ' style="display:none"') + '>' +
+          '<div class="lhs">Unsaved changes</div>' +
+          '<div class="rhs">' +
+            '<button class="bl-discard" data-act="discard">Discard</button>' +
+            '<button class="bl-save" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
+          '</div>' +
+        '</div>' +
         // header
         '<div class="flex items-center gap-2 mb-5">' +
           '<button class="back-btn" data-act="back" title="Back to blog">' + I.arrowLeft + '</button>' +
@@ -302,6 +393,69 @@
     wireEdit();
   }
 
+  // toggle the dark unsaved bar based on current dirty state (call after any field edit)
+  function syncUnsaved() {
+    const bar = root.querySelector('#bl-unsaved');
+    if (bar) bar.style.display = isDirty() ? '' : 'none';
+  }
+
+  // module-scoped styles injected once (mirrors the convention used by the page module):
+  // rich-text, status radios, SEO keyword input, image card/picker, unsaved bar, row-selection
+  // — none of these classes exist in theme.css.
+  function ensureBlogStyles() {
+    if (document.getElementById('bl-mod-styles')) return;
+    const css =
+      // dark unsaved bar (mirrors components/UnSavedChanges.tsx). Negative top margin pulls it
+      // over the detail-wrap top padding so it pins flush to the scroll-area top when sticky.
+      '.bl-unsaved-bar{position:sticky;top:0;z-index:40;background:#242833;color:#fff;display:flex;' +
+        'align-items:center;justify-content:space-between;padding:12px 20px;margin:0 0 20px;}' +
+      '.bl-unsaved-bar .lhs{font-size:14px;font-weight:500;}' +
+      '.bl-unsaved-bar .rhs{display:flex;align-items:center;gap:10px;}' +
+      '.bl-discard{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);height:32px;' +
+        'padding:0 14px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;}' +
+      '.bl-discard:hover{border-color:#fff;background:rgba(255,255,255,.08);}' +
+      '.bl-save{background:var(--brand);color:#fff;border:none;height:32px;padding:0 16px;border-radius:6px;' +
+        'font-size:13px;font-weight:500;cursor:pointer;}' +
+      '.bl-save:hover{background:#0a5bd0;}' +
+      // status radios (Visible / Hidden) — mirror Ant Radio.Group
+      '.rt-radio{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-body);cursor:pointer;}' +
+      '.rt-dot{width:16px;height:16px;border-radius:50%;border:1px solid var(--ctl);flex:none;transition:border-color .15s;}' +
+      '.rt-radio:hover .rt-dot{border-color:var(--brand);}' +
+      '.rt-dot.on{border-color:var(--brand);border-width:5px;}' +
+      // rich-text editor mock
+      '.rt-wrap{border:1px solid var(--ctl);border-radius:8px;overflow:hidden;background:#fff;}' +
+      '.rt-toolbar{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--hair);background:#fafbfc;flex-wrap:wrap;}' +
+      '.rt-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;background:transparent;border-radius:6px;color:var(--ink-body);cursor:pointer;}' +
+      '.rt-btn:hover{background:#eef0f7;color:var(--ink);}' +
+      '.rt-editor{min-height:300px;max-height:600px;overflow:auto;padding:12px 14px;font-size:14px;line-height:1.6;color:var(--ink-body);outline:none;}' +
+      '.rt-editor:focus{box-shadow:inset 0 0 0 1px var(--brand);}' +
+      '.rt-editor h2{font-size:17px;font-weight:600;color:var(--ink);margin:10px 0 6px;}' +
+      '.rt-editor p{margin:0 0 8px;}' +
+      // SEO keyword tag input
+      '.kw-box{display:flex;flex-wrap:wrap;gap:6px;min-height:36px;border:1px solid var(--ctl);border-radius:8px;padding:5px 8px;align-items:center;}' +
+      '.kw-box:focus-within{border-color:var(--brand);}' +
+      '.kw-tag{display:inline-flex;align-items:center;gap:4px;background:#e6f0ff;border:1px solid #cfe1ff;color:#0058c4;' +
+        'border-radius:6px;padding:1px 4px 1px 8px;font-size:12.5px;word-break:break-all;}' +
+      '.kw-x{display:inline-flex;cursor:pointer;color:#0058c4;}.kw-x:hover{color:#003e8f;}' +
+      '.kw-input{flex:1;min-width:120px;border:none;outline:none;background:transparent;font-size:13px;height:24px;color:var(--ink);}' +
+      // URL addon-before (matches Ant addonBefore)
+      '.addon-before{display:inline-flex;align-items:center;padding:0 10px;background:var(--panel);border:1px solid var(--ctl);' +
+        'border-right:none;border-radius:8px 0 0 8px;font-size:12.5px;color:var(--ink-muted);white-space:nowrap;max-width:60%;overflow:hidden;text-overflow:ellipsis;}' +
+      // image card remove badge + picker grid
+      '.img-x{position:absolute;right:8px;top:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;' +
+        'border-radius:50%;background:rgba(0,0,0,.5);color:#fff;cursor:pointer;transition:background .15s;}' +
+      '.img-x:hover{background:rgba(0,0,0,.7);}' +
+      '.img-pick{border:1px solid var(--hair);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color .15s;}' +
+      '.img-pick:hover{border-color:var(--brand);}' +
+      // list row-selection checkbox
+      '.row-ck{width:15px;height:15px;accent-color:var(--brand);cursor:pointer;vertical-align:middle;}' +
+      '.tbl tbody tr.sel-row>td{background:#f3f7ff;}';
+    const el = document.createElement('style');
+    el.id = 'bl-mod-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
   function card(titleHtml, bodyHtml, rightHtml) {
     return '<div class="panel card-pad mb-4">' +
       '<div class="flex items-center justify-between" style="margin-bottom:14px">' +
@@ -309,14 +463,17 @@
       '</div>' + bodyHtml + '</div>';
   }
 
-  const lbl = (t) => '<label class="ctrl-label" style="text-transform:none;font-size:13px;font-weight:500;color:var(--ink);letter-spacing:0">' + t + '</label>';
-  const counter = (n, max) => '<span class="muted" style="font-size:12px;float:right">' + n + ' / ' + max + '</span>';
+  const lbl = (t) => '<label style="display:block;font-size:13px;font-weight:500;color:var(--ink);margin-bottom:4px">' + t + '</label>';
 
-  // ---- Blog title card ----
+  // counter shown below an input, right-aligned (mirrors Ant showCount)
+  const counterBelow = (id, n, max) => '<div style="text-align:right"><span class="muted" id="' + id + '" style="font-size:12px">' + n + ' / ' + max + '</span></div>';
+
+  // ---- Blog title card (card title IS the label; input has showCount, no inner label) ----
   function infoCard() {
     const body =
-      '<div>' + lbl('Title') + counter((F.title || '').length, 255) +
-        '<input class="input" id="f-title" maxlength="255" placeholder="Example: publish a blog as &quot;New Products&quot; for newly released products" value="' + esc(F.title) + '" style="margin-top:4px" />' +
+      '<div>' +
+        '<input class="input" id="f-title" maxlength="255" placeholder="Example: publish a blog as &quot;New Products&quot; for newly released products" value="' + esc(F.title) + '" />' +
+        counterBelow('f-title-cnt', (F.title || '').length, 255) +
         '<div id="f-title-err" style="color:var(--err);font-size:12px;margin-top:4px;display:none">Can\'t be blank</div>' +
       '</div>';
     return card('Blog title', body);
@@ -328,8 +485,9 @@
       '<option value="' + c.article_category_id + '"' + (Number(F.cid) === c.article_category_id ? ' selected' : '') + '>' + esc(c.title) + '</option>').join('');
     const creating = F.__createCat;
     const body =
-      '<div class="mb-4">' + lbl('Author') + counter((F.author || '').length, 50) +
+      '<div class="mb-4">' + lbl('Author') +
         '<input class="input" id="f-author" maxlength="50" value="' + esc(F.author) + '" style="margin-top:4px" />' +
+        counterBelow('f-author-cnt', (F.author || '').length, 50) +
       '</div>' +
       '<div' + (creating ? ' class="mb-4"' : '') + '>' + lbl('Blog category') +
         '<select class="input" id="f-cat" style="margin-top:4px">' +
@@ -340,8 +498,9 @@
         '<div id="f-cat-err" style="color:var(--err);font-size:12px;margin-top:4px;display:none">Can\'t be blank</div>' +
       '</div>' +
       (creating
-        ? '<div>' + lbl('Blog category title') + counter((F.__catTitle || '').length, 100) +
+        ? '<div>' + lbl('Blog category title') +
             '<input class="input" id="f-cattitle" maxlength="100" placeholder="Example: Gifting Ideas" value="' + esc(F.__catTitle || '') + '" style="margin-top:4px" />' +
+            counterBelow('f-cattitle-cnt', (F.__catTitle || '').length, 100) +
             '<div id="f-cattitle-err" style="color:var(--err);font-size:12px;margin-top:4px;display:none">Can\'t be blank</div>' +
           '</div>'
         : '');
@@ -350,14 +509,15 @@
 
   // ---- Content card (Overview textarea + rich-text Main body mock) ----
   function contentCard() {
-    const tb = (ic, t) => '<button class="rt-btn" title="' + t + '" type="button">' + ic + '</button>';
+    const tb = (cmd, ic, t) => '<button class="rt-btn" data-cmd="' + cmd + '" title="' + t + '" type="button">' + ic + '</button>';
     const body =
-      '<div class="mb-5">' + lbl('Overview') + counter((F.synopsis || '').length, 255) +
+      '<div class="mb-5">' + lbl('Overview') +
         '<textarea class="input" id="f-synopsis" maxlength="255" rows="3" placeholder="Give your blog a brief overview to be shown on the title page" style="margin-top:4px;height:auto;padding:8px 12px;resize:vertical">' + esc(F.synopsis) + '</textarea>' +
+        counterBelow('f-synopsis-cnt', (F.synopsis || '').length, 255) +
       '</div>' +
       '<div>' + lbl('Main body') +
         '<div class="rt-wrap" style="margin-top:4px">' +
-          '<div class="rt-toolbar">' + tb(I.h2, 'Heading') + tb(I.bold, 'Bold') + tb(I.italic, 'Italic') + tb(I.list, 'List') + tb(I.link, 'Link') + tb(I.image, 'Image') + '</div>' +
+          '<div class="rt-toolbar">' + tb('h2', I.h2, 'Heading') + tb('bold', I.bold, 'Bold') + tb('italic', I.italic, 'Italic') + tb('insertUnorderedList', I.list, 'List') + tb('createLink', I.link, 'Link') + tb('insertImage', I.image, 'Image') + '</div>' +
           '<div class="rt-editor" id="f-content" contenteditable="true">' + (F.content && F.content.content ? F.content.content : '') + '</div>' +
         '</div>' +
       '</div>';
@@ -431,15 +591,17 @@
     return card('Theme template', body);
   }
 
+  const setCnt = (id, n, max) => { const el = root.querySelector('#' + id); if (el) el.textContent = n + ' / ' + max; };
+
   // ---- wire the edit view ----
   function wireEdit() {
     const back = root.querySelector('[data-act="back"]'); if (back) back.onclick = guardBack;
 
     const title = root.querySelector('#f-title');
-    if (title) title.oninput = () => { F.title = title.value; const c = title.previousElementSibling; if (c && c.classList.contains('muted')) c.textContent = title.value.length + ' / 255'; };
+    if (title) title.oninput = () => { F.title = title.value; setCnt('f-title-cnt', title.value.length, 255); syncUnsaved(); };
 
     const author = root.querySelector('#f-author');
-    if (author) author.oninput = () => { F.author = author.value; };
+    if (author) author.oninput = () => { F.author = author.value; setCnt('f-author-cnt', author.value.length, 50); syncUnsaved(); };
 
     const cat = root.querySelector('#f-cat');
     if (cat) cat.onchange = () => {
@@ -450,40 +612,47 @@
       paintEdit();
     };
     const catTitle = root.querySelector('#f-cattitle');
-    if (catTitle) catTitle.oninput = () => { F.__catTitle = catTitle.value; };
+    if (catTitle) catTitle.oninput = () => { F.__catTitle = catTitle.value; setCnt('f-cattitle-cnt', catTitle.value.length, 100); syncUnsaved(); };
 
     const syn = root.querySelector('#f-synopsis');
-    if (syn) syn.oninput = () => { F.synopsis = syn.value; const c = syn.previousElementSibling; if (c && c.classList.contains('muted')) c.textContent = syn.value.length + ' / 255'; refreshSeoPreview(); };
+    if (syn) syn.oninput = () => { F.synopsis = syn.value; setCnt('f-synopsis-cnt', syn.value.length, 255); syncUnsaved(); refreshSeoPreview(); };
 
     const content = root.querySelector('#f-content');
-    if (content) content.oninput = () => { F.content = F.content || {}; F.content.content = content.innerHTML; };
+    if (content) content.oninput = () => { F.content = F.content || {}; F.content.content = content.innerHTML; syncUnsaved(); };
     root.querySelectorAll('.rt-btn').forEach((b) => b.onclick = () => toast('Rich-text editor — formatting toolbar (prototype)'));
 
+    // right column (status / recommend / seo / image / theme)
+    wireRight();
+
+    // save (footer + dark bar) / discard (dark bar) / delete (footer)
+    root.querySelectorAll('[data-act="save"]').forEach((b) => b.onclick = onSave);
+    root.querySelectorAll('[data-act="discard"]').forEach((b) => b.onclick = onDiscard);
+    const del = root.querySelector('[data-act="delete"]'); if (del) del.onclick = openDeleteConfirm;
+  }
+
+  // wire interactions inside the right rail (shared by wireEdit + rerenderRight)
+  function wireRight() {
     // status radios
     root.querySelectorAll('#f-status .rt-radio').forEach((r) => r.onclick = () => {
       F.status = Number(r.getAttribute('data-v'));
       root.querySelectorAll('#f-status .rt-dot').forEach((d) => d.classList.remove('on'));
       r.querySelector('.rt-dot').classList.add('on');
+      syncUnsaved();
     });
-
-    // recommend checkbox
+    // recommend checkbox + (when on) priority + background color
     const rec = root.querySelector('#f-rec input');
-    if (rec) rec.onchange = () => { F.is_recommend = rec.checked ? 1 : 0; rerenderRight(); };
+    if (rec) rec.onchange = () => { F.is_recommend = rec.checked ? 1 : 0; rerenderRight(); syncUnsaved(); };
     const sort = root.querySelector('#f-sort');
-    if (sort) sort.oninput = () => { F.sort = sort.value === '' ? undefined : Number(sort.value); };
+    if (sort) sort.oninput = () => { F.sort = sort.value === '' ? undefined : Number(sort.value); syncUnsaved(); };
     const bg = root.querySelector('#f-bg');
-    if (bg) bg.oninput = () => { F.background_color = bg.value; const v = root.querySelector('#f-bg-val'); if (v) v.textContent = bg.value.toUpperCase(); };
-
+    if (bg) bg.oninput = () => { F.background_color = bg.value; const v = root.querySelector('#f-bg-val'); if (v) v.textContent = bg.value.toUpperCase(); syncUnsaved(); };
     // SEO drawer
     const seo = root.querySelector('[data-act="seo"]'); if (seo) seo.onclick = openSeoDrawer;
-
-    // image
+    // image add / remove
     const imgadd = root.querySelector('#f-imgadd'); if (imgadd) imgadd.onclick = openImagePicker;
-    const imgrm = root.querySelector('#f-imgrm'); if (imgrm) imgrm.onclick = () => { F.image_input = ''; rerenderRight(); };
-
-    // footer
-    const save = root.querySelector('[data-act="save"]'); if (save) save.onclick = onSave;
-    const del = root.querySelector('[data-act="delete"]'); if (del) del.onclick = openDeleteConfirm;
+    const imgrm = root.querySelector('#f-imgrm'); if (imgrm) imgrm.onclick = () => { F.image_input = ''; rerenderRight(); syncUnsaved(); };
+    // theme template
+    const tpl = root.querySelector('#f-template'); if (tpl) tpl.onchange = () => { F.template = tpl.value; syncUnsaved(); };
   }
 
   // re-render just the right column cards in place (status/recommend/seo/image/theme)
@@ -491,21 +660,7 @@
     const rightCol = root.querySelector('.detail-rail');
     if (!rightCol) { paintEdit(); return; }
     rightCol.innerHTML = statusCard() + recommendCard() + seoCard() + imageCard() + themeCard();
-    // re-wire right-column interactions
-    root.querySelectorAll('#f-status .rt-radio').forEach((r) => r.onclick = () => {
-      F.status = Number(r.getAttribute('data-v'));
-      root.querySelectorAll('#f-status .rt-dot').forEach((d) => d.classList.remove('on'));
-      r.querySelector('.rt-dot').classList.add('on');
-    });
-    const rec = root.querySelector('#f-rec input');
-    if (rec) rec.onchange = () => { F.is_recommend = rec.checked ? 1 : 0; rerenderRight(); };
-    const sort = root.querySelector('#f-sort');
-    if (sort) sort.oninput = () => { F.sort = sort.value === '' ? undefined : Number(sort.value); };
-    const bg = root.querySelector('#f-bg');
-    if (bg) bg.oninput = () => { F.background_color = bg.value; const v = root.querySelector('#f-bg-val'); if (v) v.textContent = bg.value.toUpperCase(); };
-    const seo = root.querySelector('[data-act="seo"]'); if (seo) seo.onclick = openSeoDrawer;
-    const imgadd = root.querySelector('#f-imgadd'); if (imgadd) imgadd.onclick = openImagePicker;
-    const imgrm = root.querySelector('#f-imgrm'); if (imgrm) imgrm.onclick = () => { F.image_input = ''; rerenderRight(); };
+    wireRight();
   }
 
   function refreshSeoPreview() {
@@ -526,7 +681,7 @@
       onMount: (m, close) => {
         m.querySelectorAll('.img-pick').forEach((el) => el.onclick = () => {
           F.image_input = D.tint(el.getAttribute('data-c'));
-          close(); rerenderRight(); toast('Image added');
+          close(); rerenderRight(); syncUnsaved(); toast('Image added');
         });
       },
     });
@@ -553,13 +708,41 @@
 
   function onSave() {
     if (!validateEdit()) { toast('Please fix the highlighted fields'); return; }
-    toast(isNew ? 'Blog added' : 'Blog updated');
-    setTimeout(() => { location.hash = '#/blog'; }, 350);
+    if (isNew) {
+      // mirrors handleSave: on create, redirect to the list
+      toast('Blog added');
+      saved = true;
+      setTimeout(() => { location.hash = '#/blog'; }, 350);
+    } else {
+      // mirrors handleSave: on update, stay on the page; clear the dirty/unsaved state
+      ORIG = snap(F);
+      syncUnsaved();
+      toast('Blog updated');
+    }
   }
 
+  // mirrors handleDiscard: confirm, then on edit reset to origin / on new go back to list
+  function onDiscard() {
+    confirmModal({
+      title: 'Are you sure you want to discard changes?',
+      content: 'All unsaved changes will be lost',
+      okText: 'Discard',
+      onOk: () => {
+        if (isNew) { saved = true; location.hash = '#/blog'; }
+        else { F = JSON.parse(ORIG); F.seo_keywords = F.seo_keywords || []; paintEdit(); }
+      },
+    });
+  }
+
+  // mirrors onBeforeRouteLeave + confirmLeave: prompt when there are unsaved changes
   function guardBack() {
-    // a real app prompts on unsaved changes; keep it light here
-    location.hash = '#/blog';
+    if (!isDirty()) { location.hash = '#/blog'; return; }
+    confirmModal({
+      title: 'Are you sure you want to leave?',
+      content: 'Unsaved changes will be lost',
+      okText: 'Exit',
+      onOk: () => { saved = true; location.hash = '#/blog'; },
+    });
   }
 
   function openDeleteConfirm() {
@@ -567,7 +750,7 @@
       title: 'Delete blog',
       content: 'Are you sure you want to delete this blog?',
       okText: 'Confirm', danger: true,
-      onOk: () => { toast('Blog deleted successfully'); location.hash = '#/blog'; },
+      onOk: () => { saved = true; toast('Blog deleted successfully'); location.hash = '#/blog'; },
     });
   }
 
@@ -643,7 +826,7 @@
         F.seo_description = S.seoDescription || F.synopsis || '';
         F.article_seo_title = S.handle || '';
         F.seo_keywords = S.keywords.slice();
-        close(); rerenderRight(); toast('SEO settings saved');
+        close(); rerenderRight(); syncUnsaved(); toast('SEO settings saved');
       };
       const dt = dr.querySelector('#d-title');
       dt.oninput = () => { S.seoTitle = dt.value; if (isNew) S.handle = slug(dt.value); render(); dr.querySelector('#d-title').focus(); place(dr.querySelector('#d-title')); };

@@ -248,25 +248,33 @@
   };
 
   // ---- Per-customer order lists (CustomerOrderItem-shaped) ----
-  // sub-order / discount fields kept faithful: orderProduct rows, orderDiscount, country_currency_dto.
+  // Faithful to type.ts CustomerOrderItem: numeric `status` + `paid` + `is_del` + `order_type`
+  // drive the three status pills (OrderStatusCell / PaymentStatusCell / FulfillmentStatusCell).
+  // status codes (order_type 0/2): 0 To ship, 1 Shipped, 2 Awaiting Review, 3 Done, -1 Refunded.
+  // total_postage = shipping; orderDiscountInfo.shipping_discounts = free-shipping promos;
+  // discount_info.discount_price / shipping_discount_total feed the TOTAL SAVINGS row.
   const ORDERS = {
     81245: [
       {
         order_id: 5042, order_sn: 'SILIX1042', create_time: '2026-06-04 14:22',
-        status: 'to_ship', paid: 1, pay_price: '184.60', total_price: '199.60', total_num: 3,
+        status: 0, paid: 1, is_del: 0, order_type: 0,
+        pay_price: '189.60', total_price: '199.60', total_num: 3, total_postage: '0.00',
         country_currency_dto: { currency_symbol: '$' },
         orderProduct: [
           { order_product_id: 9101, product_num: 1, product_price: '89.00', total_price: '99.00',
             cart_info: { product: { store_name: 'Linen Wrap Dress', image: '' }, productAttr: { sku: 'LWD-NAVY-M' } },
             discount_detail: { activity_name: 'Spring Sale', discount_amount: '10.00', discount_dimension: 2 } },
-          { order_product_id: 9102, product_num: 2, product_price: '95.60', total_price: '100.60',
+          { order_product_id: 9102, product_num: 2, product_price: '100.60', total_price: '100.60',
             cart_info: { product: { store_name: 'Cotton Crew Socks (3-pack)', image: '' }, productAttr: { sku: 'CCS-WHT' } } },
         ],
         orderDiscount: [{ activity_name: 'WELCOME5', discount_amount: '5.00', discount_dimension: 1, discount_form: 1 }],
+        orderDiscountInfo: { shipping_discounts: [{ activity_name: 'Free Shipping', discount_amount: '8.00' }] },
+        discount_info: { discount_price: '15.00', shipping_discount_total: '8.00' },
       },
       {
         order_id: 4418, order_sn: 'SILIX0418', create_time: '2024-03-11 09:55',
-        status: 'archived', paid: 1, pay_price: '128.00', total_price: '128.00', total_num: 2,
+        status: 3, paid: 1, is_del: 0, order_type: 0,
+        pay_price: '134.00', total_price: '134.00', total_num: 2, total_postage: '6.00',
         country_currency_dto: { currency_symbol: '$' },
         orderProduct: [
           { order_product_id: 8801, product_num: 2, product_price: '128.00', total_price: '128.00',
@@ -278,7 +286,8 @@
     80488: [
       {
         order_id: 5039, order_sn: 'SILIX1039', create_time: '2026-06-01 06:33',
-        status: 'shipped', paid: 1, pay_price: '342.00', total_price: '342.00', total_num: 4,
+        status: 1, paid: 1, is_del: 0, order_type: 0,
+        pay_price: '342.00', total_price: '342.00', total_num: 4, total_postage: '0.00',
         country_currency_dto: { currency_symbol: '$' },
         orderProduct: [
           { order_product_id: 9301, product_num: 1, product_price: '210.00', total_price: '210.00',
@@ -288,11 +297,23 @@
         ],
         orderDiscount: [],
       },
+      {
+        order_id: 5012, order_sn: 'SILIX1012', create_time: '2026-04-19 08:51',
+        status: 0, paid: 0, is_del: 0, order_type: 0,
+        pay_price: '96.00', total_price: '96.00', total_num: 1, total_postage: '6.00',
+        country_currency_dto: { currency_symbol: '$' },
+        orderProduct: [
+          { order_product_id: 9201, product_num: 1, product_price: '90.00', total_price: '90.00',
+            cart_info: { product: { store_name: 'Ribbed Turtleneck', image: '' }, productAttr: { sku: 'RT-GREY-M' } } },
+        ],
+        orderDiscount: [],
+      },
     ],
     79388: [
       {
         order_id: 5040, order_sn: 'SILIX1040', create_time: '2026-06-03 23:04',
-        status: 'to_ship', paid: 1, pay_price: '486.30', total_price: '521.30', total_num: 5,
+        status: 0, paid: 1, is_del: 0, order_type: 0,
+        pay_price: '486.30', total_price: '521.30', total_num: 5, total_postage: '0.00',
         country_currency_dto: { currency_symbol: '$' },
         orderProduct: [
           { order_product_id: 9401, product_num: 1, product_price: '299.00', total_price: '329.00',
@@ -302,10 +323,12 @@
             cart_info: { product: { store_name: 'Silk Scarf', image: '' }, productAttr: { sku: 'SS-FLORAL' } } },
         ],
         orderDiscount: [{ activity_name: 'VIP10', discount_amount: '35.00', discount_dimension: 1, discount_form: 2 }],
+        discount_info: { discount_price: '65.00', shipping_discount_total: '0.00' },
       },
       {
         order_id: 4991, order_sn: 'SILIX0991', create_time: '2026-03-12 14:40',
-        status: 'refund', paid: 1, pay_price: '120.00', total_price: '120.00', total_num: 1,
+        status: -1, paid: 1, is_del: 0, order_type: 0,
+        pay_price: '120.00', total_price: '120.00', total_num: 1, total_postage: '0.00',
         country_currency_dto: { currency_symbol: '$' },
         orderProduct: [
           { order_product_id: 8901, product_num: 1, product_price: '120.00', total_price: '120.00',
@@ -317,7 +340,8 @@
     80344: [
       {
         order_id: 5037, order_sn: 'SILIX1037', create_time: '2026-05-18 16:02',
-        status: 'archived', paid: 1, pay_price: '74.90', total_price: '74.90', total_num: 1,
+        status: 3, paid: 1, is_del: 0, order_type: 0,
+        pay_price: '74.90', total_price: '74.90', total_num: 1, total_postage: '0.00',
         country_currency_dto: { currency_symbol: '$' },
         orderProduct: [
           { order_product_id: 8701, product_num: 1, product_price: '74.90', total_price: '74.90',
@@ -328,18 +352,8 @@
     ],
   };
 
-  // Order status -> pill (mirrors OrderStatusCell logic used by the order-list card).
-  const ORDER_STATUS = {
-    to_pay:   { text: 'To pay',  cls: 'pill-orange' },
-    to_ship:  { text: 'To ship', cls: 'pill-blue' },
-    shipped:  { text: 'Shipped', cls: 'pill-gray' },
-    archived: { text: 'Done',    cls: 'pill-gray' },
-    refund:   { text: 'Refunded',cls: 'pill-red' },
-    cancel:   { text: 'Canceled',cls: 'pill-red' },
-  };
-
   window.DATA_CUSTOMERS = {
     KEYWORD_OPTIONS, MARKETING_OPTIONS, ACCOUNT_OPTIONS, TABS,
-    CUSTOMERS, DETAILS, ORDERS, ORDER_STATUS,
+    CUSTOMERS, DETAILS, ORDERS,
   };
 })();

@@ -32,6 +32,72 @@
     plus: svg('<path d="M12 5v14M5 12h14"/>', 16),
   };
 
+  // ---- module-scoped styles (NOT in the shared theme.css) ----
+  // Mirrors reference/bestvoy-admin .../views/admin/menu:
+  //   .mnu-savebar  -> components/UnSavedChanges.tsx (.bar-tip dark navy #242833)
+  //   compact search group -> list/search.tsx (Input.Group compact: Select 150 + Input 268)
+  //   icon buttons / expand chevrons / child rows -> MenuItemsTable.tsx columns
+  // Injected once; safe to call on every render.
+  function injectStyles() {
+    if (document.getElementById('menu-mod-styles')) return;
+    const css =
+      // unsaved-changes dark bar (real UnSavedChanges.tsx -> .bar-tip background #242833)
+      '.mnu-savebar{position:sticky;top:0;left:0;right:0;z-index:40;background:#242833;color:#fff;' +
+      'display:flex;align-items:center;gap:8px;padding:12px 20px;margin:0 0 20px;border-radius:0;}' +
+      '.mnu-savebar .dotw{width:14px;height:14px;border-radius:50%;border:1.6px solid #fff;position:relative;flex:none;}' +
+      '.mnu-savebar .dotw::after{content:"";position:absolute;left:50%;top:3px;width:1.6px;height:5px;background:#fff;transform:translateX(-50%);border-radius:1px;}' +
+      '.mnu-savebar .dotw::before{content:"";position:absolute;left:50%;bottom:2.5px;width:1.8px;height:1.8px;background:#fff;border-radius:50%;transform:translateX(-50%);}' +
+      '.mnu-savebar .msg{font-size:14px;font-weight:500;}' +
+      '.mnu-savebar .spacer{flex:1;}' +
+      '.mnu-savebar .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);' +
+      'height:32px;padding:0 14px;border-radius:6px;font-size:13px;cursor:pointer;}' +
+      '.mnu-savebar .btn-ghost:hover{border-color:#fff;background:rgba(255,255,255,.08);}' +
+      '.mnu-savebar .btn-on{background:var(--brand);color:#fff;border:none;height:32px;padding:0 16px;' +
+      'border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;}' +
+      '.mnu-savebar .btn-on:hover{background:#0a5bd0;}' +
+      // compact search group (Select + Input joined, shared border like antd Input.Group compact)
+      '.mnu-group{display:flex;align-items:stretch;width:418px;max-width:100%;}' +
+      '.mnu-group .filter-select{width:150px;border-radius:var(--radius) 0 0 var(--radius);}' +
+      '.mnu-group .wrap{position:relative;flex:1;margin-left:-1px;}' +
+      '.mnu-group .filter-input{width:100%;height:34px;padding:0 32px 0 12px;border-radius:0 var(--radius) var(--radius) 0;}' +
+      '.mnu-group .filter-select:focus,.mnu-group .filter-input:focus{position:relative;z-index:1;}' +
+      // row icon buttons (Eye / Pencil / Trash2 ghost buttons)
+      '.mnu-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;' +
+      'border:none;background:transparent;color:var(--ink-muted);border-radius:6px;cursor:pointer;}' +
+      '.mnu-icon-btn:hover{background:#eef0f7;color:var(--ink);}' +
+      '.mnu-icon-btn.danger{color:var(--err);}' +
+      '.mnu-icon-btn.danger:hover{background:#fdecec;color:var(--err);}' +
+      // expand / collapse chevron (level-1 rows with children)
+      '.mnu-expand{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;' +
+      'border:none;background:transparent;color:var(--ink-muted);cursor:pointer;padding:0;}' +
+      '.mnu-expand:hover{color:var(--ink);}' +
+      '.mnu-expand.placeholder{cursor:default;}' +
+      // child rows (level-2) — subtle indent + tint
+      '.mnu-childrow td{background:#fafbfc;}' +
+      '.mnu-child-label{padding-left:24px;}' +
+      // single-line truncating link / items cell
+      '.mnu-link-cell{display:block;max-width:460px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-body);}' +
+      // inline char counter overlay (matches antd Input showCount)
+      '.mnu-count{font-size:12px;color:var(--ink-muted);pointer-events:none;}' +
+      // inline field error (matches antd FormItem help in error state)
+      '.mnu-field-err{color:var(--err);font-size:12px;margin-top:4px;}' +
+      // Sort column header help affordance
+      '.mnu-help{display:inline-flex;align-items:center;gap:4px;}' +
+      '.mnu-help .qm{display:inline-flex;color:var(--ink-muted);cursor:pointer;}' +
+      // radio group (Menu item type: Level 1 / Level 2)
+      '.mnu-radio-row{display:flex;align-items:center;gap:20px;}' +
+      '.mnu-radio{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);cursor:pointer;}' +
+      '.mnu-radio input{accent-color:var(--brand);width:15px;height:15px;cursor:pointer;}' +
+      // empty state (real list/table.tsx renderEmptyState)
+      '.mnu-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 20px;}' +
+      '.mnu-empty-state h3{font-size:18px;font-weight:600;color:var(--ink);margin:8px 0 16px;}';
+    const s = document.createElement('style');
+    s.id = 'menu-mod-styles';
+    s.textContent = css;
+    document.head.appendChild(s);
+  }
+  injectStyles();
+
   // ---- toast (stands in for antd message.success / .error) ----
   const toast = (msg, kind) => {
     const t = document.createElement('div');
@@ -223,11 +289,12 @@
     loadEdit(id);
     if (CUR === null) { renderMissing(id); return; }
     const isNew = CUR.id == null;
-    const title = isNew ? 'Add menu' : esc(CUR.title || 'Untitled menu');
+    // pageTitle (store/menu.ts): new -> "Add menu"; edit -> title || "Edit menu"
+    const title = isNew ? 'Add menu' : esc(CUR.title || 'Edit menu');
 
     root.innerHTML =
-      '<div id="mnu-savebar-slot"></div>' +
       '<div class="detail-wrap">' +
+        '<div id="mnu-savebar-slot"></div>' +
         '<div class="flex items-center gap-2 mb-4">' +
           '<button class="back-btn" data-act="back" title="Back to menus">' + I.arrowLeft + '</button>' +
           '<span class="page-title">' + title + '</span>' +

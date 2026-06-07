@@ -20,6 +20,22 @@
     { label: 'Hidden',  value: 0 },
   ];
 
+  // ---- Add-products picker search fields (products list search.tsx SEARCH_FIELD_OPTIONS subset) ----
+  const PRODUCT_SEARCH_FIELDS = [
+    { label: 'Product name', value: 'product_name' },
+    { label: 'Product SPU',  value: 'product_spu' },
+    { label: 'Product SKU',  value: 'product_sku' },
+    { label: 'Product ID',   value: 'product_id' },
+  ];
+
+  // ---- Add-products picker status filter (AddProductsModal STATUS_OPTIONS) ----
+  // 1 = Activated, 2 = Deactivated, 5 = Archived
+  const PRODUCT_STATUS_OPTIONS = [
+    { label: 'Activated',   value: 1 },
+    { label: 'Deactivated', value: 2 },
+    { label: 'Archived',    value: 5 },
+  ];
+
   // ---- Sort orders for the Vendor products table (CollectionProductSortOrder) ----
   const SORT_ORDERS = [
     { label: 'Custom',          value: 'custom' },
@@ -52,27 +68,31 @@
     { id: 15, name: 'Petalworks Florals',    image: '',               address: 'Keizersgracht 123, 1015 CJ Amsterdam, Netherlands',                productCount: 9,  status: 0 },
   ];
 
-  // ---- Product pool used by the picker modal + vendor detail (VendorProductItem) ----
+  // ---- Product pool used by the picker modal + vendor detail (VendorProductItem / ProductInfo) ----
   // is_show 1 = Activated, is_del 1 = Archived, otherwise Deactivated.
+  // `vendor.name` drives the picker's Vendor column ("in {name}"); products with no
+  // vendor show "-". Products already in the open vendor render "in current vendor".
   const PRODUCT_POOL = [
-    { product_id: 101, store_name: '3D Anti-Cellulite Leggings',    image: img('p101', 60), price_min: 29.9, price_max: 39.9, on_sale_stock: 1280, variant_count: 6, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 102, store_name: 'Pocket Sculpting Leggings',     image: img('p102', 60), price_min: 34.0, price_max: 34.0, on_sale_stock: 940,  variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 103, store_name: 'Seamless Compression Briefs',   image: img('p103', 60), price_min: 18.5, price_max: 22.0, on_sale_stock: 0,    variant_count: 5, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 104, store_name: 'High-Waist Yoga Capris',        image: img('p104', 60), price_min: 27.0, price_max: 31.0, on_sale_stock: 56,   variant_count: 5, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 105, store_name: 'Butt-Lifting Active Shorts',    image: img('p105', 60), price_min: 21.0, price_max: 25.0, on_sale_stock: 410,  variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 0, is_del: 0 },
-    { product_id: 106, store_name: 'Ribbed Sports Bra',            image: img('p106', 60), price_min: 19.9, price_max: 24.9, on_sale_stock: 730,  variant_count: 6, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 107, store_name: 'Quick-Dry Running Tee',         image: img('p107', 60), price_min: 16.0, price_max: 16.0, on_sale_stock: 0,    variant_count: 3, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 108, store_name: 'Merino Wool Beanie',            image: img('p108', 60), price_min: 24.0, price_max: 24.0, on_sale_stock: 220,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0 },
-    { product_id: 109, store_name: 'Insulated Trail Bottle 750ml',  image: img('p109', 60), price_min: 32.0, price_max: 38.0, on_sale_stock: 145,  variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 110, store_name: 'Organic Cotton Crew Socks',     image: img('p110', 60), price_min: 9.0,  price_max: 12.0, on_sale_stock: 1620, variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 111, store_name: 'Linen Throw Pillow Cover',      image: img('p111', 60), price_min: 14.0, price_max: 18.0, on_sale_stock: 0,    variant_count: 5, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 1 },
-    { product_id: 112, store_name: 'Ceramic Pour-Over Dripper',     image: img('p112', 60), price_min: 26.0, price_max: 26.0, on_sale_stock: 88,   variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0 },
-    { product_id: 113, store_name: 'Single-Origin Coffee Beans 1kg',image: img('p113', 60), price_min: 22.0, price_max: 28.0, on_sale_stock: 300,  variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 0, is_del: 0 },
-    { product_id: 114, store_name: 'Hydrating Vitamin C Serum',     image: img('p114', 60), price_min: 39.0, price_max: 39.0, on_sale_stock: 510,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0 },
-    { product_id: 115, store_name: 'Bamboo Pet Travel Bowl',        image: img('p115', 60), price_min: 11.0, price_max: 15.0, on_sale_stock: 0,    variant_count: 4, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 116, store_name: 'Recycled Surf Board Bag',       image: img('p116', 60), price_min: 58.0, price_max: 72.0, on_sale_stock: 34,   variant_count: 3, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 117, store_name: 'Stainless Travel Tumbler',      image: img('p117', 60), price_min: 19.0, price_max: 23.0, on_sale_stock: 760,  variant_count: 5, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0 },
-    { product_id: 118, store_name: 'Waxed Canvas Tool Roll',        image: img('p118', 60), price_min: 44.0, price_max: 44.0, on_sale_stock: 120,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0 },
+    { product_id: 101, store_name: '3D Anti-Cellulite Leggings',    product_spu: 'SPU-AC101', product_sku: 'SLX-LEG-001', image: img('p101', 60), price_min: 29.9, price_max: 39.9, on_sale_stock: 1280, variant_count: 6, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'Silix Official' } },
+    { product_id: 102, store_name: 'Pocket Sculpting Leggings',     product_spu: 'SPU-PS102', product_sku: 'SLX-LEG-002', image: img('p102', 60), price_min: 34.0, price_max: 34.0, on_sale_stock: 940,  variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'Silix Official' } },
+    { product_id: 103, store_name: 'Seamless Compression Briefs',   product_spu: 'SPU-CB103', product_sku: 'SLX-BRF-003', image: img('p103', 60), price_min: 18.5, price_max: 22.0, on_sale_stock: 0,    variant_count: 5, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'Silix Official' } },
+    { product_id: 104, store_name: 'High-Waist Yoga Capris',        product_spu: 'SPU-YC104', product_sku: 'BMP-CAP-004', image: img('p104', 60), price_min: 27.0, price_max: 31.0, on_sale_stock: 56,   variant_count: 5, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'BumpBabe' } },
+    { product_id: 105, store_name: 'Butt-Lifting Active Shorts',    product_spu: 'SPU-AS105', product_sku: 'SLX-SHT-005', image: img('p105', 60), price_min: 21.0, price_max: 25.0, on_sale_stock: 410,  variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 0, is_del: 0, vendor: { name: 'Silix Official' } },
+    { product_id: 106, store_name: 'Ribbed Sports Bra',            product_spu: 'SPU-SB106', product_sku: 'BMP-BRA-006', image: img('p106', 60), price_min: 19.9, price_max: 24.9, on_sale_stock: 730,  variant_count: 6, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'BumpBabe' } },
+    { product_id: 107, store_name: 'Quick-Dry Running Tee',         product_spu: 'SPU-RT107', product_sku: 'SLX-TEE-007', image: img('p107', 60), price_min: 16.0, price_max: 16.0, on_sale_stock: 0,    variant_count: 3, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'Silix Official' } },
+    { product_id: 108, store_name: 'Merino Wool Beanie',            product_spu: 'SPU-MB108', product_sku: 'NPK-HAT-008', image: img('p108', 60), price_min: 24.0, price_max: 24.0, on_sale_stock: 220,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, vendor: { name: 'NorthPeak Outdoors' } },
+    { product_id: 109, store_name: 'Insulated Trail Bottle 750ml',  product_spu: 'SPU-TB109', product_sku: 'NPK-BTL-009', image: img('p109', 60), price_min: 32.0, price_max: 38.0, on_sale_stock: 145,  variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'NorthPeak Outdoors' } },
+    { product_id: 110, store_name: 'Organic Cotton Crew Socks',     product_spu: 'SPU-CS110', product_sku: 'NPK-SCK-010', image: img('p110', 60), price_min: 9.0,  price_max: 12.0, on_sale_stock: 1620, variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'NorthPeak Outdoors' } },
+    { product_id: 111, store_name: 'Linen Throw Pillow Cover',      product_spu: 'SPU-PC111', product_sku: 'MNL-PIL-011', image: img('p111', 60), price_min: 14.0, price_max: 18.0, on_sale_stock: 0,    variant_count: 5, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 1, vendor: { name: 'Maison Lumiere' } },
+    { product_id: 112, store_name: 'Ceramic Pour-Over Dripper',     product_spu: 'SPU-PD112', product_sku: 'CBC-DRP-012', image: img('p112', 60), price_min: 26.0, price_max: 26.0, on_sale_stock: 88,   variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, vendor: { name: 'CoastBrew Coffee' } },
+    { product_id: 113, store_name: 'Single-Origin Coffee Beans 1kg',product_spu: 'SPU-CB113', product_sku: 'CBC-BEAN-013', image: img('p113', 60), price_min: 22.0, price_max: 28.0, on_sale_stock: 300,  variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 0, is_del: 0, vendor: { name: 'CoastBrew Coffee' } },
+    { product_id: 114, store_name: 'Hydrating Vitamin C Serum',     product_spu: 'SPU-VS114', product_sku: 'AUR-SER-014', image: img('p114', 60), price_min: 39.0, price_max: 39.0, on_sale_stock: 510,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, vendor: { name: 'Aurora Skincare' } },
+    { product_id: 115, store_name: 'Bamboo Pet Travel Bowl',        product_spu: 'SPU-PB115', product_sku: 'PBL-BWL-015', image: img('p115', 60), price_min: 11.0, price_max: 15.0, on_sale_stock: 0,    variant_count: 4, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'PebblePets Supply' } },
+    { product_id: 116, store_name: 'Recycled Surf Board Bag',       product_spu: 'SPU-SB116', product_sku: 'TDL-BAG-016', image: img('p116', 60), price_min: 58.0, price_max: 72.0, on_sale_stock: 34,   variant_count: 3, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'Tidal Surfworks' } },
+    { product_id: 117, store_name: 'Stainless Travel Tumbler',      product_spu: 'SPU-TT117', product_sku: 'NPK-TUM-017', image: img('p117', 60), price_min: 19.0, price_max: 23.0, on_sale_stock: 760,  variant_count: 5, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, vendor: { name: 'NorthPeak Outdoors' } },
+    { product_id: 118, store_name: 'Waxed Canvas Tool Roll',        product_spu: 'SPU-TR118', product_sku: 'URB-ROL-018', image: img('p118', 60), price_min: 44.0, price_max: 44.0, on_sale_stock: 120,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, vendor: { name: 'UrbanForge Gear' } },
+    { product_id: 119, store_name: 'Reusable Beeswax Food Wrap',    product_spu: 'SPU-FW119', product_sku: '', image: img('p119', 60), price_min: 13.0, price_max: 17.0, on_sale_stock: 240,  variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0 },
+    { product_id: 120, store_name: 'Cold Brew Glass Carafe',        product_spu: 'SPU-GC120', product_sku: '', image: img('p120', 60), price_min: 28.0, price_max: 28.0, on_sale_stock: 0,    variant_count: 0, inventory_status: 1, spec_type: 0, is_show: 1, is_del: 0 },
   ];
 
   // helper to attach a sort_order to a slice of the pool
@@ -135,6 +155,7 @@
   // expose
   window.DATA_VENDORS = {
     SEARCH_FIELDS, STATUS_OPTIONS, SORT_ORDERS, TEMPLATES,
+    PRODUCT_SEARCH_FIELDS, PRODUCT_STATUS_OPTIONS,
     VENDORS, PRODUCT_POOL, DETAILS,
     WEBSITE_DOMAIN: 'https://www.silix.com',
   };

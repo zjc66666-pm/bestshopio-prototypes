@@ -32,6 +32,22 @@
   // ---- Theme templates (Theme template card) ----
   const TEMPLATES = [{ value: 'default', label: 'Default' }];
 
+  // ---- Category options (ProductSelect.tsx TreeCascadeSelect; flattened "Parent / Child" labels for the prototype) ----
+  const CATEGORIES = [
+    { value: 11, label: 'Apparel / Tops' },
+    { value: 12, label: 'Apparel / Knitwear' },
+    { value: 13, label: 'Apparel / Bottoms' },
+    { value: 14, label: 'Apparel / Outerwear' },
+    { value: 21, label: 'Footwear / Sneakers' },
+    { value: 31, label: 'Accessories / Bags' },
+    { value: 32, label: 'Accessories / Small leather goods' },
+    { value: 33, label: 'Accessories / Headwear' },
+    { value: 34, label: 'Accessories / Eyewear' },
+    { value: 41, label: 'Home & Living / Kitchen' },
+    { value: 51, label: 'Outdoor & Travel / Drinkware' },
+    { value: 52, label: 'Outdoor & Travel / Packs' },
+  ];
+
   // small inline image data-uris keep the prototype offline + light.
   // solid-tone swatches stand in for product / collection cover images.
   const sw = (hex) =>
@@ -63,24 +79,24 @@
   // CollectionProductListItem-shaped: product_id, store_name, image, price_min/max,
   // on_sale_stock, variant_count, inventory_status (0 ok / 1 out / 2 partial), spec_type, is_show, is_del, create_time
   const PRODUCTS = [
-    { product_id: 7001, store_name: 'Classic Cotton Crew Tee',     image: sw('#3b82f6'), price_min: 24.0,  price_max: 24.0,  on_sale_stock: 340, variant_count: 5, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-30 10:00', product_spu: 'TEE-CRW-01', product_sku: 'TEE-CRW-01-BLK-M' },
-    { product_id: 7002, store_name: 'Merino Wool Pullover',        image: sw('#0ea5a4'), price_min: 79.0,  price_max: 92.0,  on_sale_stock: 56,  variant_count: 6, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-22 10:00', product_spu: 'KNT-MER-02', product_sku: 'KNT-MER-02-GRY-L' },
-    { product_id: 7003, store_name: 'Slim-Fit Chino Trousers',     image: sw('#a16207'), price_min: 49.0,  price_max: 49.0,  on_sale_stock: 0,   variant_count: 8, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-11 10:00', product_spu: 'PNT-CHN-03', product_sku: 'PNT-CHN-03-KHK-32' },
-    { product_id: 7004, store_name: 'Canvas Low-Top Sneakers',     image: sw('#b45309'), price_min: 65.0,  price_max: 65.0,  on_sale_stock: 18,  variant_count: 7, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-04 10:00', product_spu: 'SHO-CVS-04', product_sku: 'SHO-CVS-04-WHT-42' },
-    { product_id: 7005, store_name: 'Leather Weekender Bag',       image: sw('#7c2d12'), price_min: 159.0, price_max: 159.0, on_sale_stock: 22,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, create_time: '2026-04-28 10:00', product_spu: 'BAG-WKD-05', product_sku: 'BAG-WKD-05-BRN' },
-    { product_id: 7006, store_name: 'Recycled Nylon Windbreaker',  image: sw('#4d7c0f'), price_min: 88.0,  price_max: 102.0, on_sale_stock: 64,  variant_count: 5, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-09 10:00', product_spu: 'JKT-WND-06', product_sku: 'JKT-WND-06-OLV-M' },
-    { product_id: 7007, store_name: 'Stainless Insulated Bottle',  image: sw('#0891b2'), price_min: 29.0,  price_max: 34.0,  on_sale_stock: 210, variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-06 10:00', product_spu: 'BTL-INS-07', product_sku: 'BTL-INS-07-TEA-750' },
-    { product_id: 7008, store_name: 'Organic Linen Shirt',         image: sw('#65a30d'), price_min: 58.0,  price_max: 58.0,  on_sale_stock: 47,  variant_count: 6, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-15 10:00', product_spu: 'SHT-LIN-08', product_sku: 'SHT-LIN-08-SND-L' },
-    { product_id: 7009, store_name: 'Wool-Blend Overcoat',         image: sw('#1f2937'), price_min: 219.0, price_max: 219.0, on_sale_stock: 9,   variant_count: 4, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-04-19 10:00', product_spu: 'COT-WOL-09', product_sku: 'COT-WOL-09-CHR-M' },
-    { product_id: 7010, store_name: 'Performance Running Shorts',  image: sw('#db2777'), price_min: 32.0,  price_max: 32.0,  on_sale_stock: 0,   variant_count: 5, inventory_status: 1, spec_type: 1, is_show: 0, is_del: 0, create_time: '2026-05-02 10:00', product_spu: 'SHR-RUN-10', product_sku: 'SHR-RUN-10-PNK-S' },
-    { product_id: 7011, store_name: 'Minimalist Leather Wallet',   image: sw('#92400e'), price_min: 45.0,  price_max: 45.0,  on_sale_stock: 130, variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, create_time: '2026-05-19 10:00', product_spu: 'WAL-LTH-11', product_sku: 'WAL-LTH-11-TAN' },
-    { product_id: 7012, store_name: 'Cashmere Beanie',            image: sw('#9333ea'), price_min: 38.0,  price_max: 38.0,  on_sale_stock: 76,  variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-24 10:00', product_spu: 'HAT-CSH-12', product_sku: 'HAT-CSH-12-NVY' },
-    { product_id: 7013, store_name: 'Quilted Down Vest',          image: sw('#0369a1'), price_min: 95.0,  price_max: 95.0,  on_sale_stock: 28,  variant_count: 5, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-04-26 10:00', product_spu: 'VST-DWN-13', product_sku: 'VST-DWN-13-BLU-L' },
-    { product_id: 7014, store_name: 'Ceramic Pour-Over Set',      image: sw('#be123c'), price_min: 54.0,  price_max: 54.0,  on_sale_stock: 41,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, create_time: '2026-04-22 10:00', product_spu: 'KIT-POV-14', product_sku: 'KIT-POV-14-WHT' },
-    { product_id: 7015, store_name: 'Vintage Wash Denim Jacket',  image: sw('#1d4ed8'), price_min: 110.0, price_max: 110.0, on_sale_stock: 15,  variant_count: 6, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-01 10:00', product_spu: 'JKT-DNM-15', product_sku: 'JKT-DNM-15-IND-M' },
-    { product_id: 7016, store_name: 'Bamboo Sunglasses',         image: sw('#a3a300'), price_min: 42.0,  price_max: 42.0,  on_sale_stock: 88,  variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-17 10:00', product_spu: 'ACC-SUN-16', product_sku: 'ACC-SUN-16-AMB' },
-    { product_id: 7017, store_name: 'Archived Knit Scarf',       image: sw('#6b7280'), price_min: 26.0,  price_max: 26.0,  on_sale_stock: 0,   variant_count: 0, inventory_status: 1, spec_type: 0, is_show: 0, is_del: 1, create_time: '2026-03-12 10:00', product_spu: 'ACC-SCF-17', product_sku: 'ACC-SCF-17-RED' },
-    { product_id: 7018, store_name: 'Trail Daypack 22L',         image: sw('#15803d'), price_min: 78.0,  price_max: 78.0,  on_sale_stock: 34,  variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-04-18 10:00', product_spu: 'BAG-DPK-18', product_sku: 'BAG-DPK-18-FOR' },
+    { product_id: 7001, store_name: 'Classic Cotton Crew Tee',     image: sw('#3b82f6'), price_min: 24.0,  price_max: 24.0,  on_sale_stock: 340, variant_count: 5, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-30 10:00', product_spu: 'TEE-CRW-01', product_sku: 'TEE-CRW-01-BLK-M', pid: 11 },
+    { product_id: 7002, store_name: 'Merino Wool Pullover',        image: sw('#0ea5a4'), price_min: 79.0,  price_max: 92.0,  on_sale_stock: 56,  variant_count: 6, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-22 10:00', product_spu: 'KNT-MER-02', product_sku: 'KNT-MER-02-GRY-L', pid: 12 },
+    { product_id: 7003, store_name: 'Slim-Fit Chino Trousers',     image: sw('#a16207'), price_min: 49.0,  price_max: 49.0,  on_sale_stock: 0,   variant_count: 8, inventory_status: 1, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-11 10:00', product_spu: 'PNT-CHN-03', product_sku: 'PNT-CHN-03-KHK-32', pid: 13 },
+    { product_id: 7004, store_name: 'Canvas Low-Top Sneakers',     image: sw('#b45309'), price_min: 65.0,  price_max: 65.0,  on_sale_stock: 18,  variant_count: 7, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-04 10:00', product_spu: 'SHO-CVS-04', product_sku: 'SHO-CVS-04-WHT-42', pid: 21 },
+    { product_id: 7005, store_name: 'Leather Weekender Bag',       image: sw('#7c2d12'), price_min: 159.0, price_max: 159.0, on_sale_stock: 22,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, create_time: '2026-04-28 10:00', product_spu: 'BAG-WKD-05', product_sku: 'BAG-WKD-05-BRN', pid: 31 },
+    { product_id: 7006, store_name: 'Recycled Nylon Windbreaker',  image: sw('#4d7c0f'), price_min: 88.0,  price_max: 102.0, on_sale_stock: 64,  variant_count: 5, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-09 10:00', product_spu: 'JKT-WND-06', product_sku: 'JKT-WND-06-OLV-M', pid: 14 },
+    { product_id: 7007, store_name: 'Stainless Insulated Bottle',  image: sw('#0891b2'), price_min: 29.0,  price_max: 34.0,  on_sale_stock: 210, variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-06 10:00', product_spu: 'BTL-INS-07', product_sku: 'BTL-INS-07-TEA-750', pid: 51 },
+    { product_id: 7008, store_name: 'Organic Linen Shirt',         image: sw('#65a30d'), price_min: 58.0,  price_max: 58.0,  on_sale_stock: 47,  variant_count: 6, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-15 10:00', product_spu: 'SHT-LIN-08', product_sku: 'SHT-LIN-08-SND-L', pid: 11 },
+    { product_id: 7009, store_name: 'Wool-Blend Overcoat',         image: sw('#1f2937'), price_min: 219.0, price_max: 219.0, on_sale_stock: 9,   variant_count: 4, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-04-19 10:00', product_spu: 'COT-WOL-09', product_sku: 'COT-WOL-09-CHR-M', pid: 14 },
+    { product_id: 7010, store_name: 'Performance Running Shorts',  image: sw('#db2777'), price_min: 32.0,  price_max: 32.0,  on_sale_stock: 0,   variant_count: 5, inventory_status: 1, spec_type: 1, is_show: 0, is_del: 0, create_time: '2026-05-02 10:00', product_spu: 'SHR-RUN-10', product_sku: 'SHR-RUN-10-PNK-S', pid: 13 },
+    { product_id: 7011, store_name: 'Minimalist Leather Wallet',   image: sw('#92400e'), price_min: 45.0,  price_max: 45.0,  on_sale_stock: 130, variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, create_time: '2026-05-19 10:00', product_spu: 'WAL-LTH-11', product_sku: 'WAL-LTH-11-TAN', pid: 32 },
+    { product_id: 7012, store_name: 'Cashmere Beanie',            image: sw('#9333ea'), price_min: 38.0,  price_max: 38.0,  on_sale_stock: 76,  variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-24 10:00', product_spu: 'HAT-CSH-12', product_sku: 'HAT-CSH-12-NVY', pid: 33 },
+    { product_id: 7013, store_name: 'Quilted Down Vest',          image: sw('#0369a1'), price_min: 95.0,  price_max: 95.0,  on_sale_stock: 28,  variant_count: 5, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-04-26 10:00', product_spu: 'VST-DWN-13', product_sku: 'VST-DWN-13-BLU-L', pid: 14 },
+    { product_id: 7014, store_name: 'Ceramic Pour-Over Set',      image: sw('#be123c'), price_min: 54.0,  price_max: 54.0,  on_sale_stock: 41,  variant_count: 0, inventory_status: 0, spec_type: 0, is_show: 1, is_del: 0, create_time: '2026-04-22 10:00', product_spu: 'KIT-POV-14', product_sku: 'KIT-POV-14-WHT', pid: 41 },
+    { product_id: 7015, store_name: 'Vintage Wash Denim Jacket',  image: sw('#1d4ed8'), price_min: 110.0, price_max: 110.0, on_sale_stock: 15,  variant_count: 6, inventory_status: 2, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-01 10:00', product_spu: 'JKT-DNM-15', product_sku: 'JKT-DNM-15-IND-M', pid: 14 },
+    { product_id: 7016, store_name: 'Bamboo Sunglasses',         image: sw('#a3a300'), price_min: 42.0,  price_max: 42.0,  on_sale_stock: 88,  variant_count: 3, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-05-17 10:00', product_spu: 'ACC-SUN-16', product_sku: 'ACC-SUN-16-AMB', pid: 34 },
+    { product_id: 7017, store_name: 'Archived Knit Scarf',       image: sw('#6b7280'), price_min: 26.0,  price_max: 26.0,  on_sale_stock: 0,   variant_count: 0, inventory_status: 1, spec_type: 0, is_show: 0, is_del: 1, create_time: '2026-03-12 10:00', product_spu: 'ACC-SCF-17', product_sku: 'ACC-SCF-17-RED', pid: 33 },
+    { product_id: 7018, store_name: 'Trail Daypack 22L',         image: sw('#15803d'), price_min: 78.0,  price_max: 78.0,  on_sale_stock: 34,  variant_count: 4, inventory_status: 0, spec_type: 1, is_show: 1, is_del: 0, create_time: '2026-04-18 10:00', product_spu: 'BAG-DPK-18', product_sku: 'BAG-DPK-18-FOR', pid: 52 },
   ];
 
   const findProduct = (id) => PRODUCTS.find((p) => p.product_id === id);
@@ -184,6 +200,7 @@
     SEARCH_FIELDS: SEARCH_FIELDS,
     PRODUCT_SEARCH_FIELDS: PRODUCT_SEARCH_FIELDS,
     TEMPLATES: TEMPLATES,
+    CATEGORIES: CATEGORIES,
     COLLECTIONS: COLLECTIONS,
     PRODUCTS: PRODUCTS,
     DETAILS: DETAILS,

@@ -73,7 +73,42 @@
     return [l1, l2].filter(Boolean);
   };
 
-  const pill = (map, key) => { const m = map[key] || { text: key, cls: 'pill-gray' }; return '<span class="pill ' + m.cls + '"><span class="dot"></span>' + esc(m.text) + '</span>'; };
+  // generic pill (color -> theme pill class; undefined/'' -> gray, matching PillTag default)
+  const colorCls = (color) => ({ orange: 'pill-orange', blue: 'pill-blue', red: 'pill-red', gray: 'pill-gray' }[color] || 'pill-gray');
+  const pillTag = (text, color) => '<span class="pill ' + colorCls(color) + '"><span class="dot"></span>' + esc(text) + '</span>';
+
+  // ---- order status cells (orders/components/list: OrderStatusCell / PaymentStatusCell / FulfillmentStatusCell) ----
+  // The customer order-list card stacks all three pills, same as the live admin.
+  function orderStatusCell(o) {
+    if (Number(o.is_del || 0) !== 0) return pillTag('Canceled', 'red');
+    if (Number(o.paid || 0) === 0) return pillTag('To pay', 'orange');
+    const st = String(o.status == null ? '' : o.status);
+    const ot = Number(o.order_type || 0);
+    const mapA = { '0': 'To ship', '1': 'Shipped', '2': 'Awaiting Review', '3': 'Done', '-1': 'Refunded', '9': 'Failed group', '10': 'To pay balance', '11': 'Balance payment expired' };
+    const mapB = { '0': 'To pick up', '1': 'To pick up', '2': 'Awaiting Review', '3': 'Done', '-1': 'Refunded', '9': 'Failed group' };
+    const text = (ot === 0 || ot === 2 ? mapA[st] : mapB[st]) || '--';
+    // Only an unshipped (status 0) paid order is blue; everything else uses the default gray pill.
+    const color = ((ot === 0 || ot === 2) && Number(o.status || 0) === 0) ? 'blue' : undefined;
+    return pillTag(text, color);
+  }
+  function paymentStatusCell(o) {
+    const paid = Number(o.paid || 0) === 1;
+    return pillTag(paid ? 'Paid' : 'Unpaid', paid ? undefined : 'orange');
+  }
+  function fulfillmentStatusCell(o) {
+    // Derive the canonical order status, then map to Fulfilled / Unfulfilled / -- (refund).
+    let s;
+    if (Number(o.is_del || 0) !== 0) s = 'cancel';
+    else if (Number(o.status || 0) === -1) s = 'refund';
+    else if (Number(o.paid || 0) !== 1) s = 'to_pay';
+    else if (Number(o.status) === 3) s = 'archived';
+    else if (Number(o.status) === 2) s = 'await';
+    else if (Number(o.status) === 1) s = 'shipped';
+    else s = 'to_ship';
+    if (s === 'refund') return pillTag('--', undefined);
+    if (s === 'shipped' || s === 'await' || s === 'archived') return pillTag('Fulfilled', undefined);
+    return pillTag('Unfulfilled', 'orange');
+  }
 
   // tab counts keyed on account_status
   const tabCount = (key) => key === 'all' ? D.CUSTOMERS.length : D.CUSTOMERS.filter((c) => c.account_status === key).length;
@@ -169,13 +204,8 @@
       : 'Amount spent range';
 
     root.innerHTML =
-      '<div class="flex items-center justify-between mb-4">' +
+      '<div class="mb-4">' +
         '<h1 class="page-title">Customers</h1>' +
-        '<div class="flex items-center gap-2">' +
-          '<button class="btn btn-default" data-act="import">Import</button>' +
-          '<button class="btn btn-default" data-act="export">Export</button>' +
-          '<button class="btn btn-primary" data-act="add">Add customer</button>' +
-        '</div>' +
       '</div>' +
       '<div class="panel">' +
         '<div class="tabs" style="padding:0 8px" id="cu-tabs">' + tabsHtml + '</div>' +
@@ -299,9 +329,6 @@
       goDetail(tr.getAttribute('data-id'));
     });
     root.querySelectorAll('[data-view]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); goDetail(b.getAttribute('data-view')); });
-    const imp = root.querySelector('[data-act="import"]'); if (imp) imp.onclick = () => toast('Import customers — CSV upload (roadmap)');
-    const exp = root.querySelector('[data-act="export"]'); if (exp) exp.onclick = () => toast('Export — generates a CSV of the filtered customers (roadmap)');
-    const add = root.querySelector('[data-act="add"]'); if (add) add.onclick = () => toast('Add customer — new customer form (roadmap)');
   }
 
   // ---- multi-select checkbox popover ----
@@ -441,7 +468,11 @@
 
     const ordersHtml = pageOrders.length ? pageOrders.map((order) => {
       const cur = (order.country_currency_dto && order.country_currency_dto.currency_symbol) || '$';
+      // Subtotal = sum of product_price rows (matches utils.getOrderSubtotalAmount when orderProduct present).
       const subtotal = (order.orderProduct || []).reduce((s, p) => s + Number.parseFloat(String(p.product_price || 0)), 0);
+      // Shipping: total_postage first, else 0 (customer list endpoint has no pay_postage).
+      const shipping = Number.parseFloat(String(order.total_postage != null ? order.total_postage : 0)) || 0;
+      // Total: pay_price first, else total_price (matches utils.getOrderTotalAmount).
       const total = Number.parseFloat(String(order.pay_price != null ? order.pay_price : order.total_price || 0));
 
       const products = (order.orderProduct || []).map((p) => {
@@ -449,8 +480,8 @@
         const sku = (p.cart_info && p.cart_info.productAttr && p.cart_info.productAttr.sku) || '';
         const dd = p.discount_detail && (p.discount_detail.activity_name || p.discount_detail.discount_code) ? p.discount_detail : null;
         const hasDisc = !!dd;
-        const unit = Number(p.product_num) ? (Number(p.total_price) / Number(p.product_num)) : 0;
-        return '<div style="display:grid;grid-template-columns:40px minmax(0,1fr) 84px 44px 88px;align-items:center;gap:10px;padding:6px 0">' +
+        const unit = Number(p.product_num) ? Number((Number(p.total_price) / Number(p.product_num)).toFixed(2)) : 0;
+        return '<div style="display:grid;grid-template-columns:48px minmax(0,1fr) 84px 52px 88px;align-items:center;gap:12px;padding:6px 0">' +
           '<div style="width:40px;height:40px;border-radius:6px;border:1px solid var(--hair);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-muted)">IMG</div>' +
           '<div style="min-width:0">' +
             '<div style="font-weight:500;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(name) + '</div>' +
@@ -466,10 +497,35 @@
         '</div>';
       }).join('');
 
-      const orderDisc = (order.orderDiscount || []).filter((d) => d.activity_name || d.discount_code);
+      // Order-dimension discounts (discount_form 1/2), shipping discounts, and total savings — all per utils.ts.
+      const orderDisc = (order.orderDiscount || []).filter((d) => (d.activity_name || d.discount_code) && Number(d.discount_dimension) === 1 && (Number(d.discount_form) === 1 || Number(d.discount_form) === 2));
+      const shipDiscAll = (order.orderDiscountInfo && order.orderDiscountInfo.shipping_discounts) || [];
+      const visibleShipDisc = shipping > 0 ? shipDiscAll.slice(0, 1) : [];
+      const primaryShipDisc = visibleShipDisc[0];
+
+      const di = order.discount_info || {};
+      const nonShip = Number.parseFloat(String(di.discount_price || 0)) || 0;
+      const ship = Number.parseFloat(String(di.shipping_discount_total || 0)) || 0;
+      let totalSavings = (nonShip > 0 || ship > 0) ? nonShip + ship : 0;
+      if (!totalSavings) {
+        const prodSav = (order.orderProduct || []).reduce((s, p) => s + (p.discount_detail && (p.discount_detail.activity_name || p.discount_detail.discount_code) ? Number.parseFloat(String(p.discount_detail.discount_amount || 0)) : 0), 0);
+        const ordSav = orderDisc.reduce((s, d) => s + (Number.parseFloat(String(d.discount_amount || 0)) || 0), 0);
+        const shipSav = shipDiscAll.reduce((s, d) => s + (Number.parseFloat(String(d.discount_amount || 0)) || 0), 0);
+        totalSavings = prodSav + ordSav + shipSav;
+      }
+
       const discRows = orderDisc.map((d) =>
-        '<div class="flex items-center justify-between" style="padding:4px 0;font-size:12px;color:#8B8B8B">' +
-          '<span class="flex items-center gap-1">' + I.tag + esc(d.activity_name || d.discount_code) + '</span>' +
+        '<div class="flex items-center justify-between gap-3" style="padding:4px 0;font-size:12px;color:#8B8B8B">' +
+          '<span class="flex items-center gap-1" style="min-width:0">' + I.tag + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.activity_name || d.discount_code) + '</span></span>' +
+          '<span>-' + money(d.discount_amount, cur) + '</span>' +
+        '</div>').join('');
+
+      const shippingRow = primaryShipDisc
+        ? '<span class="flex items-center gap-1"><span style="text-decoration:line-through">-' + money(primaryShipDisc.discount_amount, cur) + '</span><span>FREE</span></span>'
+        : '<span>' + (shipping > 0 ? money(shipping, cur) : 'FREE') + '</span>';
+      const shipDiscRows = visibleShipDisc.map((d) =>
+        '<div class="flex items-center justify-between gap-3" style="padding:4px 0;font-size:12px;color:#8B8B8B">' +
+          '<span class="flex items-center gap-1" style="min-width:0">' + I.tag + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(d.activity_name || d.discount_code || 'Free Shipping') + '</span></span>' +
           '<span>-' + money(d.discount_amount, cur) + '</span>' +
         '</div>').join('');
 
@@ -478,21 +534,25 @@
           '<div style="min-width:0">' +
             '<div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">' +
               '<span style="font-size:15px;font-weight:600;color:var(--ink)">' + esc(order.order_sn) + '</span>' +
-              pill(D.ORDER_STATUS, order.status) +
+              orderStatusCell(order) + paymentStatusCell(order) + fulfillmentStatusCell(order) +
             '</div>' +
             '<div class="muted" style="font-size:13px">' + esc(order.create_time || '-') + '</div>' +
           '</div>' +
           '<div style="text-align:right">' +
             '<div style="font-size:15px;font-weight:600;color:var(--ink)">' + money(total, cur) + '</div>' +
-            '<a class="lnk" href="../orders/index.html#/orders/' + esc(order.order_id) + '" style="display:inline-block;margin-top:6px;font-size:13px">View detail</a>' +
+            '<a class="lnk" href="#/orders/' + esc(order.order_id) + '" style="display:inline-block;margin-top:6px;font-size:13px">View detail</a>' +
           '</div>' +
         '</div>' +
         '<div style="padding:8px 16px">' + products + '</div>' +
         '<div style="border-top:1px solid var(--hair);padding:12px 16px;font-size:13.5px;color:var(--ink-muted)">' +
-          '<div class="flex items-center justify-between" style="padding:3px 0"><span>Subtotal · ' + (order.total_num || 0) + ' items</span><span>' + money(subtotal, cur) + '</span></div>' +
+          '<div class="flex items-center justify-between" style="padding:3px 0"><span>Subtotal . ' + (order.total_num || 0) + ' items</span><span>' + money(subtotal, cur) + '</span></div>' +
+          (orderDisc.length ? '<div class="flex items-center justify-between" style="padding:3px 0"><span>Order discount</span><span></span></div>' : '') +
           discRows +
-          '<div class="flex items-center justify-between" style="padding:3px 0"><span>Shipping</span><span>FREE</span></div>' +
-          '<div class="flex items-center justify-between" style="padding:6px 0 0;font-size:14px;font-weight:600;color:var(--ink)"><span>Total</span><span>' + money(total, cur) + '</span></div>' +
+          '<div class="flex items-center justify-between" style="padding:3px 0"><span>Shipping</span>' + shippingRow + '</div>' +
+          shipDiscRows +
+          '<div class="flex items-center justify-between" style="padding:6px 0;font-size:14px;font-weight:600;color:var(--ink)"><span>Total</span><span>' + money(total, cur) + '</span></div>' +
+          (totalSavings > 0 ? '<div class="flex items-center justify-between" style="padding:6px 0;font-size:12px;font-weight:500;color:var(--ink-body)"><span class="flex items-center gap-1" style="text-transform:uppercase">' + I.tag + '<span>TOTAL SAVINGS ' + money(totalSavings, cur) + '</span></span></div>' : '') +
+          (Number(order.paid || 0) === 1 ? '<div class="flex items-center justify-between" style="padding:8px 0 0;border-top:1px solid var(--hair)"><span>Paid</span><span>' + money(total, cur) + '</span></div>' : '') +
         '</div>' +
       '</div>';
     }).join('') : '<div style="border:1px solid var(--hair);border-radius:8px;padding:40px;text-align:center" class="muted">No orders</div>';

@@ -23,6 +23,7 @@
     pencil: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 15),
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
     help: svg('<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 3.5"/><path d="M12 17h.01"/>', 14),
+    alert: svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/>', 15),
     external: svg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', 13),
     // toolbar / format icons (decorative — match the real RichTextEditor toolbar)
     bold: svg('<path d="M6 4h8a4 4 0 0 1 0 8H6z"/><path d="M6 12h9a4 4 0 0 1 0 8H6z"/>', 15),
@@ -35,6 +36,59 @@
 
   // ---- toast ----
   var toast = function (msg) { var t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 1900); };
+
+  // ---- module-scoped styles (rich-text editor, keyword box, unsaved bar) ----
+  // These classes are specific to this module and are NOT in the shared theme.css,
+  // so we inject them once. bar-tip mirrors the real admin's dark UnSavedChanges bar.
+  function injectStyles() {
+    if (document.getElementById('page-mod-styles')) return;
+    var css =
+      // unsaved-changes dark bar (matches real components/UnSavedChanges.tsx -> .bar-tip)
+      '.page-unsaved-bar{position:sticky;top:0;left:0;right:0;z-index:40;background:#242833;color:#fff;' +
+      'display:flex;align-items:center;justify-content:space-between;padding:12px 20px;margin:0 0 20px;}' +
+      '.page-unsaved-bar .lhs{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;}' +
+      '.page-unsaved-bar .rhs{display:flex;align-items:center;gap:10px;}' +
+      '.page-unsaved-bar .btn-discard{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);' +
+      'height:32px;padding:0 14px;border-radius:6px;font-size:13px;cursor:pointer;}' +
+      '.page-unsaved-bar .btn-discard:hover{border-color:#fff;background:rgba(255,255,255,.08);}' +
+      '.page-unsaved-bar .btn-save{background:var(--brand);color:#fff;border:none;height:32px;padding:0 16px;' +
+      'border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;}' +
+      '.page-unsaved-bar .btn-save:hover{background:#0a5bd0;}' +
+      // rich-text editor
+      '.rt-wrap{border:1px solid var(--ctl);border-radius:8px;overflow:hidden;background:#fff;}' +
+      '.rt-toolbar{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--hair);' +
+      'background:#fafbfc;flex-wrap:wrap;}' +
+      '.rt-block{height:30px;border:1px solid var(--ctl);border-radius:6px;font-size:13px;padding:0 8px;' +
+      'background:#fff;color:var(--ink);margin-right:4px;}' +
+      '.rt-sep{width:1px;height:18px;background:var(--hair);margin:0 4px;}' +
+      '.rt-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:none;' +
+      'background:transparent;color:var(--ink-body);border-radius:6px;cursor:pointer;}' +
+      '.rt-btn:hover{background:#eef0f7;color:var(--ink);}' +
+      '.rt-body{min-height:280px;max-height:600px;overflow:auto;padding:14px 16px;font-size:14px;line-height:1.6;' +
+      'color:var(--ink-body);outline:none;}' +
+      '.rt-body:focus{outline:none;}' +
+      '.rt-body h2{font-size:20px;font-weight:600;margin:0 0 8px;color:var(--ink);}' +
+      '.rt-body h3{font-size:16px;font-weight:600;margin:12px 0 6px;color:var(--ink);}' +
+      '.rt-body p{margin:0 0 10px;}' +
+      '.rt-body ul{margin:0 0 10px;padding-left:20px;list-style:disc;}' +
+      '.rt-body a{color:var(--brand);text-decoration:underline;}' +
+      // SEO keyword box (drawer)
+      '.kw-box{border:1px solid var(--ctl);border-radius:6px;padding:5px 6px;min-height:36px;display:flex;' +
+      'flex-wrap:wrap;gap:6px;align-items:center;}' +
+      '.kw-box:focus-within{border-color:var(--brand);}' +
+      '.kw-chip{display:inline-flex;align-items:center;gap:4px;background:#eff5ff;color:var(--brand);' +
+      'border:1px solid #d6e4ff;border-radius:4px;padding:1px 6px;font-size:13px;word-break:break-all;}' +
+      '.kw-chip .kw-x{cursor:pointer;display:inline-flex;}.kw-chip .kw-x:hover{color:#0a3d8f;}' +
+      '.kw-input{flex:1;min-width:140px;border:none;outline:none;font-size:13px;height:24px;background:transparent;}' +
+      // drawer URL/handle addon
+      '.rt-addon{display:inline-flex;align-items:center;height:36px;padding:0 10px;background:var(--panel);' +
+      'border:1px solid var(--ctl);border-radius:6px 0 0 6px;font-size:12px;color:var(--ink-muted);white-space:nowrap;}';
+    var s = document.createElement('style');
+    s.id = 'page-mod-styles';
+    s.textContent = css;
+    document.head.appendChild(s);
+  }
+  injectStyles();
 
   var SHOP_PREFIX = D.SHOP_URL.replace(/\/$/, '') + '/page/';
   // handle = path without the leading slash (real edit shows {prefix}{handle})
@@ -63,6 +117,42 @@
     return rows;
   }
 
+  // status label always orders Visible before Hidden (mirrors renderStatusLabel in search.tsx)
+  function statusLabel() {
+    var labels = [];
+    if (LST.status.indexOf(1) >= 0) labels.push('Visible');
+    if (LST.status.indexOf(0) >= 0) labels.push('Hidden');
+    return labels.join(', ');
+  }
+
+  // full empty state (mirrors table.tsx renderEmptyState — illustration + copy + Add page)
+  function emptyStateHtml() {
+    var ill =
+      '<svg width="180" height="180" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+        '<circle cx="100" cy="100" r="80" fill="#DBEAFE" opacity="0.3"/>' +
+        '<rect x="60" y="70" width="80" height="60" rx="4" fill="white" stroke="#E5E7EB" stroke-width="2"/>' +
+        '<rect x="60" y="70" width="80" height="8" fill="#6B7280"/>' +
+        '<rect x="70" y="85" width="20" height="15" rx="2" fill="#E5E7EB"/>' +
+        '<path d="M75 92 L78 89 L81 92 L85 88" stroke="#9CA3AF" stroke-width="1.5" fill="none"/>' +
+        '<rect x="95" y="86" width="35" height="3" rx="1.5" fill="#E5E7EB"/>' +
+        '<rect x="95" y="92" width="25" height="2" rx="1" fill="#E5E7EB"/>' +
+        '<rect x="70" y="105" width="50" height="2" rx="1" fill="#E5E7EB"/>' +
+        '<rect x="70" y="110" width="40" height="2" rx="1" fill="#E5E7EB"/>' +
+        '<rect x="70" y="115" width="45" height="2" rx="1" fill="#E5E7EB"/>' +
+        '<circle cx="40" cy="100" r="18" fill="#3B82F6"/><circle cx="40" cy="100" r="14" fill="white"/>' +
+        '<path d="M40 94 L40 106 M34 100 L46 100 M36 96 L44 104 M36 104 L44 96" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>' +
+        '<circle cx="160" cy="100" r="18" fill="#3B82F6"/><circle cx="160" cy="100" r="14" fill="white"/>' +
+        '<path d="M160 94 L160 106 M154 100 L166 100" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round"/>' +
+      '</svg>';
+    return '<div class="panel" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px">' +
+      '<div style="margin-bottom:24px">' + ill + '</div>' +
+      '<h3 style="font-size:20px;font-weight:600;color:var(--ink);margin:0 0 8px">Add and manage your pages</h3>' +
+      '<p class="muted" style="font-size:13px;text-align:center;max-width:420px;margin:0 0 24px">' +
+        'Pages are a great way to share information and help customers learn more about your business.</p>' +
+      '<button class="btn btn-primary" data-act="add" style="height:40px;padding:0 20px">Add page</button>' +
+    '</div>';
+  }
+
   function renderList() {
     var rows = filteredRows();
     var totalRecords = rows.length;
@@ -82,13 +172,22 @@
       tags.push('<span class="field-pill" data-clear="kw">' + esc(lbl) + ': ' + esc(LST.kwApplied) + ' <span class="x">&times;</span></span>');
     }
     if (LST.status.length) {
-      var stLbl = LST.status.map(function (v) { return v === 1 ? 'Visible' : 'Hidden'; }).join(', ');
-      tags.push('<span class="field-pill" data-clear="status">Status: ' + esc(stLbl) + ' <span class="x">&times;</span></span>');
+      tags.push('<span class="field-pill" data-clear="status">Status: ' + esc(statusLabel()) + ' <span class="x">&times;</span></span>');
     }
 
-    var statusChipText = LST.status.length
-      ? LST.status.map(function (v) { return v === 1 ? 'Visible' : 'Hidden'; }).join(', ')
-      : 'Status';
+    var statusChipText = LST.status.length ? statusLabel() : 'Status';
+
+    // empty state: account has never had any pages (mirrors table.tsx renderEmptyState
+    // + list.tsx hiding the Add button / tabs / filters until hasEverHadData).
+    if (D.PAGES.length === 0) {
+      root.innerHTML =
+        '<div class="flex items-center justify-between mb-4">' +
+          '<h1 class="page-title">Page</h1>' +
+        '</div>' +
+        emptyStateHtml();
+      var addE = root.querySelector('[data-act="add"]'); if (addE) addE.onclick = function () { location.hash = '#/page/new'; };
+      return;
+    }
 
     root.innerHTML =
       '<div class="flex items-center justify-between mb-4">' +
@@ -123,9 +222,9 @@
         '<table class="tbl" style="min-width:720px">' +
           '<thead><tr>' +
             '<th>Page title</th>' +
-            '<th style="width:160px">Status</th>' +
-            '<th style="width:200px">Last updated</th>' +
-            '<th style="width:90px;text-align:center">Action</th>' +
+            '<th style="width:140px">Status</th>' +
+            '<th style="width:180px">Last updated</th>' +
+            '<th style="width:80px;text-align:center">Action</th>' +
           '</tr></thead>' +
           '<tbody id="pg-tbody">' +
             (pageRows.length ? pageRows.map(rowHtml).join('')
@@ -237,8 +336,28 @@
   // ===================================================================
   // EDIT VIEW  (left: title + content cards / right 275px: status, SEO, template)
   // ===================================================================
-  // working copy of the page being edited
+  // working copy of the page being edited + origin snapshot for dirty-tracking
   var EDIT = null;
+  var ORIGIN = null; // JSON string of the form fields at load (mirrors store originFormData)
+
+  // the subset of fields the real store diff-checks for hasUnsavedChanges
+  function formSnapshot() {
+    if (!EDIT) return '';
+    return JSON.stringify({
+      title: EDIT.title || '',
+      content: EDIT.content || '',
+      status: EDIT.status,
+      template: EDIT.template || 'default',
+      path: EDIT.path || '',
+      seo_title: EDIT.seo_title || '',
+      seo_description: EDIT.seo_description || '',
+      seo_keywords: EDIT.seo_keywords || [],
+    });
+  }
+
+  // mirrors store.hasUnsavedChanges: new page is dirty once it differs from blank;
+  // existing page is dirty once it differs from the loaded origin.
+  function isDirty() { return ORIGIN != null && formSnapshot() !== ORIGIN; }
 
   function loadEdit(id) {
     if (id === 'new' || id === '0') {
@@ -246,11 +365,19 @@
       EDIT._isNew = true;
     } else {
       var src = D.DETAILS[id] || D.DETAILS[Number(id)];
-      if (!src) { EDIT = null; return; }
+      if (!src) { EDIT = null; ORIGIN = null; return; }
       // clone so edits don't mutate the sample dataset
       EDIT = JSON.parse(JSON.stringify(src));
       EDIT._isNew = false;
     }
+    ORIGIN = formSnapshot();
+  }
+
+  // show/hide the dark unsaved-changes bar based on current dirtiness
+  function syncUnsavedBar() {
+    var bar = root.querySelector('#page-unsaved-bar');
+    if (!bar) return;
+    bar.style.display = isDirty() ? 'flex' : 'none';
   }
 
   function renderEdit(id) {
@@ -262,6 +389,14 @@
     root.innerHTML =
       // fixed 1200px centered container (mirrors the real admin edit page width)
       '<div class="detail-wrap">' +
+      // dark unsaved-changes bar (mirrors UnSavedChanges.tsx -> .bar-tip); hidden until dirty.
+      '<div class="page-unsaved-bar" id="page-unsaved-bar" style="display:none">' +
+        '<div class="lhs">' + IC.alert + '<span>Unsaved changes</span></div>' +
+        '<div class="rhs">' +
+          '<button class="btn-discard" data-act="discard">Discard</button>' +
+          '<button class="btn-save" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
+        '</div>' +
+      '</div>' +
       // header: back + title  (mirrors back-btn-square + h1 in pages/edit.tsx)
       '<div class="flex items-center justify-between mb-6">' +
         '<div class="flex items-center gap-3">' +
@@ -393,7 +528,7 @@
   }
 
   function wireEdit() {
-    root.querySelectorAll('[data-act="back"]').forEach(function (b) { b.onclick = function () { location.hash = '#/page'; }; });
+    root.querySelectorAll('[data-act="back"]').forEach(function (b) { b.onclick = guardedBack; });
 
     // title input + counter + live header/SEO sync
     var ti = root.querySelector('#f-title');
@@ -402,7 +537,9 @@
         EDIT.title = ti.value;
         var c = root.querySelector('#title-count'); if (c) c.textContent = ti.value.length + ' / 255';
         var err = root.querySelector('#title-err'); if (err) err.classList.add('hidden');
+        if (ti.style) ti.style.borderColor = '';
         refreshSeoPreview();
+        syncUnsavedBar();
       };
     }
 
@@ -424,27 +561,59 @@
           document.execCommand(cmd, false, null);
         }
         EDIT.content = body.innerHTML;
+        syncUnsavedBar();
       };
     });
     var blockSel = root.querySelector('#rt-block');
-    if (blockSel && body) blockSel.onchange = function () { body.focus(); document.execCommand('formatBlock', false, blockSel.value); EDIT.content = body.innerHTML; };
-    if (body) body.oninput = function () { EDIT.content = body.innerHTML; refreshSeoPreview(); };
+    if (blockSel && body) blockSel.onchange = function () { body.focus(); document.execCommand('formatBlock', false, blockSel.value); EDIT.content = body.innerHTML; syncUnsavedBar(); };
+    if (body) body.oninput = function () { EDIT.content = body.innerHTML; refreshSeoPreview(); syncUnsavedBar(); };
 
     // status radios
     root.querySelectorAll('input[name="pg-status"]').forEach(function (r) {
-      r.onchange = function () { if (r.checked) EDIT.status = Number(r.getAttribute('data-v')); };
+      r.onchange = function () { if (r.checked) { EDIT.status = Number(r.getAttribute('data-v')); syncUnsavedBar(); } };
     });
 
     // template select
     var tpl = root.querySelector('#f-template');
-    if (tpl) tpl.onchange = function () { EDIT.template = tpl.value; };
+    if (tpl) tpl.onchange = function () { EDIT.template = tpl.value; syncUnsavedBar(); };
 
     // SEO drawer
     root.querySelectorAll('[data-act="seo"]').forEach(function (b) { b.onclick = openSeoDrawer; });
 
+    // unsaved bar: discard
+    root.querySelectorAll('[data-act="discard"]').forEach(function (b) { b.onclick = onDiscard; });
+
     // save / delete
     root.querySelectorAll('[data-act="save"]').forEach(function (b) { b.onclick = onSave; });
     root.querySelectorAll('[data-act="delete"]').forEach(function (b) { b.onclick = onDelete; });
+
+    syncUnsavedBar();
+  }
+
+  // back arrow guards against losing unsaved edits (mirrors onBeforeRouteLeave)
+  function guardedBack() {
+    if (!isDirty()) { location.hash = '#/page'; return; }
+    confirmModal({
+      title: 'Are you sure you want to leave?',
+      body: 'Unsaved changes will be lost',
+      ok: 'Exit',
+      onOk: function () { location.hash = '#/page'; },
+    });
+  }
+
+  // Discard button on the unsaved bar (mirrors handleDiscard Modal.confirm)
+  function onDiscard() {
+    confirmModal({
+      title: 'Are you sure you want to discard changes?',
+      body: 'All unsaved changes will be lost',
+      ok: 'Discard',
+      danger: true,
+      onOk: function () {
+        if (EDIT && EDIT._isNew) { location.hash = '#/page'; return; }
+        // reset existing page back to its origin snapshot
+        renderEdit(String(EDIT.page_id));
+      },
+    });
   }
 
   function onSave() {
@@ -453,8 +622,17 @@
       var ti = root.querySelector('#f-title'); if (ti) { ti.focus(); ti.style.borderColor = 'var(--err)'; }
       return;
     }
-    toast(EDIT._isNew ? 'Page added' : 'Page updated');
-    setTimeout(function () { location.hash = '#/page'; }, 500);
+    if (EDIT._isNew) {
+      // new page -> success toast then back to the list (mirrors router.push on create)
+      toast('Added successfully');
+      ORIGIN = formSnapshot(); // mark clean so the leave-guard doesn't fire
+      setTimeout(function () { location.hash = '#/page'; }, 500);
+    } else {
+      // existing page -> stay on the edit page; bar clears as origin re-baselines
+      toast('Updated successfully');
+      ORIGIN = formSnapshot();
+      syncUnsavedBar();
+    }
   }
 
   // ===================================================================
@@ -558,7 +736,7 @@
       EDIT.seo_keywords = seo.keywords.slice();
       close();
       refreshSeoPreview();
-      toast('SEO settings updated');
+      syncUnsavedBar();
     };
   }
 
@@ -573,29 +751,41 @@
   }
 
   // ===================================================================
-  // DELETE confirm modal (mirrors Modal.confirm in pages/edit.tsx)
+  // Confirm modal helper (mirrors antd Modal.confirm used across edit.tsx)
+  //   opts: { title, body, ok, cancel?, danger?, onOk }
   // ===================================================================
-  function onDelete() {
+  function confirmModal(opts) {
     closePops();
     var backdrop = h('<div class="modal-backdrop"></div>');
     var modal = h('<div class="modal"></div>');
     modal.innerHTML =
-      '<div class="modal-head">Delete page</div>' +
-      '<div class="modal-body subtle" style="font-size:13.5px">Are you sure you want to delete <strong>' + esc(EDIT.title || 'this page') + '</strong>? This action cannot be undone.</div>' +
+      '<div class="modal-head">' + esc(opts.title) + '</div>' +
+      '<div class="modal-body subtle" style="font-size:13.5px">' + esc(opts.body) + '</div>' +
       '<div class="modal-foot">' +
-        '<button class="btn btn-default" data-cancel>Cancel</button>' +
-        '<button class="btn btn-primary" data-confirm style="background:var(--err)">Confirm</button>' +
+        '<button class="btn btn-default" data-cancel>' + esc(opts.cancel || 'Cancel') + '</button>' +
+        '<button class="btn btn-primary" data-confirm' + (opts.danger ? ' style="background:var(--err)"' : '') + '>' + esc(opts.ok || 'Confirm') + '</button>' +
       '</div>';
     backdrop.appendChild(modal);
     document.body.appendChild(backdrop);
     var close = function () { backdrop.remove(); };
     backdrop.onclick = function (e) { if (e.target === backdrop) close(); };
     modal.querySelector('[data-cancel]').onclick = close;
-    modal.querySelector('[data-confirm]').onclick = function () {
-      close();
-      toast('Page deleted successfully');
-      setTimeout(function () { location.hash = '#/page'; }, 500);
-    };
+    modal.querySelector('[data-confirm]').onclick = function () { close(); if (opts.onOk) opts.onOk(); };
+  }
+
+  // DELETE confirm (mirrors Modal.confirm in pages/edit.tsx -> handleDelete)
+  function onDelete() {
+    confirmModal({
+      title: 'Delete page',
+      body: 'Are you sure you want to delete this page?',
+      ok: 'Confirm',
+      danger: true,
+      onOk: function () {
+        toast('Page deleted successfully');
+        ORIGIN = formSnapshot(); // avoid the leave-guard firing on navigation
+        setTimeout(function () { location.hash = '#/page'; }, 500);
+      },
+    });
   }
 
   // ---- missing page (bad id) ----

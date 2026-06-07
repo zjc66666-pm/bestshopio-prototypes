@@ -1,7 +1,9 @@
 /* BestShopio Admin · Products prototype — list + edit + modals/drawers, hash-routed.
    Chrome (sidebar + header) is injected by ../assets/shell.js; this file only renders
    the module body into #root. Mirrors reference/bestvoy-admin admin/products
-   (products.vue, productEdit.vue, components/list/*, components/edit/*). */
+   (products.vue, productEdit.vue, pages/list.tsx, pages/edit.tsx,
+    components/list/*, components/edit/*, components/common/*, components/AddImageVideo,
+    components/Metafields/*, components/UnSavedChanges). */
 (function () {
   const D = window.DATA_PRODUCTS;
   let root; // set by the SPA shell router via VIEWS.products.render(el, rest)
@@ -10,7 +12,9 @@
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const money = (n) => '$' + Number(n || 0).toFixed(2);
-  const priceText = (p) => p.price_min === p.price_max ? money(p.price_min) : (money(p.price_min) + ' – ' + money(p.price_max));
+  // Price column (table.tsx): "$min - $max" when min!=max, else "$min". Plain ASCII hyphen, no decimals forced.
+  const dollars = (n) => '$' + Number(n);
+  const priceText = (p) => p.price_min === p.price_max ? dollars(p.price_min) : (dollars(p.price_min) + ' - ' + dollars(p.price_max));
 
   // ---- inline icons (svg style matches shell.js .nav-ico) ----
   const svg = (p, w) => '<svg viewBox="0 0 24 24" width="' + (w || 16) + '" height="' + (w || 16) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
@@ -21,32 +25,27 @@
     copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
     arrowLeft: svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', 18),
     pencil: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 15),
+    edit3: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 16),
     trash: svg('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>', 15),
     plus: svg('<path d="M12 5v14M5 12h14"/>', 15),
+    plusBig: svg('<path d="M12 5v14M5 12h14"/>', 28),
     minus: svg('<path d="M5 12h14"/>', 15),
     image: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>', 16),
+    imagePlus: svg('<path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><circle cx="8.5" cy="9" r="1.6"/><path d="m21 15-5-5L5 21"/><path d="M16 5h6M19 2v6"/>', 18),
     grip: svg('<circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>', 16),
-    alert: svg('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>', 14),
+    alert: svg('<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>', 14),
     clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 15),
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
-    play: svg('<path d="m8 5 11 7-11 7z"/>', 14),
+    play: svg('<path d="m8 5 11 7-11 7z"/>', 20),
+    help: svg('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>', 15),
   };
 
   const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1900); };
   const closePops = () => document.querySelectorAll('.pop-layer').forEach((p) => p.remove());
 
-  // ---- status derivation (table.tsx getProductStatus) + pill ----
+  // ---- status derivation (table.tsx getProductStatus) + tab mapping ----
   const statusOf = (p) => p.is_del === 1 ? 'archived' : (p.is_show === 1 ? 'activated' : 'deactivated');
   const STATUS_TAB = { activated: 1, deactivated: 2, archived: 3 };
-
-  // ---- SKU sync -> pill (driven by sku_sync_stats / SkuSyncStats) ----
-  function syncPill(s) {
-    if (!s || s.total_skus === 0) return '<span class="muted" style="font-size:12.5px">No SKU</span>';
-    if (s.failed > 0) return '<span class="pill pill-red"><span class="dot"></span>' + s.failed + ' failed</span>';
-    if (s.processing > 0) return '<span class="pill pill-blue"><span class="dot"></span>Syncing ' + s.processing + '</span>';
-    if (s.is_partially_synced || s.not_synchronized > 0) return '<span class="pill pill-orange"><span class="dot"></span>Partial ' + s.synchronized + '/' + s.total_skus + '</span>';
-    return '<span class="pill pill-green"><span class="dot"></span>Synced</span>';
-  }
 
   // ---- inventory cell (table.tsx renderInventoryStatus) ----
   function inventoryCell(p) {
@@ -61,7 +60,8 @@
   const LST = {
     tab: 0, kwType: 'product_name', kw: '', kwApplied: '',
     cate: 0, priceMin: '', priceMax: '', priceApplied: false,
-    sort: '', page: 1, size: 20,
+    sortField: '', sortOrder: '', // sortField: 'price' | 'stock' ; sortOrder: 'asc' | 'desc'
+    page: 1, size: 20,
     sel: {},   // product_id -> true
   };
 
@@ -97,16 +97,23 @@
       const hi = LST.priceMax === '' ? Infinity : Number(LST.priceMax);
       rows = rows.filter((p) => p.price_max >= lo && p.price_min <= hi);
     }
-    if (LST.sort) {
-      const [f, dir] = LST.sort.split('_');
-      const key = f === 'price' ? 'price_min' : 'on_sale_stock';
-      rows.sort((a, b) => dir === 'asc' ? a[key] - b[key] : b[key] - a[key]);
+    if (LST.sortField && LST.sortOrder) {
+      const key = LST.sortField === 'price' ? 'price_min' : 'on_sale_stock';
+      rows.sort((a, b) => LST.sortOrder === 'asc' ? a[key] - b[key] : b[key] - a[key]);
     }
     return rows;
   }
 
   const tabCount = (key) => key === 0 ? D.PRODUCTS.length : D.PRODUCTS.filter((p) => STATUS_TAB[statusOf(p)] === key).length;
   const selectedRows = () => D.PRODUCTS.filter((p) => LST.sel[p.product_id]);
+
+  // sort-arrow caret for a sortable column header
+  function sortCaret(field) {
+    const active = LST.sortField === field;
+    const up = '<span style="font-size:9px;line-height:7px;color:' + (active && LST.sortOrder === 'asc' ? 'var(--brand)' : 'var(--ctl)') + '">▲</span>';
+    const dn = '<span style="font-size:9px;line-height:7px;color:' + (active && LST.sortOrder === 'desc' ? 'var(--brand)' : 'var(--ctl)') + '">▼</span>';
+    return '<span style="display:inline-flex;flex-direction:column;margin-left:4px;vertical-align:middle">' + up + dn + '</span>';
+  }
 
   function renderList() {
     const rows = filteredRows();
@@ -118,16 +125,15 @@
 
     const kwOpts = D.SEARCH_FIELDS.map((o) => '<option value="' + o.value + '"' + (o.value === LST.kwType ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
     const cateOpts = D.CATEGORIES.map((o) => '<option value="' + o.value + '"' + (o.value === LST.cate ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
-    const sortOpts = D.SORT_OPTIONS.map((o) => '<option value="' + o.value + '"' + (o.value === LST.sort ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
 
     const tabsHtml = D.TABS.map((t) =>
       '<div class="tab' + (t.key === LST.tab ? ' active' : '') + '" data-tab="' + t.key + '">' + esc(t.label) +
       '<span class="count-badge">' + tabCount(t.key) + '</span></div>').join('');
 
-    // active filter tags
+    // active filter tags (search.tsx renderFilterTagContent)
     const tags = [];
     if (LST.kwApplied) {
-      const lbl = (D.SEARCH_FIELDS.find((o) => o.value === LST.kwType) || {}).label || '';
+      const lbl = (D.SEARCH_FIELDS.find((o) => o.value === LST.kwType) || {}).value || '';
       tags.push('<span class="field-pill" data-clear="kw">' + esc(lbl) + ': ' + esc(LST.kwApplied) + ' <span class="x">&times;</span></span>');
     }
     if (LST.cate) {
@@ -135,31 +141,30 @@
       tags.push('<span class="field-pill" data-clear="cate">Category: ' + esc(lbl) + ' <span class="x">&times;</span></span>');
     }
     if (LST.priceApplied) {
-      const txt = (LST.priceMin !== '' ? money(LST.priceMin) : 'Min') + ' – ' + (LST.priceMax !== '' ? money(LST.priceMax) : 'Max');
+      const txt = (LST.priceMin !== '' ? money(LST.priceMin) : 'Min') + ' - ' + (LST.priceMax !== '' ? money(LST.priceMax) : 'Max');
       tags.push('<span class="field-pill" data-clear="price">Price range: ' + esc(txt) + ' <span class="x">&times;</span></span>');
     }
 
     const priceChipText = LST.priceApplied
-      ? ((LST.priceMin !== '' ? money(LST.priceMin) : 'Min') + ' – ' + (LST.priceMax !== '' ? money(LST.priceMax) : 'Max'))
+      ? ((LST.priceMin !== '' ? money(LST.priceMin) : 'Min') + ' - ' + (LST.priceMax !== '' ? money(LST.priceMax) : 'Max'))
       : 'Price range';
 
     const selCount = selectedRows().length;
     const allOnPageSel = pageRows.length > 0 && pageRows.every((p) => LST.sel[p.product_id]);
 
     root.innerHTML =
+      // title row (list.tsx) — Add product only (Product Grabber commented out in real)
       '<div class="flex items-center justify-between mb-4">' +
         '<h1 class="page-title">Products</h1>' +
         '<div class="flex items-center gap-2">' +
-          '<button class="btn btn-default" data-act="export">Export</button>' +
           '<button class="btn btn-primary" data-act="add">Add product</button>' +
         '</div>' +
       '</div>' +
       '<div class="panel">' +
         '<div class="tabs" style="padding:0 8px" id="pr-tabs">' + tabsHtml + '</div>' +
-        // filter bar
+        // filter bar (search.tsx): keyword group (418) + Category + Price range. No sort dropdown — columns sort.
         '<div class="card-pad" style="padding-bottom:8px">' +
           '<div class="flex items-start gap-2" style="flex-wrap:wrap">' +
-            // keyword group (field select + input) — width 418 like search.tsx
             '<div class="flex" style="min-width:418px">' +
               '<select class="filter-select" id="kw-type" style="width:150px;border-top-right-radius:0;border-bottom-right-radius:0">' + kwOpts + '</select>' +
               '<div style="position:relative;flex:1">' +
@@ -167,32 +172,29 @@
                 '<span style="position:absolute;right:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
               '</div>' +
             '</div>' +
-            // category select
             '<select class="filter-select" id="cate-sel" style="width:220px">' + cateOpts + '</select>' +
-            // price range chip (popover)
             '<div class="sel-trigger" id="price-chip" style="width:220px">' +
               '<span class="' + (LST.priceApplied ? '' : 'muted') + '">' + esc(priceChipText) + '</span>' + I.chevDown +
             '</div>' +
-            // sort select
-            '<select class="filter-select" id="sort-sel" style="width:200px;margin-left:auto">' + sortOpts + '</select>' +
           '</div>' +
           (tags.length ? '<div class="flex gap-2 mt-3" style="flex-wrap:wrap" id="filter-tags">' + tags.join('') + '</div>' : '') +
         '</div>' +
-        // bulk selection toolbar (table.tsx selection-toolbar)
+        // bulk selection toolbar (table.tsx selection-toolbar) — N Selected + 3 actions, no clear link
         (selCount > 0 ?
           '<div class="card-pad" style="padding-top:0;padding-bottom:10px"><div class="flex items-center gap-3" style="background:#e6f0ff;border:1px solid #cfe1ff;border-radius:8px;padding:8px 12px">' +
             '<strong style="font-size:13px">' + selCount + ' Selected</strong>' +
             '<button class="btn btn-default" style="height:28px" data-bulk="activate">Activate</button>' +
             '<button class="btn btn-default" style="height:28px" data-bulk="deactivate">Deactivate</button>' +
             '<button class="btn btn-default" style="height:28px" data-bulk="archive">Archive products</button>' +
-            '<button class="lnk" style="margin-left:auto" data-bulk="clear">Clear selection</button>' +
           '</div></div>' : '') +
-        // table
+        // table — columns: select, Product, Price (sortable), Inventory quantity (sortable), Status, Action
         '<div style="overflow-x:auto">' +
         '<table class="tbl" style="min-width:1180px">' +
           '<thead><tr>' +
             '<th style="width:38px"><input type="checkbox" id="sel-all" ' + (allOnPageSel ? 'checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer" /></th>' +
-            '<th>Product</th><th style="width:140px">Price</th><th style="width:300px">Inventory quantity</th>' +
+            '<th>Product</th>' +
+            '<th style="width:150px;cursor:pointer;user-select:none" data-sort="price">Price' + sortCaret('price') + '</th>' +
+            '<th style="width:300px;cursor:pointer;user-select:none" data-sort="stock">Inventory quantity' + sortCaret('stock') + '</th>' +
             '<th style="width:150px">Status</th><th style="width:80px;text-align:center">Action</th>' +
           '</tr></thead>' +
           '<tbody id="pr-tbody">' +
@@ -259,10 +261,16 @@
     }
     const cate = root.querySelector('#cate-sel');
     if (cate) cate.onchange = () => { LST.cate = Number(cate.value); LST.page = 1; renderList(); };
-    const sort = root.querySelector('#sort-sel');
-    if (sort) sort.onchange = () => { LST.sort = sort.value; LST.page = 1; renderList(); };
     const chip = root.querySelector('#price-chip');
     if (chip) chip.onclick = () => openPricePopover(chip);
+    // sortable column headers (price / stock) cycle: none -> asc -> desc -> none
+    root.querySelectorAll('th[data-sort]').forEach((th) => th.onclick = () => {
+      const f = th.getAttribute('data-sort');
+      if (LST.sortField !== f) { LST.sortField = f; LST.sortOrder = 'asc'; }
+      else if (LST.sortOrder === 'asc') { LST.sortOrder = 'desc'; }
+      else { LST.sortField = ''; LST.sortOrder = ''; }
+      renderList();
+    });
     root.querySelectorAll('#filter-tags [data-clear]').forEach((tg) => tg.onclick = () => {
       const k = tg.getAttribute('data-clear');
       if (k === 'kw') { LST.kw = ''; LST.kwApplied = ''; }
@@ -287,27 +295,22 @@
       if (c.checked) LST.sel[id] = true; else delete LST.sel[id];
       renderList();
     });
-    // bulk actions
-    root.querySelectorAll('[data-bulk]').forEach((b) => b.onclick = () => {
-      const act = b.getAttribute('data-bulk');
-      if (act === 'clear') { LST.sel = {}; renderList(); return; }
-      openBulkConfirm(act);
-    });
-    // inline status toggle
+    // bulk actions (table.tsx Popconfirm)
+    root.querySelectorAll('[data-bulk]').forEach((b) => b.onclick = () => openBulkConfirm(b.getAttribute('data-bulk')));
+    // inline status toggle (Switch in Status column)
     root.querySelectorAll('[data-toggle]').forEach((sw) => sw.onclick = (e) => {
       e.stopPropagation();
       const id = Number(sw.getAttribute('data-toggle'));
       const p = D.PRODUCTS.find((x) => x.product_id === id);
-      if (p) { p.is_show = p.is_show === 1 ? 0 : 1; toast('Product ' + (p.is_show ? 'activated' : 'deactivated')); renderList(); }
+      if (p) { p.is_show = p.is_show === 1 ? 0 : 1; renderList(); }
     });
-    // row click -> edit ; but ignore clicks on interactive cells
+    // row click -> edit ; ignore clicks on interactive cells (isInteractiveTableClick)
     root.querySelectorAll('#pr-tbody tr[data-id]').forEach((tr) => tr.onclick = (e) => {
       if (e.target.closest('[data-stop]')) return;
       goEdit(tr.getAttribute('data-id'));
     });
     root.querySelectorAll('[data-view]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); toast('Storefront preview opens in a new tab (roadmap)'); });
-    const exp = root.querySelector('[data-act="export"]'); if (exp) exp.onclick = () => toast('Export — generates a CSV of the filtered products (roadmap)');
-    const add = root.querySelector('[data-act="add"]'); if (add) add.onclick = () => goEdit('new');
+    const add = root.querySelector('[data-act="add"]'); if (add) add.onclick = () => goEdit('0');
   }
 
   function openPricePopover(anchor) {
@@ -338,34 +341,33 @@
     setTimeout(() => document.addEventListener('mousedown', function hh(e) { if (!pop.contains(e.target) && !anchor.contains(e.target)) { closePops(); document.removeEventListener('mousedown', hh); } }), 0);
   }
 
-  // bulk confirm (table.tsx Popconfirm copy)
+  // bulk confirm (table.tsx Popconfirm copy). activate/deactivate only act on eligible rows.
   function openBulkConfirm(act) {
     const n = selectedRows().length;
     const META = {
-      activate: { title: 'Activate ' + n + ' products?', desc: 'Activated products will be visible and available for purchase.', ok: 'Confirm' },
-      deactivate: { title: 'Deactivate ' + n + ' products?', desc: "Deactivated products won't be available for purchase on any sales channel.", ok: 'Confirm' },
-      archive: { title: 'Archive ' + n + ' products in bulk', desc: 'Archiving hides products from your sales channels. Use the status filter to find them later.', ok: 'Confirm' },
+      activate: { title: 'Activate ' + n + ' products?', desc: 'Activated products will be visible and available for purchase.' },
+      deactivate: { title: 'Deactivate ' + n + ' products?', desc: "Deactivated products won't be available for purchase on any sales channel." },
+      archive: { title: 'Archive ' + n + ' products in bulk', desc: 'Archiving this product will hide it from your sales channels. You can use the status filter in the product list to find it.' },
     }[act];
     modal({
-      title: META.title, width: 460, okText: META.ok,
+      title: META.title, width: 460, okText: 'Confirm',
       body: '<div class="muted" style="font-size:13.5px;line-height:1.6">' + esc(META.desc) + '</div>',
       onOk: (m, close) => {
-        selectedRows().forEach((p) => {
-          if (act === 'activate' && statusOf(p) !== 'archived') p.is_show = 1;
-          if (act === 'deactivate' && statusOf(p) !== 'archived') p.is_show = 0;
-          if (act === 'archive') p.is_del = 1;
-        });
+        let affected = 0;
+        if (act === 'activate') { selectedRows().filter((p) => statusOf(p) === 'deactivated').forEach((p) => { p.is_show = 1; affected++; }); }
+        else if (act === 'deactivate') { selectedRows().filter((p) => statusOf(p) === 'activated').forEach((p) => { p.is_show = 0; affected++; }); }
+        else if (act === 'archive') { selectedRows().filter((p) => statusOf(p) === 'deactivated').forEach((p) => { p.is_del = 1; affected++; }); }
         LST.sel = {}; close();
-        toast('Successfully ' + (act === 'archive' ? 'archived' : act + 'd') + ' ' + n + ' products');
+        const verb = act === 'archive' ? 'archived' : act === 'activate' ? 'activated' : 'deactivated';
+        toast('Successfully ' + verb + ' ' + affected + ' products');
         renderList();
       },
     });
   }
 
   // ================= EDIT VIEW =================
-  // working copy of the product being edited
-  let EDIT = null;     // current form state (deep-ish clone)
-  let EDIT_ID = null;
+  let EDIT = null;     // current form state (deep clone)
+  let EDIT_ID = null;  // route id string ('0' = new)
   let DIRTY = false;
 
   function blankProduct() {
@@ -374,40 +376,49 @@
       cate_id: 0, category_label: '', product_spu: '', images: [],
       hasVariants: false, spec_type: 0, attr: [], attrValue: [],
       price: undefined, compareAtPrice: undefined, itemCost: undefined, sku: '', barcode: '', inventoryQuantity: undefined,
-      params: [{ name: '', single: '' }],
-      metafields: { shop: [], google: [] },
-      settings: { activated: false, status: 'deactivated', spu: '', weight: 0, vendor_id: undefined, category: 0, tags: [], metaTitle: '', metaDescription: '', urlHandle: '', seoKeywords: [], homeTemplate: 'default' },
+      params: [{ name: '', values: [], sort: 0, single: '' }],
+      metafields: { custom: {}, google: {} },
+      settings: { activated: false, status: 'deactivated', spu: '', weight: 0, vendor_id: undefined, category: 0, metaTitle: '', metaDescription: '', urlHandle: '', seoKeywords: [], homeTemplate: 'default' },
     };
   }
 
   function loadEdit(id) {
     EDIT_ID = id; DIRTY = false;
-    if (id === 'new') { EDIT = blankProduct(); return true; }
+    if (id === '0' || id === 'new') { EDIT = blankProduct(); EDIT_ID = '0'; return true; }
     const src = D.DETAILS[id] || D.DETAILS[Number(id)];
     if (src) { EDIT = JSON.parse(JSON.stringify(src)); return true; }
     // fallback: synthesize a minimal record from the list row so any row is openable
     const row = D.PRODUCTS.find((p) => String(p.product_id) === String(id));
-    if (!row) { EDIT = null; return false; } // unknown id -> caller shows a not-found state
+    if (!row) { EDIT = null; return false; }
     EDIT = Object.assign(blankProduct(), {
       product_id: row.product_id, name: row.store_name, spec_type: row.spec_type, hasVariants: row.spec_type === 1,
       product_spu: row.product_spu, sku: row.sku, barcode: row.barcode,
       price: row.price_min, compareAtPrice: row.price_max, inventoryQuantity: row.on_sale_stock,
-      images: [{ uid: 'x', name: 'image', url: row.image, cover: true }],
-      attr: row.spec_type === 1 ? [{ value: 'Size', detail: [{ value: 'S' }, { value: 'M' }, { value: 'L' }] }] : [],
+      images: [{ uid: 'x', name: 'image', url: row.image }],
+      attr: row.spec_type === 1 ? [{ value: 'Size', detail: [{ pic: '', value: 'S' }, { pic: '', value: 'M' }, { pic: '', value: 'L' }] }] : [],
       attrValue: row.spec_type === 1
-        ? [{ unique: 'V-' + row.product_id + '-S', title: 'S', image: row.image, sku: (row.sku || 'SKU-' + row.product_id) + '-S', price: row.price_min, ot_price: row.price_max, cost: 0, stock: Math.round(row.on_sale_stock / 3), weight: 180, bar_code_number: '', is_show: 1, is_default_select: 1 }]
-        : [{ unique: 'V-' + row.product_id, title: 'Default', image: row.image, sku: row.sku || 'SKU-' + row.product_id, price: row.price_min, ot_price: row.price_max, cost: 0, stock: row.on_sale_stock, weight: 180, bar_code_number: '', is_show: 1, is_default_select: 1 }],
+        ? [{ unique: 'V-' + row.product_id + '-S', detail: { Size: 'S' }, image: row.image, bar_code: (row.sku || 'SKU-' + row.product_id) + '-S', price: String(row.price_min), ot_price: String(row.price_max), cost: '0', stock: Math.round(row.on_sale_stock / 3), weight: '180', bar_code_number: '', is_show: 1, is_default_select: 1 }]
+        : [{ unique: 'V-' + row.product_id, detail: { Title: 'Default' }, image: row.image, bar_code: row.sku || 'SKU-' + row.product_id, price: String(row.price_min), ot_price: String(row.price_max), cost: '0', stock: row.on_sale_stock, weight: '180', bar_code_number: '', is_show: 1, is_default_select: 1 }],
+      metafields: { custom: {}, google: {} },
       settings: Object.assign(blankProduct().settings, { activated: row.is_show === 1, status: statusOf(row), category: row.cate_id || 0, spu: row.product_spu, archived: row.is_del === 1 }),
     });
     return true;
   }
 
+  const isEditMode = () => EDIT_ID !== '0' && EDIT_ID !== 'new';
   const markDirty = () => { if (!DIRTY) { DIRTY = true; const bar = document.getElementById('unsaved-bar'); if (bar) bar.style.display = 'flex'; } };
+
+  // variant title from detail object (SkuList.tsx getVariantTitle): Object.values join ' • '
+  function variantTitle(v) {
+    if (v.detail && typeof v.detail === 'object') return Object.values(v.detail).join(' • ');
+    return v.title || '';
+  }
 
   // Unknown product id (e.g. a stale/typo hash) -> friendly empty state, not a blank editable form.
   function renderNotFound(id) {
     DIRTY = false;
     root.innerHTML =
+      '<div class="detail-wrap">' +
       '<div class="flex items-center gap-3 mb-4">' +
         '<button class="back-btn" data-act="back" title="Back to products">' + I.arrowLeft + '</button>' +
         '<h1 class="page-title">Product not found</h1>' +
@@ -417,7 +428,7 @@
         '<div style="font-weight:600;margin-bottom:4px">No product with ID ' + esc(id) + '</div>' +
         '<div class="muted" style="font-size:13px;margin-bottom:16px">It may have been deleted, or the link is out of date.</div>' +
         '<button class="btn btn-primary" data-act="back-list">Back to products</button>' +
-      '</div>';
+      '</div></div>';
     const go = () => { location.hash = '#/products'; };
     const b1 = root.querySelector('[data-act="back"]'); if (b1) b1.onclick = go;
     const b2 = root.querySelector('[data-act="back-list"]'); if (b2) b2.onclick = go;
@@ -425,26 +436,26 @@
 
   function renderEdit(id) {
     if (!loadEdit(id)) { renderNotFound(id); return; }
-    const isEdit = id !== 'new';
+    const isEdit = isEditMode();
     const title = isEdit ? (EDIT.name || 'Edit product') : 'Add product';
-    const archived = !!(EDIT.settings && EDIT.settings.archived);
 
     root.innerHTML =
-      // fixed 1200px centered container (matches real admin) — .detail-* shared classes in theme.css
+      // fixed 1200px centered container (productEdit.vue w-[1200px]) — .detail-* shared classes
       '<div class="detail-wrap">' +
-        // unsaved-changes bar (UnSavedChanges.tsx) — hidden until a field changes
-        '<div id="unsaved-bar" style="display:none;align-items:center;justify-content:space-between;gap:12px;background:#242833;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:16px">' +
-          '<span style="font-size:13.5px">Unsaved changes</span>' +
-          '<div class="flex items-center gap-2">' +
-            '<button class="btn" style="background:rgba(255,255,255,.16);color:#fff" data-act="discard">Discard</button>' +
+        // unsaved-changes bar (UnSavedChanges.tsx) — dark bar; hidden until a field changes.
+        // layout: left (empty title) / centered alert + "You have unsaved changes" / right Discard + primary.
+        '<div id="unsaved-bar" style="display:none;align-items:center;gap:8px;background:#242833;color:#fff;border-radius:12px;padding:12px 18px;margin-bottom:16px">' +
+          '<div style="flex:1"></div>' +
+          '<div class="flex items-center gap-2" style="color:#fff"><span style="display:inline-flex">' + I.alert + '</span><span style="font-size:13.5px">You have unsaved changes</span></div>' +
+          '<div class="flex items-center justify-end gap-2" style="flex:1">' +
+            '<button class="btn" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)" data-act="discard">Discard</button>' +
             '<button class="btn btn-primary" data-act="save-bar">' + (isEdit ? 'Update' : 'Add') + '</button>' +
           '</div>' +
         '</div>' +
-        // header
-        '<div class="flex items-center gap-3 mb-4">' +
+        // header (edit.tsx): back button + title
+        '<div class="flex items-center gap-2 mb-4">' +
           '<button class="back-btn" data-act="back" title="Back to products">' + I.arrowLeft + '</button>' +
           '<h1 class="page-title" style="min-width:0;word-break:break-word">' + esc(title) + '</h1>' +
-          (archived ? '<span class="pill pill-gray">' + I.clock + ' Archived</span>' : '') +
         '</div>' +
         // two-column body: left sections (flex), right settings rail (fixed 275px)
         '<div class="detail-cols">' +
@@ -453,104 +464,171 @@
         '</div>' +
       '</div>';
 
-    document.getElementById('edit-main').innerHTML =
-      secProductInfo() + secImages() +
-      (EDIT.hasVariants ? '' : secPricing() + secInventory()) +
-      secVariants() + secSkuList() + secSpecifics() +
-      (isEdit ? secMetafields('shop', 'Product metafields') + secMetafields('google', 'Google metafields') : '') +
-      // footer actions (edit.tsx)
-      '<div class="flex justify-end gap-2 mt-2 mb-6">' +
-        '<button class="btn btn-primary" data-act="save">' + (isEdit ? 'Update Product' : 'Add Product') + '</button>' +
-        (archived ? '<button class="btn btn-default" style="color:var(--err);border-color:#f3c0b4" data-act="unarchive">Set product as unarchived</button><button class="btn btn-default" style="color:var(--err);border-color:#f3c0b4" data-act="destroy">Delete the product</button>'
-          : (isEdit && EDIT.settings && !EDIT.settings.activated ? '<button class="btn btn-default" style="color:var(--err);border-color:#f3c0b4" data-act="archive-one">Archive the product</button>' : '')) +
-      '</div>';
-
-    document.getElementById('edit-side').innerHTML = secSettings(isEdit) + secSeo() + (isEdit ? secTemplate() : '');
+    document.getElementById('edit-main').innerHTML = mainHtml(isEdit);
+    document.getElementById('edit-side').innerHTML = sideHtml(isEdit);
 
     wireEdit(isEdit);
     if (root.parentElement) root.parentElement.scrollTop = 0;
   }
 
-  // ---- card shell for edit sections (matches Ant Card.Meta header) ----
+  // edit.tsx left column order: ProductInformation, ImageVideo, [Pricing+Inventory if no variants],
+  // Variants, SkuList, ProductSpecifics, [Metafields custom + google if isEdit], footer actions.
+  function mainHtml(isEdit) {
+    return secProductInfo() + secImages() +
+      (EDIT.hasVariants ? '' : secPricing() + secInventory()) +
+      secVariants() + secSkuList() + secSpecifics() +
+      (isEdit ? secMetafields('custom', 'Product metafields', D.SHOP_PRODUCT_DEFS) + secMetafields('google', 'Google Metafields', D.GOOGLE_PRODUCT_DEFS) : '') +
+      footerHtml(isEdit);
+  }
+  function sideHtml(isEdit) {
+    return secSettings(isEdit) + secSeo() + (isEdit ? secTemplate() : '');
+  }
+
+  // footer actions (edit.tsx 264-293)
+  function footerHtml(isEdit) {
+    const s = EDIT.settings || {};
+    const archived = !!s.archived;            // is_del === 1
+    const deactivated = isEdit && !archived && !s.activated; // is_show === 0 && is_del === 0
+    let btns = '<button class="btn btn-primary" data-act="save">' + (isEdit ? 'Update Product' : 'Add Product') + '</button>';
+    if (archived && isEdit) {
+      btns += '<button class="btn btn-default danger-btn" data-act="destroy">Delete the product</button>';
+      btns += '<button class="btn btn-default danger-btn" data-act="unarchive">Set product as unarchived</button>';
+    } else if (deactivated) {
+      btns += '<button class="btn btn-default danger-btn" data-act="archive-one">Archive the product</button>';
+    }
+    return '<div class="flex justify-end gap-2 mt-2 mb-6">' + btns + '</div>';
+  }
+
+  // ---- card shell for edit sections (Ant Card + Card.Meta header) ----
   function card(titleHtml, bodyHtml, right) {
     return '<div class="panel card-pad mb-4">' +
       '<div class="flex items-center justify-between mb-3"><div class="card-title">' + titleHtml + '</div>' + (right || '') + '</div>' +
       bodyHtml + '</div>';
   }
-  const lbl = (t, hint) => '<div class="ctrl-label" style="text-transform:none;font-size:13px;font-weight:500;color:var(--ink)">' + t + (hint ? ' <span class="muted" title="' + esc(hint) + '" style="cursor:help">(?)</span>' : '') + '</div>';
+  const lbl = (t, hint) => '<div class="ctrl-label" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:500;color:var(--ink);margin-bottom:0">' +
+    '<span class="flex items-center gap-1">' + t + (hint ? '<span class="muted" title="' + esc(hint) + '" style="cursor:help;display:inline-flex">' + I.help + '</span>' : '') + '</span></div>';
   const field = (id, label, val, ph, hint) => '<div class="mb-3">' + lbl(label, hint) +
     '<input class="input" id="' + id + '" value="' + esc(val == null ? '' : val) + '" placeholder="' + esc(ph || '') + '" style="margin-top:4px" /></div>';
+  // textarea with char counter (showCount)
+  function counted(id, label, val, ph, rows, max) {
+    const len = (val || '').length;
+    return '<div class="mb-3">' + lbl(label) +
+      '<div style="position:relative;margin-top:4px">' +
+        '<textarea class="input" id="' + id + '" rows="' + rows + '" maxlength="' + max + '" placeholder="' + esc(ph) + '" style="height:auto;padding:8px 12px;resize:vertical">' + esc(val) + '</textarea>' +
+        '<span class="muted" id="' + id + '-cnt" style="position:absolute;right:10px;bottom:8px;font-size:11px">' + len + ' / ' + max + '</span>' +
+      '</div></div>';
+  }
 
-  // 1) Product information
+  // 1) Product information (ProductInformation.tsx)
   function secProductInfo() {
     const idHead = EDIT.product_id
       ? '<div class="flex items-center gap-2 muted" style="font-size:13px"><span>Product ID: <span class="lnk">' + EDIT.product_id + '</span></span><button class="back-btn" data-act="copy-id" title="Copy" style="width:26px;height:26px">' + I.copy + '</button></div>'
       : '';
     const highlights = EDIT.highlights.map((hl, i) =>
       '<div class="flex items-start gap-2 mb-2" data-hl="' + i + '">' +
-        '<input class="input" data-hl-input="' + i + '" value="' + esc(hl) + '" placeholder="List a top reason customers should buy this product" style="flex:1" />' +
+        '<div style="position:relative;flex:1">' +
+          '<input class="input" data-hl-input="' + i + '" value="' + esc(hl) + '" maxlength="150" placeholder="List the top reasons why customers should buy this product" style="padding-right:64px" />' +
+          '<span class="muted" data-hl-cnt="' + i + '" style="position:absolute;right:10px;top:9px;font-size:11px">' + (hl || '').length + ' / 150</span>' +
+        '</div>' +
         (i === 0
           ? '<button class="btn btn-default" data-hl-add style="width:34px;padding:0;justify-content:center">' + I.plus + '</button>'
           : '<button class="btn btn-default" data-hl-del="' + i + '" style="width:34px;padding:0;justify-content:center">' + I.minus + '</button>') +
       '</div>').join('');
     const body =
       field('f-name', 'Name', EDIT.name, 'Example: short-sleeved T-shirt') +
-      '<div class="mb-3">' + lbl('Summary') +
-        '<textarea class="input" id="f-summary" rows="3" placeholder="Tell us something about this product" style="margin-top:4px;height:auto;padding:8px 12px;resize:vertical">' + esc(EDIT.summary) + '</textarea></div>' +
+      counted('f-summary', 'Summary', EDIT.summary, 'Tell us something about this product (example: what makes it special)', 3, 400) +
       '<div class="mb-3">' + lbl('Highlights') + '<div style="margin-top:4px" id="hl-list">' + highlights + '</div></div>' +
-      '<div class="mb-3">' + lbl('Description') +
-        '<textarea class="input" id="f-desc" rows="5" placeholder="Describe the product\'s main features and benefits" style="margin-top:4px;height:auto;padding:8px 12px;resize:vertical">' + esc(EDIT.description) + '</textarea></div>' +
+      counted('f-desc', 'Description', EDIT.description, 'Describe your product’s main features and benefits to attract customers', 6, 5000) +
       '<div>' + lbl('Detail') +
-        // simple rich-text-ish toolbar (RichTextEditor stand-in)
-        '<div class="ql-wrap" style="margin-top:4px"><div class="ql-head"><div class="flex items-center gap-3 muted" style="font-size:13px"><b>B</b><i>I</i><u>U</u><span>H2</span><span>List</span><span>Link</span></div></div>' +
-        '<textarea class="ql-editor" id="f-detail" placeholder="Add comprehensive details, user guides, and care info">' + esc((EDIT.detail || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()) + '</textarea></div></div>';
+        // RichTextEditor stand-in: toolbar + plain editor
+        '<div class="ql-wrap" style="margin-top:4px;border:1px solid var(--ctl);border-radius:8px;overflow:hidden">' +
+          '<div class="ql-head" style="border-bottom:1px solid var(--hair);padding:6px 10px;background:var(--panel)"><div class="flex items-center gap-3 muted" style="font-size:13px"><b>B</b><i>I</i><u>U</u><span>H2</span><span>List</span><span>Link</span><span>Image</span></div></div>' +
+          '<textarea class="ql-editor" id="f-detail" placeholder="Add comprehensive details, user guides, and vendor for this product" style="width:100%;border:0;outline:0;min-height:160px;padding:10px 12px;font-size:13px;resize:vertical;display:block">' + esc((EDIT.detail || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()) + '</textarea>' +
+        '</div></div>';
     return card('Product information', body, idHead);
   }
 
-  // 2) Images / Videos
+  // 2) Image/video (AddImageVideo) — empty state vs 6-col grid with featured first tile + drag reorder
+  const MAX_VISIBLE_COLLAPSED = 8;
+  let imgGridExpanded = false;
   function secImages() {
-    const tiles = (EDIT.images || []).map((im, i) =>
-      '<div style="position:relative;width:96px;height:96px;border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:#f3f4f6" data-img="' + i + '">' +
-        '<img src="' + im.url + '" alt="" style="width:100%;height:100%;object-fit:cover" />' +
-        (im.type === 'video' ? '<span style="position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.35);color:#fff">' + I.play + '</span>' : '') +
-        (im.cover ? '<span class="st st-ready" style="position:absolute;left:4px;top:4px"><span class="dot"></span>Cover</span>' : '') +
-        '<button class="back-btn" data-img-del="' + i + '" title="Remove" style="position:absolute;right:3px;top:3px;width:22px;height:22px;background:rgba(255,255,255,.9)">' + I.x + '</button>' +
-      '</div>').join('');
-    const body =
-      '<div class="flex items-center gap-3" style="flex-wrap:wrap">' + tiles +
-        '<button id="img-add" style="width:96px;height:96px;border:1px dashed var(--ctl);border-radius:8px;background:#fff;color:var(--brand);display:grid;place-items:center;cursor:pointer">' +
-          '<div style="text-align:center;font-size:12px">' + I.image + '<div style="margin-top:4px">Add</div></div></button>' +
-      '</div>' +
-      '<div class="muted" style="font-size:12px;margin-top:8px">Add up to 12 images or a short video. First image is used as the cover. PNG, JPG, MP4.</div>';
-    return card('Images / Videos', body);
+    const list = EDIT.images || [];
+    let body;
+    if (list.length === 0) {
+      // empty state: dashed box, "Upload new" + "Select existing", "Accepts images,videos", support text
+      body =
+        '<div style="min-height:220px;display:flex;align-items:center;justify-content:center;border:2px dashed var(--ctl);border-radius:10px;padding:48px;margin-bottom:12px">' +
+          '<div style="text-align:center">' +
+            '<div class="flex items-center justify-center gap-3 mb-3">' +
+              '<button class="btn btn-default" data-img-upload>Upload new</button>' +
+              '<button class="btn" style="background:transparent;border:none;color:var(--ink)" data-img-select>Select existing</button>' +
+            '</div>' +
+            '<div class="muted" style="font-size:13px">Accepts images,videos</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="muted" style="font-size:12px">' + esc(D.MEDIA_SUPPORT_TEXT) + '</div>';
+    } else {
+      const hasMore = list.length > MAX_VISIBLE_COLLAPSED;
+      const remaining = Math.max(list.length - MAX_VISIBLE_COLLAPSED, 0);
+      const visible = imgGridExpanded ? list : list.slice(0, MAX_VISIBLE_COLLAPSED);
+      const tiles = visible.map((im, i) => {
+        const isFirst = i === 0;
+        const isLastCollapsed = !imgGridExpanded && hasMore && i === MAX_VISIBLE_COLLAPSED - 1;
+        const span = isFirst ? 'grid-column:span 2;grid-row:span 2' : '';
+        const inner = im.type === 'video'
+          ? '<div style="position:relative;width:100%;height:100%;background:#0b1220">' +
+              '<img src="' + im.url + '" alt="" style="width:100%;height:100%;object-fit:contain;opacity:.85" />' +
+              '<span style="position:absolute;inset:0;display:grid;place-items:center"><span style="width:48px;height:48px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;border:1px solid rgba(255,255,255,.1)">' + I.play + '</span></span>' +
+            '</div>'
+          : '<img src="' + im.url + '" alt="" style="width:100%;height:100%;object-fit:contain;background:#fff" />';
+        const overlay = isLastCollapsed
+          ? '<div data-img-expand style="position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.5);cursor:pointer"><span style="color:#fff;font-size:22px;font-weight:700">+' + remaining + '</span></div>'
+          : '';
+        const del = isLastCollapsed ? ''
+          : '<button class="img-del" data-img-del="' + i + '" title="Remove" style="position:absolute;right:4px;top:4px;width:22px;height:22px;border:none;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;cursor:pointer;display:grid;place-items:center;opacity:0;transition:opacity .15s">' + I.x + '</button>';
+        return '<div class="img-tile" data-img="' + i + '"' + (isLastCollapsed ? '' : ' draggable="true"') +
+          ' style="position:relative;border:1px solid var(--hair);border-radius:6px;overflow:hidden;cursor:move;' + span + '">' +
+          inner + overlay + del +
+        '</div>';
+      }).join('');
+      const addTile = '<div data-img-add-tile style="display:grid;place-items:center;border:2px dashed var(--ctl);border-radius:6px;cursor:pointer;color:var(--ink-muted);min-height:100px">' + I.plusBig + '</div>';
+      const collapseBtn = imgGridExpanded
+        ? '<div class="mb-3" style="text-align:center"><button class="btn" style="background:transparent;border:none;color:var(--ink)" data-img-collapse>Collapse</button></div>'
+        : '';
+      body =
+        '<div id="img-grid" style="display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:100px;gap:8px;margin-bottom:12px">' + tiles + addTile + '</div>' +
+        collapseBtn +
+        '<div class="muted" style="font-size:12px">' + esc(D.MEDIA_SUPPORT_TEXT) + '</div>';
+    }
+    return card('Image/video', body);
   }
 
-  // 3) Pricing (single-product)
+  // 3) Price settings (PriceSettings.tsx) — single-product only (hidden when hasVariants)
   function secPricing() {
-    const v = EDIT.attrValue && EDIT.attrValue[0] || {};
+    const v = (EDIT.attrValue && EDIT.attrValue[0]) || {};
     const num = (id, label, val, hint) => '<div>' + lbl(label, hint) +
       '<div style="position:relative;margin-top:4px"><span style="position:absolute;left:10px;top:9px;color:var(--ink-muted)">$</span>' +
-      '<input class="input" id="' + id + '" type="number" min="0" step="0.01" value="' + (val == null ? '' : val) + '" placeholder="0.00" style="padding-left:22px" /></div></div>';
+      '<input class="input" id="' + id + '" type="number" min="0" step="0.01" value="' + (val == null ? '' : val) + '" placeholder="Please enter" style="padding-left:22px" /></div></div>';
     const body = '<div class="grid grid-cols-3 gap-4">' +
-      num('p-price', 'Price', EDIT.price != null ? EDIT.price : v.price, 'Checkout price may differ during promotions.') +
-      num('p-compare', 'Compare at price', EDIT.compareAtPrice != null ? EDIT.compareAtPrice : v.ot_price, 'Shown with a strikethrough when higher than price.') +
-      num('p-cost', 'Item cost', EDIT.itemCost != null ? EDIT.itemCost : v.cost, "Won't be displayed to customers.") +
+      num('p-price', 'Price', EDIT.price != null ? EDIT.price : v.price, 'When products participate in various promotional activities, the prices used for checkout may not be as stated.') +
+      num('p-compare', 'Compare at price', EDIT.compareAtPrice != null ? EDIT.compareAtPrice : v.ot_price, 'To display a markdown, enter a value higher than your price. Often shown with a strikethrough (e.g. $25.00).') +
+      num('p-cost', 'Item cost', EDIT.itemCost != null ? EDIT.itemCost : v.cost, "This won't be displayed to customers.") +
       '</div>';
     return card('Price settings', body);
   }
 
-  // 4) Inventory (single-product)
+  // 4) Inventory (Inventory.tsx) — single-product only
   function secInventory() {
-    const v = EDIT.attrValue && EDIT.attrValue[0] || {};
+    const v = (EDIT.attrValue && EDIT.attrValue[0]) || {};
     const body = '<div class="grid grid-cols-3 gap-4">' +
-      field('i-sku', 'SKU', EDIT.sku || v.sku) +
-      field('i-barcode', 'Barcode (ISBN, UPC, GTIN, etc.)', EDIT.barcode || v.bar_code_number) +
-      '<div>' + lbl('Inventory quantity') + '<input class="input" id="i-stock" type="number" min="0" value="' + (EDIT.inventoryQuantity != null ? EDIT.inventoryQuantity : (v.stock != null ? v.stock : '')) + '" placeholder="0" style="margin-top:4px" /></div>' +
+      '<div>' + lbl('SKU') + '<input class="input" id="i-sku" value="' + esc(EDIT.sku || v.bar_code || '') + '" placeholder="Please enter" style="margin-top:4px" /></div>' +
+      '<div>' + lbl('Barcode (ISBN, UPC, GTIN, etc.)') + '<input class="input" id="i-barcode" value="' + esc(EDIT.barcode || v.bar_code_number || '') + '" placeholder="Please enter" style="margin-top:4px" /></div>' +
+      '<div>' + lbl('Inventory quantity') + '<input class="input" id="i-stock" type="number" min="0" value="' + (EDIT.inventoryQuantity != null ? EDIT.inventoryQuantity : (v.stock != null ? v.stock : '')) + '" placeholder="Please enter" style="margin-top:4px" /></div>' +
       '</div>';
     return card('Inventory', body);
   }
 
-  // 5) Variants (options)
+  // 5) Variants (Variants.tsx) — checkbox + option rows (AutoComplete name + value chips)
   function secVariants() {
     const checked = EDIT.hasVariants ? 'checked' : '';
     const orderBtn = EDIT.hasVariants ? '<button class="btn btn-default" data-act="variant-order">Variant display order</button>' : '';
@@ -558,23 +636,23 @@
     if (EDIT.hasVariants) {
       optionRows = (EDIT.attr || []).map((opt, i) => {
         const chips = (opt.detail || []).map((d, vi) =>
-          '<span class="field-pill" style="background:#dbeafe;border-color:#bfdbfe;color:#1e40af">' + esc(d.value) +
-          ' <span class="x" data-vval="' + i + ':' + vi + '">&times;</span></span>').join('');
-        return '<div class="flex gap-3 items-start" style="border-bottom:1px solid var(--hair);padding-bottom:12px;margin-bottom:12px" data-opt="' + i + '">' +
+          '<span style="display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:6px;font-size:13px">' + esc(d.value) +
+          ' <span class="x" data-vval="' + i + ':' + vi + '" style="cursor:pointer;font-weight:700;display:inline-flex">' + I.x + '</span></span>').join('');
+        return '<div class="flex gap-4 items-start" style="border-bottom:1px solid var(--hair);padding-bottom:16px;margin-bottom:16px" data-opt="' + i + '">' +
           '<div style="width:25%">' +
             '<input class="input" list="opt-names" data-opt-name="' + i + '" value="' + esc(opt.value) + '" placeholder="e.g. Color" />' +
           '</div>' +
           '<div style="flex:1">' +
-            '<div class="flex items-center gap-2" style="flex-wrap:wrap;min-height:34px;border:1px solid var(--ctl);border-radius:8px;padding:5px 8px;background:#fff">' +
+            '<div class="flex items-center gap-2" style="flex-wrap:wrap;min-height:32px;border:1px solid var(--ctl);border-radius:8px;padding:5px 8px;background:#fff">' +
               chips +
-              '<input data-opt-val="' + i + '" placeholder="Add value..." style="border:0;outline:0;background:transparent;width:120px;font-size:13px" />' +
+              '<input data-opt-val="' + i + '" placeholder="Add value..." style="border:0;outline:0;background:transparent;width:128px;font-size:13px" />' +
             '</div>' +
           '</div>' +
-          '<button class="back-btn" data-opt-edit="' + i + '" title="Edit option" style="width:30px;height:30px">' + I.pencil + '</button>' +
-          '<button class="back-btn" data-opt-del="' + i + '" title="Delete option" style="width:30px;height:30px;color:var(--err)">' + I.trash + '</button>' +
+          '<div data-opt-edit="' + i + '" title="Edit variations" style="cursor:pointer;color:var(--ink-muted);height:25px;display:flex;align-items:center">' + I.pencil + '</div>' +
+          '<div data-opt-del="' + i + '" title="Delete" style="cursor:pointer;color:var(--err);height:25px;display:flex;align-items:center">' + I.trash + '</div>' +
         '</div>';
       }).join('') +
-      ((EDIT.attr || []).length < 4 ? '<button class="btn btn-default" data-act="opt-add">' + I.plus + ' Add product variant</button>' : '') +
+      ((EDIT.attr || []).length < 4 ? '<button class="btn btn-default" data-act="opt-add">+ Add product variant</button>' : '') +
       '<datalist id="opt-names">' + D.OPTION_NAMES.map((n) => '<option value="' + n + '">').join('') + '</datalist>';
     }
     const body =
@@ -582,39 +660,42 @@
         '<label class="flex items-center gap-2" style="cursor:pointer"><input type="checkbox" id="has-variants" ' + checked + ' style="width:16px;height:16px;accent-color:var(--brand)" /><span style="font-size:13.5px">This Product has multiple variants</span></label>' +
         orderBtn +
       '</div>' +
-      (EDIT.hasVariants ? '<div style="border-top:1px solid var(--hair);padding-top:14px;margin-top:6px">' + optionRows + '</div>' : '');
+      (EDIT.hasVariants ? '<div style="border-top:1px solid var(--hair);padding-top:16px;margin-top:6px">' + optionRows + '</div>' : '');
     return card('Variants', body);
   }
 
-  // 6) SKU list (table) — only when variants on
+  // 6) SKU list (SkuList.tsx) — only when variants on
   function secSkuList() {
     if (!EDIT.hasVariants) return '';
-    const rows = (EDIT.attrValue || []).map((v, i) =>
-      '<tr data-sku="' + i + '">' +
-        '<td><div style="width:38px;height:38px;border:1px dashed var(--ctl);border-radius:6px;overflow:hidden;cursor:pointer;display:grid;place-items:center;background:#fff" data-sku-img="' + i + '">' +
-          (v.image ? '<img src="' + v.image + '" style="width:100%;height:100%;object-fit:cover" />' : I.image) + '</div></td>' +
-        '<td style="font-weight:500;white-space:nowrap">' + esc(v.title) + '</td>' +
-        '<td><input class="input" style="height:30px;width:130px" value="' + esc(v.sku || '') + '" data-skf="sku:' + i + '" placeholder="SKU" /></td>' +
-        '<td><input class="input" style="height:30px;width:96px" type="number" min="0" step="0.01" value="' + (v.price == null ? '' : v.price) + '" data-skf="price:' + i + '" placeholder="$" /></td>' +
-        '<td><input class="input" style="height:30px;width:96px" type="number" min="0" step="0.01" value="' + (v.ot_price == null ? '' : v.ot_price) + '" data-skf="ot_price:' + i + '" placeholder="$" /></td>' +
-        '<td><input class="input" style="height:30px;width:96px" type="number" min="0" step="0.01" value="' + (v.cost == null ? '' : v.cost) + '" data-skf="cost:' + i + '" placeholder="$" /></td>' +
-        '<td><input class="input" style="height:30px;width:84px" type="number" min="0" value="' + (v.stock == null ? '' : v.stock) + '" data-skf="stock:' + i + '" placeholder="0" /></td>' +
-        '<td><div class="flex"><input class="input" style="height:30px;width:64px;border-top-right-radius:0;border-bottom-right-radius:0" type="number" min="0" value="' + (v.weight == null ? '' : v.weight) + '" data-skf="weight:' + i + '" /><span class="muted" style="display:inline-flex;align-items:center;padding:0 8px;border:1px solid var(--ctl);border-left:0;border-radius:0 6px 6px 0;background:var(--panel);font-size:12px">g</span></div></td>' +
-        '<td><input class="input" style="height:30px;width:130px" value="' + esc(v.bar_code_number || '') + '" data-skf="bar_code_number:' + i + '" placeholder="Barcode" /></td>' +
-        '<td style="text-align:center"><button class="back-btn" style="width:28px;height:28px" data-sku-meta="' + i + ':custom" title="Variant metafields">' + I.pencil + '</button></td>' +
-        '<td style="text-align:center"><button class="back-btn" style="width:28px;height:28px" data-sku-meta="' + i + ':google" title="Google metafields">' + I.pencil + '</button></td>' +
+    const rows = (EDIT.attrValue || []).map((v, i) => {
+      const t = variantTitle(v);
+      return '<tr data-sku="' + i + '">' +
+        '<td><div style="width:40px;height:40px;border:1px dashed var(--ctl);border-radius:6px;overflow:hidden;cursor:pointer;display:grid;place-items:center;background:#fff" data-sku-img="' + i + '">' +
+          (v.image ? '<img src="' + v.image + '" style="width:100%;height:100%;object-fit:cover" />' : I.imagePlus) + '</div></td>' +
+        '<td style="white-space:nowrap"><span class="flex items-center gap-2"><span style="font-weight:500">' + esc(t) + '</span>' +
+          (v.unique ? '<button class="back-btn" data-sku-copy="' + i + '" title="Copy Variant ID" style="width:24px;height:24px">' + I.copy + '</button>' : '') + '</span></td>' +
+        '<td><input class="input" style="height:32px;width:150px" value="' + esc(v.bar_code || '') + '" data-skf="bar_code:' + i + '" placeholder="Please enter" /></td>' +
+        '<td><div style="position:relative;width:120px"><span style="position:absolute;left:8px;top:8px;color:var(--ink-muted);font-size:12px">$</span><input class="input" style="height:32px;width:120px;padding-left:18px" type="number" min="0" step="0.01" value="' + (v.price == null ? '' : v.price) + '" data-skf="price:' + i + '" placeholder="Price" /></div></td>' +
+        '<td><div style="position:relative;width:120px"><span style="position:absolute;left:8px;top:8px;color:var(--ink-muted);font-size:12px">$</span><input class="input" style="height:32px;width:120px;padding-left:18px" type="number" min="0" step="0.01" value="' + (v.ot_price == null ? '' : v.ot_price) + '" data-skf="ot_price:' + i + '" placeholder="Compare at price" /></div></td>' +
+        '<td><div style="position:relative;width:120px"><span style="position:absolute;left:8px;top:8px;color:var(--ink-muted);font-size:12px">$</span><input class="input" style="height:32px;width:120px;padding-left:18px" type="number" min="0" step="0.01" value="' + (v.cost == null ? '' : v.cost) + '" data-skf="cost:' + i + '" placeholder="Item cost" /></div></td>' +
+        '<td><input class="input" style="height:32px;width:120px" type="number" min="0" value="' + (v.stock == null ? '' : v.stock) + '" data-skf="stock:' + i + '" placeholder="Inventory" /></td>' +
+        '<td><div class="flex"><input class="input" style="height:32px;width:80px;border-top-right-radius:0;border-bottom-right-radius:0" type="number" min="0" value="' + (v.weight == null ? '' : v.weight) + '" data-skf="weight:' + i + '" placeholder="Weight" /><span class="muted" style="display:inline-flex;align-items:center;padding:0 8px;border:1px solid var(--ctl);border-left:0;border-radius:0 6px 6px 0;background:var(--panel);font-size:12px">g</span></div></td>' +
+        '<td><input class="input" style="height:32px;width:120px" value="' + esc(v.bar_code_number || '') + '" data-skf="bar_code_number:' + i + '" placeholder="Barcode" /></td>' +
+        '<td style="text-align:center"><button class="back-btn" style="width:28px;height:28px" data-sku-meta="' + i + ':custom" title="Edit variant metafields"' + (v.unique ? '' : ' disabled') + '>' + I.pencil + '</button></td>' +
+        '<td style="text-align:center"><button class="back-btn" style="width:28px;height:28px" data-sku-meta="' + i + ':google" title="Edit variant Google metafields"' + (v.unique ? '' : ' disabled') + '>' + I.pencil + '</button></td>' +
         '<td style="text-align:center"><span class="sw' + (v.is_default_select === 1 ? ' on' : '') + '" data-sku-default="' + i + '"></span></td>' +
-        '<td style="text-align:center"><span class="sw' + (v.is_show === 1 ? ' on' : '') + '" data-sku-show="' + i + '" title="' + (v.is_show === 1 ? 'Shown' : 'Hidden') + '"></span></td>' +
-      '</tr>').join('');
+        '<td style="text-align:center"><span class="sw sw-lbl' + (v.is_show === 1 ? ' on' : '') + '" data-sku-show="' + i + '" data-on="Show" data-off="Hide"></span></td>' +
+      '</tr>';
+    }).join('');
     const body =
-      '<div style="overflow-x:auto"><table class="tbl" style="min-width:1320px;font-size:13px">' +
-        '<thead><tr><th>Image</th><th>Variant</th><th>SKU</th><th>Price</th><th>Compare at price</th><th>Item cost</th><th>Inventory</th><th>Weight</th><th>Barcode</th><th style="text-align:center">Metafields</th><th style="text-align:center">Google</th><th style="text-align:center">Default</th><th style="text-align:center">Action</th></tr></thead>' +
+      '<div style="overflow-x:auto"><table class="tbl" style="min-width:1480px;font-size:13px">' +
+        '<thead><tr><th>Image</th><th>Variant</th><th>SKU</th><th>Price</th><th>Compare at price</th><th>Item cost</th><th>Inventory</th><th>Weight</th><th>Barcode</th><th style="text-align:center">Metafields</th><th style="text-align:center">Google Metafields</th><th style="text-align:center">Default</th><th style="text-align:center">Action</th></tr></thead>' +
         '<tbody id="sku-body">' + rows + '</tbody>' +
       '</table></div>';
     return card('SKU list', body);
   }
 
-  // 7) Product specifics
+  // 7) Product specifics (ProductSpecifics.tsx) — name + value, single is the value
   function secSpecifics() {
     const rows = (EDIT.params || []).map((sp, i) =>
       '<div class="flex gap-2 items-start mb-2" data-sp="' + i + '">' +
@@ -627,70 +708,100 @@
     return card('Product specifics', '<div id="sp-list">' + rows + '</div>');
   }
 
-  // 8a/8b) Metafields (shop / google)
-  function secMetafields(ns, title) {
-    const list = (EDIT.metafields && EDIT.metafields[ns]) || [];
-    const rows = list.length ? list.map((mf, i) =>
-      '<div class="flex gap-2 items-start mb-2" data-mf="' + ns + ':' + i + '">' +
-        '<input class="input" data-mfk="' + ns + ':' + i + '" value="' + esc(mf.key) + '" placeholder="Key" style="flex:1" />' +
-        '<input class="input" data-mft="' + ns + ':' + i + '" value="' + esc(mf.type) + '" placeholder="Type" style="width:150px" list="mf-types" />' +
-        '<input class="input" data-mfv="' + ns + ':' + i + '" value="' + esc(mf.value) + '" placeholder="Value" style="flex:1" />' +
-        '<button class="back-btn" data-mf-del="' + ns + ':' + i + '" style="width:34px;height:34px;color:var(--err)">' + I.trash + '</button>' +
-      '</div>').join('')
-      : '<div class="muted" style="font-size:13px;padding:4px 0 8px">No ' + (ns === 'google' ? 'Google ' : '') + 'metafields yet.</div>';
-    const body = '<div data-mf-list="' + ns + '">' + rows + '</div>' +
-      '<button class="btn btn-default" data-mf-add="' + ns + '">' + I.plus + ' Add metafield</button>' +
-      '<datalist id="mf-types">' + D.METAFIELD_TYPES.map((t) => '<option value="' + t + '">').join('') + '</datalist>';
-    const sub = '<span class="muted" style="font-size:12px;font-weight:400">namespace: ' + ns + '</span>';
-    return card(esc(title) + ' &nbsp; ' + sub, body);
+  // ---- Metafields (MetafieldGroup) — typed form: one row per definition, name label + typed control ----
+  // ns 'custom' (shop) titled "Product metafields"; 'google' titled "Google Metafields".
+  function metafieldControl(def, ns, value) {
+    const ck = def.namespace + ':' + def.key;
+    const dataAttr = 'data-mf="' + ns + '|' + esc(ck) + '|' + def.type + '"';
+    const v = value;
+    switch (def.type) {
+      case 'boolean':
+        return '<span class="sw' + (v === true ? ' on' : '') + '" ' + dataAttr + ' data-mf-bool="1"></span>';
+      case 'choice_list': {
+        const choices = (def.validation && def.validation.choices) || [];
+        const opts = ['<option value="">Select…</option>'].concat(choices.map((c) => '<option value="' + esc(c) + '"' + (String(v) === String(c) ? ' selected' : '') + '>' + esc(c) + '</option>')).join('');
+        return '<select class="input" ' + dataAttr + ' style="max-width:320px">' + opts + '</select>';
+      }
+      case 'multi_line_text':
+        return '<textarea class="input" ' + dataAttr + ' rows="3" placeholder="Please enter text" style="height:auto;padding:8px 12px;resize:vertical">' + esc(v || '') + '</textarea>';
+      case 'number_integer':
+        return '<input class="input" ' + dataAttr + ' type="number" step="1" value="' + (v == null ? '' : esc(v)) + '" placeholder="Please enter" style="max-width:240px" />';
+      case 'number_decimal':
+      case 'money':
+        return '<input class="input" ' + dataAttr + ' type="number" step="0.01" value="' + (v == null ? '' : esc(v)) + '" placeholder="Please enter" style="max-width:240px" />';
+      case 'date':
+        return '<input class="input" ' + dataAttr + ' type="date" value="' + esc(v || '') + '" style="max-width:240px" />';
+      case 'url':
+        return '<input class="input" ' + dataAttr + ' type="url" value="' + esc(v || '') + '" placeholder="https://" />';
+      default: // single_line_text and fallbacks
+        return '<div class="flex items-center gap-2"><input class="input" ' + dataAttr + ' value="' + esc(v || '') + '" placeholder="Please enter text" style="flex:1" />' +
+          '<button class="lnk" data-mf-clear="' + ns + '|' + esc(ck) + '" type="button">Clear</button></div>';
+    }
   }
 
-  // Right rail — Product settings
+  function secMetafields(ns, title, defs) {
+    const values = (EDIT.metafields && EDIT.metafields[ns]) || {};
+    const body = defs.length
+      ? '<div class="space-y-4">' + defs.map((def) => {
+          const ck = def.namespace + ':' + def.key;
+          const labelHtml = '<span class="flex items-center gap-1" style="font-size:13px;color:var(--ink)">' + esc(def.name) +
+            (def.description ? '<span class="muted" title="' + esc(def.description) + '" style="cursor:help;display:inline-flex">' + I.help + '</span>' : '') + '</span>';
+          return '<div class="flex items-start gap-4" style="padding:2px 0">' +
+            '<div style="width:160px;flex:none;padding-top:7px">' + labelHtml + '</div>' +
+            '<div style="flex:1;min-width:0">' + metafieldControl(def, ns, values[ck]) + '</div>' +
+          '</div>';
+        }).join('') + '</div>'
+      : '<div class="muted" style="font-size:13px">No data</div>';
+    return card(esc(title), body);
+  }
+
+  // Right rail — Product Settings (settings.tsx). NOTE: Tags & Collections are commented out in real admin.
   function secSettings(isEdit) {
     const s = EDIT.settings || {};
     const vendorOpts = '<option value="">Choose a vendor</option>' + D.VENDORS.map((v) => '<option value="' + v.value + '"' + (v.value === s.vendor_id ? ' selected' : '') + '>' + esc(v.label) + '</option>').join('');
-    const cateOpts = D.CATEGORIES.map((c) => '<option value="' + c.value + '"' + (c.value === s.category ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('');
-    const tags = (s.tags || []).map((t, i) => '<span class="field-pill" style="background:#dbeafe;border-color:#bfdbfe;color:#1e40af">' + esc(t) + ' <span class="x" data-tag-del="' + i + '">&times;</span></span>').join('');
+    const cateOpts = '<option value="0">Choose a category</option>' + D.CATEGORIES.filter((c) => c.value !== 0).map((c) => '<option value="' + c.value + '"' + (c.value === s.category ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('');
     const archived = !!s.archived;
+    const v = (EDIT.attrValue && EDIT.attrValue[0]) || {};
 
     let body = '';
     if (archived) {
-      body += '<div style="background:var(--panel);border-radius:8px;padding:8px 10px;margin-bottom:14px">' +
-        '<div class="flex items-center justify-between"><span class="flex items-center gap-2" style="font-weight:500">' + I.clock + ' Archived</span><button class="lnk" data-act="unarchive">Cancel</button></div>' +
-        '<div class="muted" style="font-size:12px;margin-top:4px">Once unarchived, status changes to Deactivated. You can still activate it for sale.</div></div>';
+      body += '<div style="margin-bottom:14px">' +
+        '<div class="flex items-center justify-between" style="background:var(--panel);border-radius:8px;padding:6px 10px">' +
+          '<span class="flex items-center gap-2" style="font-weight:500;color:var(--ink)">' + I.clock + ' Archived</span>' +
+          '<button class="lnk" data-act="unarchive" style="padding:0">Cancel</button></div>' +
+        '<div class="muted" style="font-size:12px;margin-top:4px">Once unarchived, product status will be changed as Deactivated, you can still activate it for sale</div></div>';
     } else {
       body += '<div class="flex items-center justify-between mb-3">' + lbl('Activate') +
         '<span class="sw' + (s.activated ? ' on' : '') + '" id="set-activate"></span></div>';
     }
-    body += field('set-spu', 'SPU', s.spu, 'Add SPU', 'A standardized product unit with the same attribute value and characteristics.');
+    body += field('set-spu', 'SPU', s.spu, 'Add SPU', 'A standardized product unit with the same attribute value and characteristics');
     if (!EDIT.hasVariants) {
-      body += '<div class="mb-3">' + lbl('Weight') + '<div class="flex" style="margin-top:4px"><input class="input" id="set-weight" type="number" min="0" step="0.1" value="' + (s.weight == null ? '' : s.weight) + '" placeholder="0" style="border-top-right-radius:0;border-bottom-right-radius:0" /><span class="muted" style="display:inline-flex;align-items:center;padding:0 10px;border:1px solid var(--ctl);border-left:0;border-radius:0 8px 8px 0;background:var(--panel);font-size:13px">g</span></div></div>';
+      const w = (v.weight != null && v.weight !== '') ? v.weight : (s.weight == null ? '' : s.weight);
+      body += '<div class="mb-3">' + lbl('Weight') + '<div class="flex" style="margin-top:4px"><input class="input" id="set-weight" type="number" min="0" step="0.1" value="' + (w === '' ? '' : w) + '" placeholder="0" style="border-top-right-radius:0;border-bottom-right-radius:0" /><span class="muted" style="display:inline-flex;align-items:center;padding:0 10px;border:1px solid var(--ctl);border-left:0;border-radius:0 8px 8px 0;background:var(--panel);font-size:13px">g</span></div></div>';
     }
     body += '<div class="mb-3">' + lbl('Vendor') + '<select class="input" id="set-vendor" style="margin-top:4px">' + vendorOpts + '</select></div>';
-    body += '<div class="mb-3">' + lbl('Category') + '<select class="input" id="set-category" style="margin-top:4px">' + cateOpts + '</select></div>';
-    body += '<div>' + lbl('Tags') + '<div class="flex items-center gap-2" style="flex-wrap:wrap;min-height:34px;border:1px solid var(--ctl);border-radius:8px;padding:5px 8px;margin-top:4px;background:#fff" id="tag-box">' + tags +
-      '<input id="tag-input" placeholder="Add tag..." style="border:0;outline:0;background:transparent;width:90px;font-size:13px" /></div></div>';
+    body += '<div>' + lbl('Category') + '<select class="input" id="set-category" style="margin-top:4px">' + cateOpts + '</select></div>';
     return card('Product Settings', body);
   }
 
-  // Right rail — SEO preview card (opens SEO drawer)
+  // Right rail — Search engine optimization card (settings.tsx) — opens SEO drawer
   function secSeo() {
     const s = EDIT.settings || {};
-    const base = 'https://www.bestvoy.com/listing/' + (EDIT.product_id || '{id}') + '/';
+    const base = 'https://www.bestvoy.com/listing/' + (EDIT.product_id || '{product_id}') + '/';
     const body =
       '<div class="muted" style="font-size:12px;word-break:break-all;margin-bottom:6px">' + base + esc(s.urlHandle || '') + '</div>' +
       '<div style="font-size:13.5px;color:var(--brand);word-break:break-word">' + esc(s.metaTitle || EDIT.name || 'Blank Title') + '</div>' +
       '<div class="muted" style="font-size:13px;word-break:break-word;margin-top:2px">' + esc(s.metaDescription || EDIT.description || 'Blank Description') + '</div>';
-    const right = '<button class="back-btn" data-act="seo" title="Edit SEO" style="width:30px;height:30px">' + I.pencil + '</button>';
+    const right = '<button class="back-btn" data-act="seo" title="Edit SEO" style="width:30px;height:30px">' + I.edit3 + '</button>';
     return card('Search engine optimization', body, right);
   }
 
-  // Right rail — theme template (edit only)
+  // Right rail — theme template (settings.tsx; only when isEdit)
   function secTemplate() {
     const s = EDIT.settings || {};
     const opts = D.TEMPLATES.map((t) => '<option value="' + t.value + '"' + (t.value === (s.homeTemplate || 'default') ? ' selected' : '') + '>' + esc(t.label) + '</option>').join('');
     const body = '<select class="input" id="set-template">' + opts + '</select>' +
-      '<div class="muted" style="font-size:12px;margin-top:8px">Choose how you\'d like the page to look.</div>' +
+      '<div class="muted" style="font-size:12px;margin-top:8px">Choose how you\'d like the page to look like</div>' +
       ((s.homeTemplate && s.homeTemplate !== 'default') ? '<div class="lnk" style="margin-top:6px" data-act="design">Design</div>' : '');
     return card('Theme template', body);
   }
@@ -701,40 +812,50 @@
     const all = (sel) => root.querySelectorAll(sel);
 
     q('[data-act="back"]').onclick = () => maybeLeave(() => { location.hash = '#/products'; });
-    const cid = q('[data-act="copy-id"]'); if (cid) cid.onclick = () => { try { navigator.clipboard.writeText(String(EDIT.product_id)); } catch (e) {} toast('Copied ' + EDIT.product_id); };
+    const cid = q('[data-act="copy-id"]'); if (cid) cid.onclick = () => { try { navigator.clipboard.writeText(String(EDIT.product_id)); } catch (e) {} toast('Copied'); };
 
     // text fields -> state + dirty
     const bind = (sel, fn) => { const el = q(sel); if (el) { el.oninput = () => { fn(el.value); markDirty(); }; } };
     bind('#f-name', (v) => { EDIT.name = v; });
-    bind('#f-summary', (v) => { EDIT.summary = v; });
-    bind('#f-desc', (v) => { EDIT.description = v; });
+    bindCounted('#f-summary', '#f-summary-cnt', 400, (v) => { EDIT.summary = v; });
+    bindCounted('#f-desc', '#f-desc-cnt', 5000, (v) => { EDIT.description = v; });
     bind('#f-detail', (v) => { EDIT.detail = v; });
 
-    // highlights
-    all('[data-hl-input]').forEach((el) => el.oninput = () => { EDIT.highlights[Number(el.getAttribute('data-hl-input'))] = el.value; markDirty(); });
-    const hladd = q('[data-hl-add]'); if (hladd) hladd.onclick = () => { EDIT.highlights.push(''); markDirty(); rerenderMain(isEdit); };
+    // highlights (with live count)
+    all('[data-hl-input]').forEach((el) => el.oninput = () => {
+      const i = Number(el.getAttribute('data-hl-input'));
+      EDIT.highlights[i] = el.value;
+      const c = q('[data-hl-cnt="' + i + '"]'); if (c) c.textContent = el.value.length + ' / 150';
+      markDirty();
+    });
+    const hladd = q('[data-hl-add]'); if (hladd) hladd.onclick = () => { if (EDIT.highlights.length >= 20) return; EDIT.highlights.push(''); markDirty(); rerenderMain(isEdit); };
     all('[data-hl-del]').forEach((b) => b.onclick = () => { EDIT.highlights.splice(Number(b.getAttribute('data-hl-del')), 1); markDirty(); rerenderMain(isEdit); });
 
-    // images
-    const imgadd = q('#img-add'); if (imgadd) imgadd.onclick = () => { EDIT.images.push({ uid: 'n' + Date.now(), name: 'image', url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" rx="6" fill="%23cbd5e1"/></svg>'), cover: EDIT.images.length === 0 }); markDirty(); rerenderMain(isEdit); };
-    all('[data-img-del]').forEach((b) => b.onclick = () => { const i = Number(b.getAttribute('data-img-del')); EDIT.images.splice(i, 1); if (EDIT.images.length && !EDIT.images.some((x) => x.cover)) EDIT.images[0].cover = true; markDirty(); rerenderMain(isEdit); });
+    // images — empty-state buttons
+    const iu = q('[data-img-upload]'); if (iu) iu.onclick = () => { addMockImage(); markDirty(); rerenderMain(isEdit); };
+    const is = q('[data-img-select]'); if (is) is.onclick = () => openSelectFileModal(isEdit);
+    // images — grid: add tile, delete, expand/collapse, drag reorder
+    const at = q('[data-img-add-tile]'); if (at) at.onclick = () => openSelectFileModal(isEdit);
+    all('[data-img-del]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const i = Number(b.getAttribute('data-img-del')); EDIT.images.splice(i, 1); markDirty(); rerenderMain(isEdit); });
+    const ex = q('[data-img-expand]'); if (ex) ex.onclick = () => { imgGridExpanded = true; rerenderMain(isEdit); };
+    const co = q('[data-img-collapse]'); if (co) co.onclick = () => { imgGridExpanded = false; rerenderMain(isEdit); };
+    wireImageDrag(isEdit);
 
     // pricing / inventory (single)
-    bind('#p-price', (v) => { EDIT.price = v === '' ? undefined : Number(v); });
-    bind('#p-compare', (v) => { EDIT.compareAtPrice = v === '' ? undefined : Number(v); });
-    bind('#p-cost', (v) => { EDIT.itemCost = v === '' ? undefined : Number(v); });
+    bindNum('#p-price', (v) => { EDIT.price = v; });
+    bindNum('#p-compare', (v) => { EDIT.compareAtPrice = v; });
+    bindNum('#p-cost', (v) => { EDIT.itemCost = v; });
     bind('#i-sku', (v) => { EDIT.sku = v; });
     bind('#i-barcode', (v) => { EDIT.barcode = v; });
-    bind('#i-stock', (v) => { EDIT.inventoryQuantity = v === '' ? undefined : Number(v); });
+    bindNum('#i-stock', (v) => { EDIT.inventoryQuantity = v; });
 
-    // variants toggle
+    // variants toggle (confirm dialog like Variants.tsx)
     const hv = q('#has-variants'); if (hv) hv.onchange = () => {
-      // confirm dialog like Variants.tsx
       modal({
         title: 'Tip', width: 460, okText: 'OK',
         body: '<div class="muted" style="font-size:13.5px;line-height:1.6">' + (isEdit
           ? 'The product Variant ID will be changed. This may impact ad performance, marketing and inventory data management.'
-          : "Make sure you've filled in all product variant information. Any change here may affect ad performance, marketing, and inventory.") + '</div>',
+          : "Make sure you've filled in all product variant information. Any change you make here may affect your ad performance, marketing, and inventory.") + '</div>',
         onOk: (m, close) => {
           EDIT.hasVariants = hv.checked; EDIT.spec_type = hv.checked ? 1 : 0;
           if (hv.checked && (!EDIT.attr || EDIT.attr.length === 0)) EDIT.attr = [{ value: '', detail: [] }];
@@ -749,7 +870,7 @@
     all('[data-opt-del]').forEach((b) => b.onclick = () => {
       const i = Number(b.getAttribute('data-opt-del'));
       modal({ title: '', width: 440, okText: 'Delete', danger: true,
-        body: '<div class="flex items-start gap-2"><span style="color:var(--err)">' + I.alert + '</span><span style="font-size:13.5px;line-height:1.6">After it is deleted, the corresponding product variant will be deleted together and cannot be restored.</span></div>',
+        body: '<div class="flex items-start gap-2"><span style="color:var(--err);display:inline-flex">' + I.alert + '</span><span style="font-size:13.5px;line-height:1.6">After it is deleted, the corresponding product will be deleted together and cannot be restored.</span></div>',
         onOk: (m, close) => { EDIT.attr.splice(i, 1); rebuildSkusFromOptions(); markDirty(); close(); rerenderMain(isEdit); } });
     });
     all('[data-opt-edit]').forEach((b) => b.onclick = () => openEditAttrModal(Number(b.getAttribute('data-opt-edit')), isEdit));
@@ -757,7 +878,7 @@
       if (e.key === 'Enter' && el.value.trim()) {
         const i = Number(el.getAttribute('data-opt-val')); const val = el.value.trim();
         const det = EDIT.attr[i].detail || (EDIT.attr[i].detail = []);
-        if (!det.some((d) => d.value === val)) { det.push({ value: val }); rebuildSkusFromOptions(); markDirty(); rerenderMain(isEdit); }
+        if (!det.some((d) => d.value === val)) { det.push({ pic: '', value: val }); rebuildSkusFromOptions(); markDirty(); rerenderMain(isEdit); }
       }
     });
     all('[data-vval]').forEach((x) => x.onclick = () => { const [i, vi] = x.getAttribute('data-vval').split(':').map(Number); EDIT.attr[i].detail.splice(vi, 1); rebuildSkusFromOptions(); markDirty(); rerenderMain(isEdit); });
@@ -765,37 +886,41 @@
     // SKU table inputs
     all('[data-skf]').forEach((el) => el.oninput = () => {
       const [f, i] = el.getAttribute('data-skf').split(':'); const idx = Number(i);
-      const numFields = ['price', 'ot_price', 'cost', 'stock', 'weight'];
+      const numFields = ['stock', 'weight']; // price/ot_price/cost kept as strings (SkuList stores String)
       EDIT.attrValue[idx][f] = numFields.includes(f) ? (el.value === '' ? undefined : Number(el.value)) : el.value;
       markDirty();
     });
     all('[data-sku-default]').forEach((sw) => sw.onclick = () => { const i = Number(sw.getAttribute('data-sku-default')); EDIT.attrValue.forEach((v, j) => v.is_default_select = j === i ? 1 : 0); markDirty(); rerenderMain(isEdit); });
     all('[data-sku-show]').forEach((sw) => sw.onclick = () => { const i = Number(sw.getAttribute('data-sku-show')); EDIT.attrValue[i].is_show = EDIT.attrValue[i].is_show === 1 ? 0 : 1; markDirty(); rerenderMain(isEdit); });
-    all('[data-sku-img]').forEach((b) => b.onclick = () => toast('Image picker opens the media library (roadmap)'));
-    all('[data-sku-meta]').forEach((b) => b.onclick = () => { const [i, ns] = b.getAttribute('data-sku-meta').split(':'); openVariantMetafieldModal(EDIT.attrValue[Number(i)], ns); });
+    all('[data-sku-img]').forEach((b) => b.onclick = () => { const i = Number(b.getAttribute('data-sku-img')); openSkuImageModal(i, isEdit); });
+    all('[data-sku-copy]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const i = Number(b.getAttribute('data-sku-copy')); try { navigator.clipboard.writeText(String(EDIT.attrValue[i].unique || '')); } catch (er) {} toast('Copied'); });
+    all('[data-sku-meta]').forEach((b) => b.onclick = () => { if (b.disabled) return; const [i, ns] = b.getAttribute('data-sku-meta').split(':'); openVariantMetafieldModal(EDIT.attrValue[Number(i)], ns); });
 
     // specifics
     all('[data-sp-name]').forEach((el) => el.oninput = () => { EDIT.params[Number(el.getAttribute('data-sp-name'))].name = el.value; markDirty(); });
     all('[data-sp-val]').forEach((el) => el.oninput = () => { EDIT.params[Number(el.getAttribute('data-sp-val'))].single = el.value; markDirty(); });
-    const spadd = q('[data-sp-add]'); if (spadd) spadd.onclick = () => { EDIT.params.push({ name: '', single: '' }); markDirty(); rerenderMain(isEdit); };
+    const spadd = q('[data-sp-add]'); if (spadd) spadd.onclick = () => { EDIT.params.push({ name: '', values: [], sort: EDIT.params.length, single: '' }); markDirty(); rerenderMain(isEdit); };
     all('[data-sp-del]').forEach((b) => b.onclick = () => { EDIT.params.splice(Number(b.getAttribute('data-sp-del')), 1); markDirty(); rerenderMain(isEdit); });
 
-    // metafields
-    all('[data-mfk]').forEach((el) => el.oninput = () => { const [ns, i] = el.getAttribute('data-mfk').split(':'); EDIT.metafields[ns][Number(i)].key = el.value; markDirty(); });
-    all('[data-mft]').forEach((el) => el.oninput = () => { const [ns, i] = el.getAttribute('data-mft').split(':'); EDIT.metafields[ns][Number(i)].type = el.value; markDirty(); });
-    all('[data-mfv]').forEach((el) => el.oninput = () => { const [ns, i] = el.getAttribute('data-mfv').split(':'); EDIT.metafields[ns][Number(i)].value = el.value; markDirty(); });
-    all('[data-mf-add]').forEach((b) => b.onclick = () => { const ns = b.getAttribute('data-mf-add'); EDIT.metafields[ns].push({ key: '', type: 'Single line text', value: '' }); markDirty(); rerenderMain(isEdit); });
-    all('[data-mf-del]').forEach((b) => b.onclick = () => { const [ns, i] = b.getAttribute('data-mf-del').split(':'); EDIT.metafields[ns].splice(Number(i), 1); markDirty(); rerenderMain(isEdit); });
+    // metafields (typed controls)
+    all('[data-mf]').forEach((el) => {
+      const [ns, ck] = el.getAttribute('data-mf').split('|');
+      if (el.getAttribute('data-mf-bool') === '1') {
+        el.onclick = () => { EDIT.metafields[ns] = EDIT.metafields[ns] || {}; EDIT.metafields[ns][ck] = !EDIT.metafields[ns][ck]; el.classList.toggle('on'); markDirty(); };
+      } else {
+        el.oninput = () => { EDIT.metafields[ns] = EDIT.metafields[ns] || {}; EDIT.metafields[ns][ck] = el.value; markDirty(); };
+        el.onchange = el.oninput;
+      }
+    });
+    all('[data-mf-clear]').forEach((b) => b.onclick = () => { const [ns, ck] = b.getAttribute('data-mf-clear').split('|'); EDIT.metafields[ns] = EDIT.metafields[ns] || {}; EDIT.metafields[ns][ck] = ''; const inp = b.parentElement.querySelector('input'); if (inp) inp.value = ''; markDirty(); });
 
     // settings rail
-    const sa = q('#set-activate'); if (sa) sa.onclick = () => { EDIT.settings.activated = !EDIT.settings.activated; EDIT.settings.status = EDIT.settings.activated ? 'activated' : 'deactivated'; markDirty(); rerenderSide(isEdit); };
+    const sa = q('#set-activate'); if (sa) sa.onclick = () => { EDIT.settings.activated = !EDIT.settings.activated; EDIT.settings.status = EDIT.settings.activated ? 'activated' : 'deactivated'; markDirty(); rerenderMain(isEdit); };
     bind('#set-spu', (v) => { EDIT.settings.spu = v; });
-    bind('#set-weight', (v) => { EDIT.settings.weight = v === '' ? 0 : Number(v); });
+    bindNum('#set-weight', (v) => { EDIT.settings.weight = v == null ? 0 : v; if (EDIT.attrValue && EDIT.attrValue[0]) EDIT.attrValue[0].weight = v; });
     const sv = q('#set-vendor'); if (sv) sv.onchange = () => { EDIT.settings.vendor_id = sv.value === '' ? undefined : Number(sv.value); markDirty(); };
     const sc = q('#set-category'); if (sc) sc.onchange = () => { EDIT.settings.category = Number(sc.value); markDirty(); };
     const st = q('#set-template'); if (st) st.onchange = () => { EDIT.settings.homeTemplate = st.value; markDirty(); rerenderSide(isEdit); };
-    const ti = q('#tag-input'); if (ti) ti.onkeydown = (e) => { if (e.key === 'Enter' && ti.value.trim()) { const v = ti.value.trim(); EDIT.settings.tags = EDIT.settings.tags || []; if (!EDIT.settings.tags.includes(v)) EDIT.settings.tags.push(v); markDirty(); rerenderSide(isEdit); } };
-    all('[data-tag-del]').forEach((x) => x.onclick = () => { EDIT.settings.tags.splice(Number(x.getAttribute('data-tag-del')), 1); markDirty(); rerenderSide(isEdit); });
     const seo = q('[data-act="seo"]'); if (seo) seo.onclick = () => openSeoDrawer(isEdit);
     const design = q('[data-act="design"]'); if (design) design.onclick = () => toast('Visual template designer opens full-screen (roadmap)');
 
@@ -805,53 +930,81 @@
     const sbar = q('[data-act="save-bar"]'); if (sbar) sbar.onclick = doSave;
     const disc = q('[data-act="discard"]'); if (disc) disc.onclick = () => modal({
       title: 'Are you sure you want to discard changes?', width: 460, okText: 'Discard', danger: true,
-      body: '<div class="muted" style="font-size:13.5px">All unsaved changes will be lost.</div>',
-      onOk: (m, close) => { close(); renderEdit(EDIT_ID); },
+      body: '<div class="muted" style="font-size:13.5px">All unsaved changes will be lost</div>',
+      onOk: (m, close) => { close(); if (isEdit) renderEdit(EDIT_ID); else location.hash = '#/products'; },
     });
     const arc = q('[data-act="archive-one"]'); if (arc) arc.onclick = () => modal({
       title: 'Archive the product', width: 460, okText: 'Confirm',
-      body: '<div class="muted" style="font-size:13.5px;line-height:1.6">Archiving hides this product from your sales channels. You can find it later with the Archived status filter.</div>',
-      onOk: (m, close) => { EDIT.settings.archived = true; EDIT.settings.activated = false; close(); toast('Product archived'); renderEdit(EDIT_ID); },
+      body: '<div class="muted" style="font-size:13.5px;line-height:1.6">Archiving this product will hide it from your sales channels. You can use the status filter in the product list to find it.</div>',
+      onOk: (m, close) => { EDIT.settings.archived = true; EDIT.settings.activated = false; EDIT.settings.status = 'deactivated'; close(); toast('Product archived successfully'); renderEdit(EDIT_ID); },
     });
-    const un = q('[data-act="unarchive"]'); if (un) un.onclick = () => { EDIT.settings.archived = false; EDIT.settings.status = 'deactivated'; toast('Product set as unarchived'); renderEdit(EDIT_ID); };
+    const un = q('[data-act="unarchive"]'); if (un) un.onclick = () => { EDIT.settings.archived = false; EDIT.settings.status = 'deactivated'; toast('Product set as unarchived successfully'); renderEdit(EDIT_ID); };
     const de = q('[data-act="destroy"]'); if (de) de.onclick = () => modal({
       title: 'Delete the product', width: 460, okText: 'Delete', danger: true,
       body: '<div class="muted" style="font-size:13.5px;line-height:1.6">This permanently deletes the product and cannot be undone.</div>',
-      onOk: (m, close) => { close(); toast('Product deleted'); location.hash = '#/products'; },
+      onOk: (m, close) => { close(); toast('Product deleted successfully'); location.hash = '#/products'; },
+    });
+  }
+
+  // counted textarea binder (updates the counter)
+  function bindCounted(sel, cntSel, max, fn) {
+    const el = root.querySelector(sel); if (!el) return;
+    el.oninput = () => { fn(el.value); const c = root.querySelector(cntSel); if (c) c.textContent = el.value.length + ' / ' + max; markDirty(); };
+  }
+  // numeric binder -> undefined when blank
+  function bindNum(sel, fn) {
+    const el = root.querySelector(sel); if (!el) return;
+    el.oninput = () => { fn(el.value === '' ? undefined : Number(el.value)); markDirty(); };
+  }
+
+  function addMockImage() {
+    EDIT.images.push({ uid: 'n' + Date.now(), name: 'image.png', url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="6" fill="%23cbd5e1"/><text x="32" y="38" font-size="11" fill="%2364748b" text-anchor="middle" font-family="sans-serif">NEW</text></svg>') });
+  }
+
+  // image drag-reorder (AddImageVideo handleDragStart/Over/Drop)
+  let imgDragIndex = null;
+  function wireImageDrag(isEdit) {
+    root.querySelectorAll('.img-tile[draggable="true"]').forEach((tile) => {
+      tile.addEventListener('dragstart', () => { imgDragIndex = Number(tile.getAttribute('data-img')); });
+      tile.addEventListener('dragover', (e) => { e.preventDefault(); });
+      tile.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const target = Number(tile.getAttribute('data-img'));
+        if (imgDragIndex === null || imgDragIndex === target) return;
+        const arr = EDIT.images; const moved = arr.splice(imgDragIndex, 1)[0];
+        arr.splice(target, 0, moved);
+        imgDragIndex = null; markDirty(); rerenderMain(isEdit);
+      });
+      tile.addEventListener('dragend', () => { imgDragIndex = null; });
     });
   }
 
   function rerenderMain(isEdit) {
-    document.getElementById('edit-main').innerHTML =
-      secProductInfo() + secImages() +
-      (EDIT.hasVariants ? '' : secPricing() + secInventory()) +
-      secVariants() + secSkuList() + secSpecifics() +
-      (isEdit ? secMetafields('shop', 'Product metafields') + secMetafields('google', 'Google metafields') : '') +
-      '<div class="flex justify-end gap-2 mt-2 mb-6">' +
-        '<button class="btn btn-primary" data-act="save">' + (isEdit ? 'Update Product' : 'Add Product') + '</button>' +
-        (EDIT.settings && EDIT.settings.archived ? '<button class="btn btn-default" style="color:var(--err);border-color:#f3c0b4" data-act="unarchive">Set product as unarchived</button><button class="btn btn-default" style="color:var(--err);border-color:#f3c0b4" data-act="destroy">Delete the product</button>'
-          : (isEdit && EDIT.settings && !EDIT.settings.activated ? '<button class="btn btn-default" style="color:var(--err);border-color:#f3c0b4" data-act="archive-one">Archive the product</button>' : '')) +
-      '</div>';
-    document.getElementById('edit-side').innerHTML = secSettings(isEdit) + secSeo() + (isEdit ? secTemplate() : '');
+    document.getElementById('edit-main').innerHTML = mainHtml(isEdit);
+    document.getElementById('edit-side').innerHTML = sideHtml(isEdit);
     wireEdit(isEdit);
   }
   function rerenderSide(isEdit) {
-    document.getElementById('edit-side').innerHTML = secSettings(isEdit) + secSeo() + (isEdit ? secTemplate() : '');
-    // pricing/weight visibility depends on hasVariants but side only; rewire whole edit to keep handlers consistent
+    document.getElementById('edit-side').innerHTML = sideHtml(isEdit);
     wireEdit(isEdit);
   }
 
-  // regenerate SKU rows from option combinations (SkuList.tsx generateCombinations)
+  // regenerate SKU rows from option combinations (SkuList.tsx generateCombinations + buildVariantDetail)
   function rebuildSkusFromOptions() {
-    const valid = (EDIT.attr || []).filter((o) => o.detail && o.detail.length > 0).map((o) => ({ name: o.value, values: o.detail.map((d) => d.value) }));
+    const valid = (EDIT.attr || []).filter((o) => o.detail && o.detail.length > 0).map((o) => ({ name: o.value || '', values: o.detail.map((d) => d.value) }));
     if (!valid.length) { EDIT.attrValue = []; return; }
     const combos = [];
-    const helper = (cur, idx) => { if (idx === valid.length) { combos.push(cur.join(' • ')); return; } valid[idx].values.forEach((v) => helper([...cur, v], idx + 1)); };
+    const helper = (cur, idx) => {
+      if (idx === valid.length) { combos.push(cur.slice()); return; }
+      valid[idx].values.forEach((v) => helper(cur.concat([v]), idx + 1));
+    };
     helper([], 0);
     const prev = EDIT.attrValue || [];
-    EDIT.attrValue = combos.map((title, i) => {
-      const ex = prev.find((p) => p.title === title);
-      return ex || { unique: 'V-new-' + i + '-' + Date.now(), title, image: '', sku: '', price: EDIT.price, ot_price: EDIT.compareAtPrice, cost: EDIT.itemCost, stock: undefined, weight: undefined, bar_code_number: '', is_show: 1, is_default_select: i === 0 ? 1 : 0 };
+    const buildDetail = (options) => { const d = {}; valid.forEach((o, idx) => { d[o.name || ('Option ' + (idx + 1))] = options[idx] || ''; }); return d; };
+    EDIT.attrValue = combos.map((options, i) => {
+      const title = options.join(' • ');
+      const ex = prev.find((p) => variantTitle(p) === title);
+      return ex || { unique: 'V-new-' + i + '-' + Date.now(), detail: buildDetail(options), image: '', bar_code: '', price: EDIT.price != null ? String(EDIT.price) : '', ot_price: EDIT.compareAtPrice != null ? String(EDIT.compareAtPrice) : '', cost: EDIT.itemCost != null ? String(EDIT.itemCost) : '', stock: undefined, weight: '', bar_code_number: '', is_show: 1, is_default_select: i === 0 ? 1 : 0 };
     });
     if (!EDIT.attrValue.some((v) => v.is_default_select === 1) && EDIT.attrValue[0]) EDIT.attrValue[0].is_default_select = 1;
   }
@@ -866,7 +1019,7 @@
         '<span class="drawer-x" data-x style="cursor:pointer">' + I.x + '</span></div>' +
       '<div class="modal-body">' + body + '</div>' +
       '<div class="modal-foot"><button class="btn btn-default" data-cancel>Cancel</button>' +
-        '<button class="btn ' + (danger ? 'btn-default' : 'btn-primary') + '"' + (danger ? ' style="background:var(--err);color:#fff;border-color:var(--err)"' : '') + ' data-ok>' + (okText || 'Save') + '</button></div>';
+        '<button class="btn ' + (danger ? 'btn-default danger-btn' : 'btn-primary') + '" data-ok>' + (okText || 'Save') + '</button></div>';
     backdrop.appendChild(m); document.body.appendChild(backdrop);
     const close = () => backdrop.remove();
     const cancel = () => { close(); if (onCancel) onCancel(); };
@@ -877,21 +1030,70 @@
     return { m, close };
   }
 
-  // Variant display-order modal (VariantOrderModal) — reorder option values via up/down
+  // SelectFile modal (SelectFile component) — pick from media library or upload new
+  function openSelectFileModal(isEdit) {
+    const lib = [
+      { name: 'leggings-front.jpg', url: D.PRODUCTS[0].image }, { name: 'leggings-back.jpg', url: D.PRODUCTS[1].image },
+      { name: 'sleeve.jpg', url: D.PRODUCTS[2].image }, { name: 'short.jpg', url: D.PRODUCTS[3].image },
+      { name: 'capri.jpg', url: D.PRODUCTS[4].image }, { name: 'bra.jpg', url: D.PRODUCTS[6].image },
+      { name: 'bodysuit.jpg', url: D.PRODUCTS[7].image }, { name: 'sock.jpg', url: D.PRODUCTS[8].image },
+    ];
+    const sel = {};
+    const grid = lib.map((f, i) =>
+      '<div data-lib="' + i + '" style="position:relative;border:2px solid var(--hair);border-radius:8px;overflow:hidden;cursor:pointer;aspect-ratio:1">' +
+        '<img src="' + f.url + '" style="width:100%;height:100%;object-fit:cover" />' +
+        '<span class="lib-check" style="position:absolute;right:6px;top:6px;width:18px;height:18px;border-radius:4px;border:1px solid var(--ctl);background:#fff;display:none;place-items:center;color:var(--brand)">' + svg('<path d="M20 6 9 17l-5-5"/>', 12) + '</span>' +
+      '</div>').join('');
+    const ctrl = modal({
+      title: 'Select file', width: 720, okText: 'Confirm',
+      body: '<div class="flex items-center justify-between mb-3"><div class="muted" style="font-size:13px">Choose from your media library, or upload a new file.</div>' +
+        '<button class="btn btn-default" id="sf-upload">Upload new</button></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">' + grid + '</div>',
+      onOk: (m, close) => {
+        const picked = Object.keys(sel).filter((k) => sel[k]).map((k) => lib[Number(k)]);
+        if (picked.length) { picked.forEach((f) => EDIT.images.push({ uid: 'm' + Date.now() + Math.random(), name: f.name, url: f.url })); markDirty(); }
+        close(); rerenderMain(isEdit);
+      },
+    });
+    ctrl.m.querySelectorAll('[data-lib]').forEach((c) => c.onclick = () => {
+      const i = c.getAttribute('data-lib'); sel[i] = !sel[i];
+      c.style.borderColor = sel[i] ? 'var(--brand)' : 'var(--hair)';
+      const ck = c.querySelector('.lib-check'); ck.style.display = sel[i] ? 'grid' : 'none';
+    });
+    ctrl.m.querySelector('#sf-upload').onclick = () => { addMockImage(); markDirty(); ctrl.close(); rerenderMain(isEdit); };
+  }
+
+  // SKU-row image picker (SelectFile, single)
+  function openSkuImageModal(idx, isEdit) {
+    const lib = D.PRODUCTS.slice(0, 8).map((p) => ({ name: p.store_name, url: p.image }));
+    let chosen = null;
+    const grid = lib.map((f, i) =>
+      '<div data-lib="' + i + '" style="position:relative;border:2px solid var(--hair);border-radius:8px;overflow:hidden;cursor:pointer;aspect-ratio:1"><img src="' + f.url + '" style="width:100%;height:100%;object-fit:cover" /></div>').join('');
+    const ctrl = modal({
+      title: 'Select file', width: 640, okText: 'Confirm',
+      body: '<div class="muted" style="font-size:13px;margin-bottom:10px">Pick a variant image.</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">' + grid + '</div>',
+      onOk: (m, close) => { if (chosen != null) { EDIT.attrValue[idx].image = lib[chosen].url; markDirty(); } close(); rerenderMain(isEdit); },
+    });
+    ctrl.m.querySelectorAll('[data-lib]').forEach((c) => c.onclick = () => {
+      chosen = Number(c.getAttribute('data-lib'));
+      ctrl.m.querySelectorAll('[data-lib]').forEach((x) => x.style.borderColor = 'var(--hair)');
+      c.style.borderColor = 'var(--brand)';
+    });
+  }
+
+  // Variant display-order modal (VariantOrderModal) — drag handle look; reorder option values via up/down
   function openVariantOrderModal(isEdit) {
     const work = JSON.parse(JSON.stringify(EDIT.attr || []));
     const render = (m) => {
       m.querySelector('#vo-body').innerHTML = work.map((opt, oi) =>
-        '<div style="margin-bottom:14px">' +
-          '<div class="ctrl-label" style="text-transform:none">' + esc(opt.value || ('Option ' + (oi + 1))) + '</div>' +
-          '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden">' +
+        '<div class="flex items-start gap-4" style="margin-bottom:16px">' +
+          '<div style="min-width:120px;display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--hair);border-radius:8px;background:var(--panel)"><span class="muted">' + I.grip + '</span><span style="font-size:13px;font-weight:500">' + esc(opt.value || ('Option ' + (oi + 1))) + '</span></div>' +
+          '<div style="flex:1;display:flex;flex-wrap:wrap;gap:8px">' +
             (opt.detail || []).map((d, vi) =>
-              '<div class="flex items-center justify-between" style="padding:8px 12px;border-bottom:1px solid var(--hair)">' +
-                '<span class="flex items-center gap-2" style="font-size:13.5px"><span class="muted">' + I.grip + '</span>' + esc(d.value) + '</span>' +
-                '<span class="flex items-center gap-1">' +
-                  '<button class="back-btn" style="width:26px;height:26px" data-vo-up="' + oi + ':' + vi + '"' + (vi === 0 ? ' disabled' : '') + '>↑</button>' +
-                  '<button class="back-btn" style="width:26px;height:26px" data-vo-down="' + oi + ':' + vi + '"' + (vi === opt.detail.length - 1 ? ' disabled' : '') + '>↓</button>' +
-                '</span>' +
+              '<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--hair);border-radius:8px;background:#fff">' +
+                '<span class="muted">' + I.grip + '</span><span style="font-size:13px">' + esc(d.value) + '</span>' +
+                '<button class="back-btn" style="width:22px;height:22px" data-vo-up="' + oi + ':' + vi + '"' + (vi === 0 ? ' disabled' : '') + '>↑</button>' +
+                '<button class="back-btn" style="width:22px;height:22px" data-vo-down="' + oi + ':' + vi + '"' + (vi === opt.detail.length - 1 ? ' disabled' : '') + '>↓</button>' +
               '</div>').join('') +
           '</div>' +
         '</div>').join('');
@@ -899,90 +1101,111 @@
       m.querySelectorAll('[data-vo-down]').forEach((b) => b.onclick = () => { const [oi, vi] = b.getAttribute('data-vo-down').split(':').map(Number); const arr = work[oi].detail; [arr[vi + 1], arr[vi]] = [arr[vi], arr[vi + 1]]; render(m); });
     };
     const ctrl = modal({
-      title: 'Variant display order', width: 520, okText: 'Save',
-      body: '<div class="muted" style="font-size:13px;margin-bottom:10px">Reorder how variant values appear on the storefront.</div><div id="vo-body"></div>',
+      title: 'Variant display order', width: 600, okText: 'Save',
+      body: '<div id="vo-body"></div>',
       onOk: (m, close) => { EDIT.attr = work; rebuildSkusFromOptions(); markDirty(); close(); rerenderMain(isEdit); toast('Variant order saved'); },
     });
     render(ctrl.m);
   }
 
-  // Edit attribute modal (editAttr) — rename option + manage its values
+  // Edit variations modal (editAttr.tsx) — Name + Image table per value
   function openEditAttrModal(oi, isEdit) {
     const opt = JSON.parse(JSON.stringify(EDIT.attr[oi] || { value: '', detail: [] }));
     const render = (m) => {
-      m.querySelector('#ea-vals').innerHTML = (opt.detail || []).map((d, vi) =>
-        '<div class="flex items-center gap-2 mb-2"><input class="input" data-ea-val="' + vi + '" value="' + esc(d.value) + '" style="flex:1" />' +
-        '<button class="back-btn" data-ea-del="' + vi + '" style="width:34px;height:34px;color:var(--err)">' + I.trash + '</button></div>').join('');
+      m.querySelector('#ea-rows').innerHTML = (opt.detail || []).map((d, vi) =>
+        '<tr>' +
+          '<td style="width:50%"><input class="input" data-ea-val="' + vi + '" value="' + esc(d.value) + '" placeholder="Enter variation name" /></td>' +
+          '<td style="width:50%"><div class="flex items-center gap-2">' +
+            (d.pic
+              ? '<div style="width:80px;height:80px;border:1px solid var(--ctl);border-radius:6px;overflow:hidden"><img src="' + d.pic + '" style="width:100%;height:100%;object-fit:cover" /></div><button class="lnk" data-ea-pic="' + vi + '">Change</button>'
+              : '<div data-ea-pic="' + vi + '" style="width:80px;height:80px;border:2px dashed var(--ctl);border-radius:6px;display:grid;place-items:center;cursor:pointer;color:var(--ink-muted);font-size:22px">+</div>') +
+          '</div></td>' +
+        '</tr>').join('');
       m.querySelectorAll('[data-ea-val]').forEach((el) => el.oninput = () => { opt.detail[Number(el.getAttribute('data-ea-val'))].value = el.value; });
-      m.querySelectorAll('[data-ea-del]').forEach((b) => b.onclick = () => { opt.detail.splice(Number(b.getAttribute('data-ea-del')), 1); render(m); });
+      m.querySelectorAll('[data-ea-pic]').forEach((b) => b.onclick = () => { const vi = Number(b.getAttribute('data-ea-pic')); opt.detail[vi].pic = D.PRODUCTS[(vi + 1) % D.PRODUCTS.length].image; render(m); });
     };
     const ctrl = modal({
-      title: 'Edit option', width: 520, okText: 'Save',
-      body: '<div class="mb-3">' + lbl('Option name') + '<input class="input" id="ea-name" value="' + esc(opt.value) + '" placeholder="e.g. Color" style="margin-top:4px" /></div>' +
-        '<div>' + lbl('Values') + '<div id="ea-vals" style="margin-top:4px"></div>' +
-        '<button class="btn btn-default" id="ea-add">' + I.plus + ' Add value</button></div>',
-      onOk: (m, close) => { opt.value = m.querySelector('#ea-name').value; EDIT.attr[oi] = opt; rebuildSkusFromOptions(); markDirty(); close(); rerenderMain(isEdit); },
+      title: '<span style="font-weight:700;font-size:16px">Edit Variations</span>', width: 800, okText: 'Save',
+      body: '<div class="mb-4"><p style="color:var(--ink-body);margin-bottom:6px;font-size:13.5px">Customers can view the uploaded image when choosing different variations.</p>' +
+        '<p class="muted" style="font-size:13px">Support images in .jpg, .png, and .gif formats. Maximum file size is 4 MB. Recommended file size: 96px * 96px</p></div>' +
+        '<table class="tbl" style="font-size:13px"><thead><tr><th>Name</th><th>Image</th></tr></thead><tbody id="ea-rows"></tbody></table>',
+      onOk: (m, close) => { opt.value = EDIT.attr[oi].value; EDIT.attr[oi] = opt; rebuildSkusFromOptions(); markDirty(); close(); rerenderMain(isEdit); },
     });
-    ctrl.m.querySelector('#ea-add').onclick = () => { opt.detail = opt.detail || []; opt.detail.push({ value: '' }); render(ctrl.m); };
     render(ctrl.m);
   }
 
-  // Variant metafields modal (MetafieldEditor in AntModal)
+  // Variant metafields modal (MetafieldEditor in AntModal) — typed form per variant definitions
   function openVariantMetafieldModal(variant, ns) {
     const title = ns === 'google' ? 'Google Metafields' : 'Variant Metafields';
-    const rows = [
-      { key: 'gtin', type: 'Single line text', value: variant.bar_code_number || '' },
-      { key: 'condition', type: 'Single line text', value: 'New' },
-    ];
+    const defs = ns === 'google' ? D.GOOGLE_VARIANT_DEFS : D.SHOP_VARIANT_DEFS;
+    const seed = {}; // start blank; seed a GTIN sample for google
+    if (ns === 'google') seed['google:gtin'] = variant.bar_code_number || '';
+    const rowsHtml = defs.map((def) => {
+      const ck = def.namespace + ':' + def.key;
+      const labelHtml = '<span class="flex items-center gap-1" style="font-size:13px;color:var(--ink)">' + esc(def.name) +
+        (def.description ? '<span class="muted" title="' + esc(def.description) + '" style="cursor:help;display:inline-flex">' + I.help + '</span>' : '') + '</span>';
+      return '<div class="flex items-start gap-4" style="padding:2px 0">' +
+        '<div style="width:140px;flex:none;padding-top:7px">' + labelHtml + '</div>' +
+        '<div style="flex:1;min-width:0">' + metafieldControl(def, ns, seed[ck]) + '</div>' +
+      '</div>';
+    }).join('');
     const body =
-      '<div class="muted" style="font-size:13px;margin-bottom:10px">Variant: <span class="subtle" style="font-weight:500">' + esc(variant.title) + '</span> &nbsp;·&nbsp; namespace: ' + ns + '</div>' +
-      '<table class="tbl" style="font-size:13px"><thead><tr><th>Key</th><th>Type</th><th>Value</th></tr></thead><tbody>' +
-        rows.map((r) => '<tr><td><input class="input" style="height:30px" value="' + esc(r.key) + '" /></td><td><input class="input" style="height:30px" value="' + esc(r.type) + '" list="mf-types2" /></td><td><input class="input" style="height:30px" value="' + esc(r.value) + '" /></td></tr>').join('') +
-      '</tbody></table><datalist id="mf-types2">' + D.METAFIELD_TYPES.map((t) => '<option value="' + t + '">').join('') + '</datalist>';
-    modal({ title, width: 720, okText: 'Save', body, onOk: (m, close) => { close(); toast('Variant metafields saved'); } });
+      '<div class="muted" style="font-size:13px;margin-bottom:12px">Variant: <span style="font-weight:500;color:var(--ink)">' + esc(variantTitle(variant)) + '</span></div>' +
+      '<div class="space-y-4">' + rowsHtml + '</div>';
+    modal({ title, width: 1000, okText: 'OK', body, onOk: (m, close) => { close(); toast('Variant metafields saved'); } });
   }
 
-  // SEO drawer (settings.tsx SEO Drawer) — right slide-in
+  // SEO drawer (settings.tsx SEO Drawer) — right slide-in, Confirm footer
   function openSeoDrawer(isEdit) {
     const s = EDIT.settings || {};
-    const base = 'https://www.bestvoy.com/listing/' + (EDIT.product_id || '{id}') + '/';
+    const base = 'https://www.bestvoy.com/listing/' + (EDIT.product_id || '{product_id}') + '/';
     const form = { metaTitle: s.metaTitle || EDIT.name || '', metaDescription: s.metaDescription || EDIT.description || '', urlHandle: s.urlHandle || '', seoKeywords: (s.seoKeywords || []).slice() };
     const backdrop = h('<div class="drawer-backdrop"></div>');
     const drawer = h('<div class="drawer" style="width:480px"></div>');
-    const kwHtml = () => form.seoKeywords.map((k, i) => '<span class="field-pill" style="background:#dbeafe;border-color:#bfdbfe;color:#1e40af">' + esc(k) + ' <span class="x" data-kw-del="' + i + '">&times;</span></span>').join('');
+    const kwChip = (k, i) => '<span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;border:1px solid #dbeafe;color:#2563eb;padding:2px 8px;border-radius:6px;font-size:13px">' + esc(k) + ' <span class="x" data-kw-del="' + i + '" style="cursor:pointer;font-weight:700;display:inline-flex">' + I.x + '</span></span>';
+    const kwHtml = () => form.seoKeywords.map(kwChip).join('');
     const preview = () =>
-      '<div class="muted" style="font-size:12px;word-break:break-all">' + base + esc(form.urlHandle) + '</div>' +
-      '<div style="font-size:13.5px;color:var(--brand);word-break:break-word;margin-top:2px">' + esc(form.metaTitle || 'Blank Title') + '</div>' +
-      '<div class="muted" style="font-size:13px;word-break:break-word;margin-top:2px">' + esc(form.metaDescription || 'Blank Description') + '</div>';
+      '<div class="muted" style="font-size:12px;word-break:break-all">' + base + esc(form.urlHandle || '') + '</div>' +
+      '<div style="font-size:13.5px;color:var(--brand);word-break:break-word;margin-top:2px">' + esc(form.metaTitle || '') + '</div>' +
+      '<div class="muted" style="font-size:13px;word-break:break-word;margin-top:2px">' + esc(form.metaDescription || '') + '</div>';
+    const helpIco = (t) => '<span class="muted" title="' + esc(t) + '" style="cursor:help;display:inline-flex">' + I.help + '</span>';
     drawer.innerHTML =
       '<div class="drawer-head"><span>Search engine optimization</span><span class="drawer-x" data-x>' + I.x + '</span></div>' +
       '<div class="drawer-body">' +
         '<div class="mb-4"><div class="card-title mb-2">Preview</div><div id="seo-preview">' + preview() + '</div></div>' +
         '<div class="divider mb-4"></div>' +
-        '<div class="mb-4">' + lbl('Page title') + '<input class="input" id="seo-title" value="' + esc(form.metaTitle) + '" placeholder="Product Title" style="margin-top:4px" /></div>' +
-        '<div class="mb-4">' + lbl('Meta description') + '<textarea class="input" id="seo-desc" rows="4" placeholder="Product Description" style="margin-top:4px;height:auto;padding:8px 12px;resize:vertical">' + esc(form.metaDescription) + '</textarea></div>' +
-        '<div class="mb-4">' + lbl('URL') + '<div class="muted" style="font-size:11px;margin:4px 0">' + base + '</div><input class="input" id="seo-url" value="' + esc(form.urlHandle) + '" placeholder="product-colour-size" /></div>' +
-        '<div>' + lbl('SEO keywords') + '<div class="flex items-center gap-2" style="flex-wrap:wrap;min-height:34px;border:1px solid var(--ctl);border-radius:8px;padding:5px 8px;margin-top:4px;background:#fff" id="seo-kwbox">' + kwHtml() +
-          '<input id="seo-kw" placeholder="Press Enter to add a keyword" style="border:0;outline:0;background:transparent;flex:1;min-width:120px;font-size:13px" /></div></div>' +
+        '<div class="mb-4"><div class="flex items-center justify-between mb-1"><span class="flex items-center gap-1" style="font-size:13px;font-weight:500">Page title ' + helpIco('Page titles make it easier for customers to quickly find content. We recommend using simple and intuitive words.') + '</span><span class="muted" id="seo-title-cnt" style="font-size:11px">' + form.metaTitle.length + '</span></div>' +
+          '<input class="input" id="seo-title" value="' + esc(form.metaTitle) + '" placeholder="Product Title" /></div>' +
+        '<div class="mb-4"><div class="flex items-center justify-between mb-1"><span class="flex items-center gap-1" style="font-size:13px;font-weight:500">Meta description ' + helpIco('Try to describe the product features or page contents to attract visitors. Too many keywords may drag down your ranking.') + '</span><span class="muted" id="seo-desc-cnt" style="font-size:11px">' + form.metaDescription.length + '</span></div>' +
+          '<textarea class="input" id="seo-desc" rows="4" placeholder="Product Description" style="height:auto;padding:8px 12px;resize:vertical">' + esc(form.metaDescription) + '</textarea></div>' +
+        '<div class="mb-4"><div class="flex items-center gap-1 mb-1"><span style="font-size:13px;font-weight:500">URL</span> ' + helpIco('Short and descriptive (e.g. product-colour-size).') + '</div>' +
+          '<div class="muted" style="font-size:11px;margin-bottom:4px;word-break:break-all">' + base + '</div><input class="input" id="seo-url" value="' + esc(form.urlHandle) + '" placeholder="product-colour-size" /></div>' +
+        '<div><div class="flex items-center gap-1 mb-1"><span style="font-size:13px;font-weight:500">SEO keywords</span> ' + helpIco("Using relevant keywords can improve ranking and visibility on search engines. Don't use too many keywords as it may drag down your ranking.") + '</div>' +
+          '<div class="flex items-center gap-2" style="flex-wrap:wrap;min-height:34px;border:1px solid var(--ctl);border-radius:8px;padding:5px 8px;background:#fff" id="seo-kwbox">' + kwHtml() +
+          '<input id="seo-kw" placeholder="Press \'Enter\' to complete the keywords input" style="border:0;outline:0;background:transparent;flex:1;min-width:120px;font-size:13px" /></div></div>' +
       '</div>' +
-      '<div class="drawer-foot" style="justify-content:flex-end"><button class="btn btn-default" data-x2>Cancel</button><button class="btn btn-primary" data-confirm>Confirm</button></div>';
+      '<div class="drawer-foot" style="justify-content:flex-end"><button class="btn btn-primary" data-confirm>Confirm</button></div>';
     backdrop.appendChild(drawer); document.body.appendChild(backdrop);
     const close = () => backdrop.remove();
     const syncPreview = () => { drawer.querySelector('#seo-preview').innerHTML = preview(); };
-    const rewireKw = () => drawer.querySelectorAll('[data-kw-del]').forEach((x) => x.onclick = () => { form.seoKeywords.splice(Number(x.getAttribute('data-kw-del')), 1); drawer.querySelector('#seo-kwbox').querySelectorAll('.field-pill').forEach((e) => e.remove()); drawer.querySelector('#seo-kw').insertAdjacentHTML('beforebegin', kwHtml()); rewireKw(); });
-    drawer.querySelector('[data-x]').onclick = close;
-    drawer.querySelector('[data-x2]').onclick = close;
-    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
-    drawer.querySelector('#seo-title').oninput = (e) => { form.metaTitle = e.target.value; if (EDIT_ID === 'new') { form.urlHandle = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); drawer.querySelector('#seo-url').value = form.urlHandle; } syncPreview(); };
-    drawer.querySelector('#seo-desc').oninput = (e) => { form.metaDescription = e.target.value; syncPreview(); };
-    drawer.querySelector('#seo-url').oninput = (e) => { form.urlHandle = e.target.value; syncPreview(); };
-    drawer.querySelector('#seo-kw').onkeydown = (e) => { if (e.key === 'Enter' && e.target.value.trim()) { const v = e.target.value.trim(); if (!form.seoKeywords.includes(v)) { form.seoKeywords.push(v); e.target.insertAdjacentHTML('beforebegin', '<span class="field-pill" style="background:#dbeafe;border-color:#bfdbfe;color:#1e40af">' + esc(v) + ' <span class="x" data-kw-del="' + (form.seoKeywords.length - 1) + '">&times;</span></span>'); rewireKw(); } e.target.value = ''; } };
-    drawer.querySelector('[data-confirm]').onclick = () => {
-      EDIT.settings.metaTitle = form.metaTitle; EDIT.settings.metaDescription = form.metaDescription;
-      EDIT.settings.urlHandle = form.urlHandle; EDIT.settings.seoKeywords = form.seoKeywords.slice();
-      markDirty(); close(); rerenderSide(EDIT_ID !== 'new'); toast('SEO settings saved');
+    const redrawKw = () => {
+      const box = drawer.querySelector('#seo-kwbox');
+      box.querySelectorAll('span[style]').forEach((e) => { if (e.querySelector('[data-kw-del]')) e.remove(); });
+      drawer.querySelector('#seo-kw').insertAdjacentHTML('beforebegin', kwHtml());
+      box.querySelectorAll('[data-kw-del]').forEach((x) => x.onclick = () => { form.seoKeywords.splice(Number(x.getAttribute('data-kw-del')), 1); redrawKw(); });
     };
-    rewireKw();
+    drawer.querySelector('[data-x]').onclick = close;
+    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    drawer.querySelector('#seo-title').oninput = (e) => { form.metaTitle = e.target.value; drawer.querySelector('#seo-title-cnt').textContent = e.target.value.length; if (!isEdit) { form.urlHandle = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); drawer.querySelector('#seo-url').value = form.urlHandle; } syncPreview(); };
+    drawer.querySelector('#seo-desc').oninput = (e) => { form.metaDescription = e.target.value; drawer.querySelector('#seo-desc-cnt').textContent = e.target.value.length; syncPreview(); };
+    drawer.querySelector('#seo-url').oninput = (e) => { form.urlHandle = e.target.value; syncPreview(); };
+    drawer.querySelector('#seo-kw').onkeydown = (e) => { if (e.key === 'Enter' && e.target.value.trim()) { e.preventDefault(); const v = e.target.value.trim(); if (!form.seoKeywords.includes(v)) { form.seoKeywords.push(v); redrawKw(); } e.target.value = ''; } };
+    drawer.querySelector('[data-confirm]').onclick = () => {
+      EDIT.settings.metaTitle = form.metaTitle || EDIT.name || ''; EDIT.settings.metaDescription = form.metaDescription || EDIT.description || '';
+      EDIT.settings.urlHandle = form.urlHandle || ''; EDIT.settings.seoKeywords = form.seoKeywords.slice();
+      markDirty(); close(); rerenderSide(isEdit); toast('SEO settings saved');
+    };
+    redrawKw();
   }
 
   // ================= ROUTER =================
@@ -996,17 +1219,21 @@
 
   function route(rest) {
     closePops();
+    imgGridExpanded = false;
     if (rest) renderEdit(decodeURIComponent(rest));
     else renderList();
   }
 
-  // small CSS shim for the on/off switch used in tables/settings (kept module-scoped)
+  // module-scoped CSS shim: on/off switch (+ Show/Hide labelled variant), danger button, helpers
   const style = document.createElement('style');
   style.textContent =
-    '.sw{position:relative;display:inline-block;width:34px;height:18px;border-radius:9999px;background:var(--ctl);cursor:pointer;transition:background .15s;flex:none}' +
+    '.sw{position:relative;display:inline-block;width:34px;height:18px;border-radius:9999px;background:var(--ctl);cursor:pointer;transition:background .15s;flex:none;vertical-align:middle}' +
     '.sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}' +
     '.sw.on{background:var(--brand)}.sw.on::after{transform:translateX(16px)}' +
-    '.pr-row-meta{font-size:12px;color:var(--ink-muted)}';
+    '.sw-lbl{width:58px}.sw-lbl::before{content:attr(data-off);position:absolute;right:8px;top:1px;font-size:10px;color:#fff;line-height:16px}.sw-lbl.on::before{content:attr(data-on);left:8px;right:auto}.sw-lbl::after{}.sw-lbl.on::after{transform:translateX(40px)}' +
+    '.danger-btn{color:var(--err);border-color:#f3c0b4}.danger-btn:hover{background:#fdece8}' +
+    '.img-tile:hover .img-del{opacity:1 !important}' +
+    '.space-y-4>*+*{margin-top:16px}.space-y-6>*+*{margin-top:24px}';
   document.head.appendChild(style);
 
   window.VIEWS = window.VIEWS || {};

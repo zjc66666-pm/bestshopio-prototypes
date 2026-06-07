@@ -31,6 +31,8 @@
 
   // ---- toast ----
   const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1900); };
+  // ---- close any open floating popovers (price range / status multi-select) ----
+  const closePops = () => document.querySelectorAll('.pop-layer').forEach((el) => el.remove());
 
   // ---- product status (getProductStatus: is_del -> archived, is_show -> activated, else deactivated) ----
   const productStatus = (p) => p.is_del === 1 ? 'Archived' : (p.is_show === 1 ? 'Activated' : 'Deactivated');
@@ -70,7 +72,34 @@
     return rows;
   }
 
+  // empty state (emptyState.tsx) — only when the store has zero collections and no search filter
+  function renderEmptyState() {
+    const card = (hex) =>
+      '<div style="height:128px;width:96px;overflow:hidden;border-radius:8px;border:1px solid var(--hair);background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.05)">' +
+        '<div style="height:80px;background:' + hex + '"></div>' +
+        '<div style="padding:8px"><div style="height:8px;border-radius:4px;background:#e5e7eb;margin-bottom:6px"></div><div style="height:8px;width:75%;border-radius:4px;background:#e5e7eb"></div></div>' +
+      '</div>';
+    root.innerHTML =
+      '<div class="flex items-center justify-between mb-4">' +
+        '<h1 class="page-title">Collections</h1>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 16px">' +
+        '<div style="margin-bottom:32px"><div class="flex items-center gap-3">' +
+          '<div class="flex gap-2">' + card('#60a5fa') + card('#d1d5db') + card('#fde047') + '</div>' +
+          '<div style="display:flex;height:128px;width:96px;align-items:center;justify-content:center;border-radius:8px;border:2px dashed #93c5fd;background:#eff6ff">' +
+            '<div style="display:flex;height:48px;width:48px;align-items:center;justify-content:center;border-radius:9999px;background:#3b82f6;color:#fff">' + I.plus + '</div>' +
+          '</div>' +
+        '</div></div>' +
+        '<h2 style="margin:0 0 12px;font-size:22px;font-weight:600;color:var(--ink)">Add and manage product collections</h2>' +
+        '<p style="margin:0 0 32px;max-width:28rem;text-align:center;color:var(--ink-body);font-size:14px">Make it easier for customers to find what they want by grouping products in commonly-known collections.</p>' +
+        '<button class="btn btn-primary" data-act="add" style="height:40px;padding:0 18px">Add collection</button>' +
+      '</div>';
+    const add = root.querySelector('[data-act="add"]'); if (add) add.onclick = () => goEdit('0');
+  }
+
   function renderList() {
+    // empty state mirrors isEmptyState: data loaded, 0 records, no search condition
+    if (D.COLLECTIONS.length === 0 && !LST.kwApplied) { renderEmptyState(); return; }
     const rows = listRows();
     const total = rows.length;
     const pages = Math.max(1, Math.ceil(total / LST.size));
@@ -113,7 +142,7 @@
             '<th>Collection name</th>' +
             '<th style="width:150px">Type</th>' +
             '<th style="width:200px;cursor:pointer" id="sort-pc">Product quantity' + sortArrow + '</th>' +
-            '<th style="width:120px;text-align:center">Action</th>' +
+            '<th style="width:150px">Action</th>' +
           '</tr></thead>' +
           '<tbody id="col-tbody">' +
             (pageRows.length ? pageRows.map(rowHtml).join('')
@@ -136,9 +165,9 @@
       '<td data-stop><input type="checkbox" class="row-sel" data-id="' + c.id + '" ' + checked + ' style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer" /></td>' +
       '<td><div class="flex items-center gap-2">' + prodImg({ image: c.image_url }, 40) +
         '<span style="color:var(--ink);font-weight:500">' + esc(c.name) + '</span></div></td>' +
-      '<td style="color:var(--ink)">Manual</td>' +
+      '<td style="color:var(--ink)">' + esc(c.type || 'manual') + '</td>' +
       '<td style="color:var(--ink)">' + c.product_count + '</td>' +
-      '<td style="text-align:center" data-stop><button class="back-btn" data-view="' + c.id + '" title="View/Edit" style="width:30px;height:30px">' + I.eye + '</button></td>' +
+      '<td data-stop><button class="back-btn" data-view="' + c.id + '" title="View/Edit" style="width:30px;height:30px">' + I.eye + '</button></td>' +
     '</tr>';
   }
 
@@ -276,10 +305,13 @@
     wireEdit(isNew);
   }
 
+  // Unsaved-changes bar — mirrors components/UnSavedChanges.tsx: dark bar, centered
+  // alert icon + "You have unsaved changes", Discard (ghost) + primary Update/Add.
   function unsavedBar(isNew) {
-    return '<div style="position:sticky;top:0;z-index:20;margin:-16px -30px 16px;background:#242833;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 30px;font-size:13.5px">' +
-      '<span>Unsaved changes</span>' +
-      '<div class="flex items-center gap-2">' +
+    return '<div style="position:sticky;top:0;z-index:20;margin:-16px -30px 16px;background:#242833;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 24px;font-size:13.5px;gap:16px">' +
+      '<div style="flex:1"></div>' +
+      '<div class="flex items-center gap-2" style="white-space:nowrap"><span style="display:inline-flex;color:#fff">' + I.alert + '</span><span>You have unsaved changes</span></div>' +
+      '<div class="flex items-center justify-end gap-3" style="flex:1">' +
         '<button class="btn btn-default" data-act="discard" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">Discard</button>' +
         '<button class="btn btn-primary" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
       '</div>' +
@@ -425,7 +457,7 @@
         '<span>' + (idx + 1) + '</span></div></td>' +
       '<td><div class="flex items-center gap-3">' + prodImg({ image: c.image_url || c.image }, 40) +
         '<span style="color:var(--ink)">' + esc(c.name) + '</span></div></td>' +
-      '<td>Manual</td>' +
+      '<td>' + esc(c.type || 'manual') + '</td>' +
       '<td>' + (c.product_count != null ? c.product_count : (c.product_quantity || 0)) + '</td>' +
       '<td><button class="back-btn sc-del" data-cid="' + c.id + '" title="Remove" style="width:30px;height:30px;background:transparent;color:var(--err)">' + I.trash + '</button></td>' +
     '</tr>';
@@ -651,7 +683,7 @@
       (footer != null ? footer : ('<div class="modal-foot"><button class="btn btn-default" data-cancel>Cancel</button>' +
         '<button class="btn btn-primary" data-ok>' + (okText || 'Save') + '</button></div>'));
     backdrop.appendChild(m); document.body.appendChild(backdrop);
-    const close = () => backdrop.remove();
+    const close = () => { closePops(); backdrop.remove(); };
     m.querySelector('[data-x]').onclick = close;
     const c = m.querySelector('[data-cancel]'); if (c) c.onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
@@ -670,15 +702,22 @@
   }
 
   // ================= PRODUCT PICKER MODAL (ProductSelect.tsx) =================
+  // Filters mirror the real picker: keyword (field select + input), Category
+  // (TreeCascadeSelect → flat select here), Price range (Popover) and multi-select
+  // Status. Selected ids persist across pages/filters (preserveSelectedRowKeys).
   function openProductPicker() {
     const PK = {
-      field: 'product_name', kw: '', kwApplied: '', status: [], page: 1, size: 20,
+      field: 'product_name', kw: '', kwApplied: '', cate: undefined,
+      priceMin: '', priceMax: '', priceApplied: false,
+      status: [], page: 1, size: 20,
       max: 100, selected: new Set(ST.products.map((p) => p.product_id)),
     };
     const fieldOpts = D.PRODUCT_SEARCH_FIELDS.map((o) => '<option value="' + o.value + '">' + esc(o.label) + '</option>').join('');
+    const cateLabel = (v) => (D.CATEGORIES.find((c) => c.value === v) || {}).label || '';
+    const fieldLabel = (v) => (D.PRODUCT_SEARCH_FIELDS.find((o) => o.value === v) || {}).label || 'Product name';
 
     const ctrl = modal({
-      title: 'Add products', width: 1040,
+      title: 'Add products', width: 1200,
       body: '<div id="pk-root"></div>',
       footer: '<div></div>',
     });
@@ -692,15 +731,47 @@
           switch (PK.field) {
             case 'product_spu': return (p.product_spu || '').toLowerCase().includes(q);
             case 'product_sku': return (p.product_sku || '').toLowerCase().includes(q);
+            case 'barcode': return (p.barcode || '').toLowerCase().includes(q);
             case 'product_id': return String(p.product_id).includes(q);
+            case 'variant_id': return String(p.product_id).includes(q);
             default: return (p.store_name || '').toLowerCase().includes(q);
           }
         });
+      }
+      if (PK.cate !== undefined && PK.cate !== '') rows = rows.filter((p) => p.pid === Number(PK.cate));
+      if (PK.priceApplied) {
+        const lo = PK.priceMin !== '' ? Number(PK.priceMin) : -Infinity;
+        const hi = PK.priceMax !== '' ? Number(PK.priceMax) : Infinity;
+        rows = rows.filter((p) => Number(p.price_max != null ? p.price_max : p.price_min) >= lo && Number(p.price_min != null ? p.price_min : p.price_max) <= hi);
       }
       if (PK.status.length) {
         rows = rows.filter((p) => PK.status.includes(productStatus(p).toLowerCase()));
       }
       return rows;
+    }
+
+    // active filter tags (activeFilterTags) — category / keyword / price / status
+    function pkTags() {
+      const tags = [];
+      if (PK.cate !== undefined && PK.cate !== '') tags.push({ key: 'category', label: 'Category', value: cateLabel(Number(PK.cate)) });
+      if (PK.kwApplied) tags.push({ key: 'keyword', label: fieldLabel(PK.field), value: PK.kwApplied });
+      if (PK.priceApplied) {
+        const mn = PK.priceMin !== '' ? Number(PK.priceMin) : undefined;
+        const mx = PK.priceMax !== '' ? Number(PK.priceMax) : undefined;
+        let txt = '';
+        if (mn !== undefined && mx !== undefined) txt = money(mn) + ' ~ ' + money(mx);
+        else if (mn !== undefined) txt = money(mn) + '+';
+        else if (mx !== undefined) txt = '≤' + money(mx);
+        if (txt) tags.push({ key: 'price', label: 'Price range', value: txt });
+      }
+      if (PK.status.length) tags.push({ key: 'status', label: 'Status', value: PK.status.map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(', ') });
+      return tags;
+    }
+
+    function statusText() {
+      if (PK.status.length === 1) return PK.status[0].charAt(0).toUpperCase() + PK.status[0].slice(1);
+      if (PK.status.length > 1) return PK.status.length + ' selected';
+      return 'Status';
     }
 
     function paint() {
@@ -709,11 +780,13 @@
       const pages = Math.max(1, Math.ceil(total / PK.size));
       if (PK.page > pages) PK.page = pages;
       const pageRows = rows.slice((PK.page - 1) * PK.size, (PK.page - 1) * PK.size + PK.size);
-      const statusVal = PK.status[0] || '';
+      const cateOpts = '<option value="">Category</option>' +
+        D.CATEGORIES.map((c) => '<option value="' + c.value + '"' + (String(PK.cate) === String(c.value) ? ' selected' : '') + '>' + esc(c.label) + '</option>').join('');
+      const tags = pkTags();
 
       host.innerHTML =
         // filter bar
-        '<div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:10px">' +
+        '<div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:2px">' +
           '<div class="flex" style="width:418px">' +
             '<select class="filter-select" id="pk-field" style="width:150px;border-top-right-radius:0;border-bottom-right-radius:0">' + fieldOpts + '</select>' +
             '<div style="position:relative;flex:1">' +
@@ -721,18 +794,26 @@
               '<span style="position:absolute;right:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
             '</div>' +
           '</div>' +
-          '<select class="filter-select" id="pk-status" style="width:160px">' +
-            '<option value=""' + (statusVal === '' ? ' selected' : '') + '>Status</option>' +
-            '<option value="activated"' + (statusVal === 'activated' ? ' selected' : '') + '>Activated</option>' +
-            '<option value="deactivated"' + (statusVal === 'deactivated' ? ' selected' : '') + '>Deactivated</option>' +
-            '<option value="archived"' + (statusVal === 'archived' ? ' selected' : '') + '>Archived</option>' +
-          '</select>' +
+          // Category
+          '<select class="filter-select" id="pk-cate" style="width:200px">' + cateOpts + '</select>' +
+          // Price range chip (popover)
+          '<div class="sel-trigger" id="pk-price" style="width:320px">' +
+            '<span class="' + (PK.priceApplied ? '' : 'muted') + '">' + esc(priceChipText()) + '</span>' + I.chevDown +
+          '</div>' +
+          // Status (multi-select)
+          '<div class="sel-trigger" id="pk-status" style="width:160px">' +
+            '<span class="' + (PK.status.length ? '' : 'muted') + '">' + esc(statusText()) + '</span>' + I.chevDown +
+          '</div>' +
         '</div>' +
+        // filter tags
+        (tags.length ? '<div class="flex gap-2" style="flex-wrap:wrap;margin-top:8px" id="pk-tags">' +
+          tags.map((t) => '<span class="field-pill" data-clear="' + t.key + '"><span class="muted">' + esc(t.label) + ':</span> ' + esc(t.value) + ' <span class="x">&times;</span></span>').join('') +
+        '</div>' : '') +
         // table
-        '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden">' +
-        '<div style="max-height:420px;overflow:auto"><table class="tbl"><thead><tr>' +
-          '<th style="width:44px"></th><th>Product</th><th style="width:280px">Inventory quantity</th>' +
-          '<th style="width:150px">Price</th><th style="width:140px">Status</th>' +
+        '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden;margin-top:12px">' +
+        '<div style="max-height:460px;overflow:auto"><table class="tbl"><thead><tr>' +
+          '<th style="width:44px"></th><th>Product</th><th style="width:300px">Inventory quantity</th>' +
+          '<th style="width:150px">Price</th><th style="width:150px">Status</th>' +
         '</tr></thead><tbody id="pk-tbody">' +
           (pageRows.length ? pageRows.map(pkRow).join('')
             : '<tr><td colspan="5" style="text-align:center;padding:36px" class="muted">No products match these filters.</td></tr>') +
@@ -742,12 +823,12 @@
           '<span class="muted" style="font-size:13px"><span id="pk-count">' + PK.selected.size + '</span>/' + PK.max + ' products selected</span>' +
           '<div class="flex items-center gap-3">' + pagerMini(PK.page, pages) +
             '<button class="btn btn-default" data-pk-cancel>Cancel</button>' +
-            '<button class="btn btn-primary" data-pk-add>Add</button>' +
+            '<button class="btn btn-primary"' + (PK.selected.size === 0 ? ' disabled' : '') + ' data-pk-add>Add</button>' +
           '</div>' +
         '</div>';
 
       // wire filter
-      const field = host.querySelector('#pk-field'); if (field) field.onchange = () => { PK.field = field.value; PK.page = 1; paint(); };
+      const field = host.querySelector('#pk-field'); if (field) field.onchange = () => { PK.field = field.value; PK.kwApplied = PK.kw.trim(); PK.page = 1; paint(); };
       const kw = host.querySelector('#pk-kw');
       if (kw) {
         kw.oninput = () => { PK.kw = kw.value; if (!kw.value.trim() && PK.kwApplied) { PK.kwApplied = ''; PK.page = 1; paint(); } };
@@ -755,7 +836,18 @@
         kw.onkeydown = (e) => { if (e.key === 'Enter') commit(); };
         kw.onblur = commit;
       }
-      const st = host.querySelector('#pk-status'); if (st) st.onchange = () => { PK.status = st.value ? [st.value] : []; PK.page = 1; paint(); };
+      const cate = host.querySelector('#pk-cate'); if (cate) cate.onchange = () => { PK.cate = cate.value === '' ? undefined : cate.value; PK.page = 1; paint(); };
+      const priceChip = host.querySelector('#pk-price'); if (priceChip) priceChip.onclick = () => openPkPrice(priceChip);
+      const statusChip = host.querySelector('#pk-status'); if (statusChip) statusChip.onclick = () => openPkStatus(statusChip);
+      // filter tag removal
+      host.querySelectorAll('#pk-tags [data-clear]').forEach((tg) => tg.onclick = () => {
+        const k = tg.getAttribute('data-clear');
+        if (k === 'category') PK.cate = undefined;
+        if (k === 'keyword') { PK.kw = ''; PK.kwApplied = ''; }
+        if (k === 'price') { PK.priceApplied = false; PK.priceMin = ''; PK.priceMax = ''; }
+        if (k === 'status') PK.status = [];
+        PK.page = 1; paint();
+      });
       // row toggles
       host.querySelectorAll('#pk-tbody tr[data-pid]').forEach((tr) => tr.onclick = () => {
         const id = Number(tr.getAttribute('data-pid'));
@@ -767,7 +859,9 @@
       host.querySelectorAll('.pg-item[data-page]').forEach((el) => el.onclick = () => { PK.page = Number(el.getAttribute('data-page')); paint(); });
       // actions
       host.querySelector('[data-pk-cancel]').onclick = ctrl.close;
-      host.querySelector('[data-pk-add]').onclick = () => {
+      const addBtn = host.querySelector('[data-pk-add]');
+      if (addBtn) addBtn.onclick = () => {
+        if (PK.selected.size === 0) return;
         const ids = Array.from(PK.selected);
         const existing = new Map(ST.products.map((p) => [p.product_id, p]));
         ST.products = ids.map((id, i) => {
@@ -776,6 +870,67 @@
         });
         ctrl.close(); refreshEdit();
       };
+    }
+
+    function priceChipText() {
+      if (!PK.priceApplied) return 'Price range';
+      const mn = PK.priceMin !== '' ? money(Number(PK.priceMin)) : '';
+      const mx = PK.priceMax !== '' ? money(Number(PK.priceMax)) : '';
+      if (mn && mx) return mn + ' ~ ' + mx;
+      if (mn) return mn + '+';
+      if (mx) return '≤' + mx;
+      return 'Price range';
+    }
+
+    // price-range popover (useRange)
+    function openPkPrice(anchor) {
+      closePops();
+      const layer = h('<div class="pop-layer"></div>');
+      const pop = h('<div class="menu-pop" style="position:fixed;min-width:280px;padding:14px;z-index:120"></div>');
+      pop.innerHTML =
+        '<div class="ctrl-label" style="margin-bottom:8px">Price range</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<input class="input" id="pk-pmin" placeholder="Min" type="number" value="' + esc(PK.priceMin) + '" style="width:110px" />' +
+          '<span class="muted">to</span>' +
+          '<input class="input" id="pk-pmax" placeholder="Max" type="number" value="' + esc(PK.priceMax) + '" style="width:110px" />' +
+        '</div>' +
+        '<div class="flex justify-end gap-2 mt-3">' +
+          '<button class="btn btn-default" data-x>Clear</button>' +
+          '<button class="btn btn-primary" data-apply>Confirm</button>' +
+        '</div>';
+      layer.appendChild(pop); document.body.appendChild(layer);
+      const r = anchor.getBoundingClientRect();
+      pop.style.top = (r.bottom + 6) + 'px'; pop.style.left = r.left + 'px';
+      pop.querySelector('[data-apply]').onclick = () => {
+        PK.priceMin = pop.querySelector('#pk-pmin').value;
+        PK.priceMax = pop.querySelector('#pk-pmax').value;
+        PK.priceApplied = PK.priceMin !== '' || PK.priceMax !== '';
+        PK.page = 1; closePops(); paint();
+      };
+      pop.querySelector('[data-x]').onclick = () => { PK.priceApplied = false; PK.priceMin = ''; PK.priceMax = ''; PK.page = 1; closePops(); paint(); };
+      setTimeout(() => document.addEventListener('mousedown', function hh(e) { if (!pop.contains(e.target) && !anchor.contains(e.target)) { closePops(); document.removeEventListener('mousedown', hh); } }), 0);
+    }
+
+    // status multi-select popover (checkbox list)
+    function openPkStatus(anchor) {
+      closePops();
+      const opts = [['activated', 'Activated'], ['deactivated', 'Deactivated'], ['archived', 'Archived']];
+      const layer = h('<div class="pop-layer"></div>');
+      const pop = h('<div class="menu-pop" style="position:fixed;min-width:180px;padding:6px;z-index:120"></div>');
+      pop.innerHTML = opts.map(([v, l]) =>
+        '<label class="menu-item flex items-center gap-2" style="padding:7px 10px;cursor:pointer;border-radius:6px">' +
+          '<input type="checkbox" data-v="' + v + '"' + (PK.status.includes(v) ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer" />' +
+          '<span style="font-size:13px">' + l + '</span></label>').join('');
+      layer.appendChild(pop); document.body.appendChild(layer);
+      const r = anchor.getBoundingClientRect();
+      pop.style.top = (r.bottom + 6) + 'px'; pop.style.left = r.left + 'px'; pop.style.minWidth = r.width + 'px';
+      pop.querySelectorAll('input[data-v]').forEach((cb) => cb.onchange = () => {
+        const v = cb.getAttribute('data-v');
+        if (cb.checked) { if (!PK.status.includes(v)) PK.status.push(v); }
+        else PK.status = PK.status.filter((s) => s !== v);
+        PK.page = 1; paint();
+      });
+      setTimeout(() => document.addEventListener('mousedown', function hh(e) { if (!pop.contains(e.target) && !anchor.contains(e.target)) { closePops(); document.removeEventListener('mousedown', hh); } }), 0);
     }
 
     function pkRow(p) {
@@ -793,11 +948,11 @@
 
   // ================= COLLECTION PICKER MODAL (CollectionSelectModal — for sub-collections) =================
   function openCollectionPicker() {
-    const PK = { kw: '', kwApplied: '', selected: new Set(ST.subCollections.map((c) => c.id)) };
+    const PK = { kw: '', kwApplied: '', sortDir: '', selected: new Set(ST.subCollections.map((c) => c.id)) };
     const exclude = new Set([ST.id]); // can't nest itself
 
     const ctrl = modal({
-      title: 'Add collections', width: 760,
+      title: 'Add collections', width: 960,
       body: '<div id="cc-root"></div>',
       footer: '<div></div>',
     });
@@ -806,29 +961,40 @@
     function ccFiltered() {
       let rows = D.COLLECTIONS.filter((c) => !exclude.has(c.id));
       if (PK.kwApplied) { const q = PK.kwApplied.toLowerCase(); rows = rows.filter((c) => c.name.toLowerCase().includes(q)); }
+      if (PK.sortDir === 'asc') rows = rows.slice().sort((a, b) => a.product_count - b.product_count);
+      else if (PK.sortDir === 'desc') rows = rows.slice().sort((a, b) => b.product_count - a.product_count);
       return rows;
     }
     function paint() {
       const rows = ccFiltered();
+      const max = rows.length; // maxSelectable follows list total in real modal
+      const sortArrow = PK.sortDir === 'asc' ? ' &uarr;' : (PK.sortDir === 'desc' ? ' &darr;' : '');
+      // Collection name field group (field select + input) mirrors the real modal
       host.innerHTML =
-        '<div style="position:relative;width:100%;margin-bottom:10px">' +
-          '<input class="filter-input" id="cc-kw" placeholder="Search collections" value="' + esc(PK.kw) + '" style="width:100%;padding-left:32px" />' +
-          '<span style="position:absolute;left:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
+        '<div class="flex" style="width:480px;margin-bottom:10px">' +
+          '<select class="filter-select" style="width:150px;border-top-right-radius:0;border-bottom-right-radius:0"><option value="name" selected>Collection name</option></select>' +
+          '<div style="position:relative;flex:1">' +
+            '<input class="filter-input" id="cc-kw" placeholder="Search" value="' + esc(PK.kw) + '" style="width:100%;padding-left:12px;padding-right:32px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" />' +
+            '<span style="position:absolute;right:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
+          '</div>' +
         '</div>' +
+        (PK.kwApplied ? '<div class="flex gap-2" style="margin-bottom:10px"><span class="field-pill" data-cc-clear>Collection name: ' + esc(PK.kwApplied) + ' <span class="x">&times;</span></span></div>' : '') +
         '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden">' +
-        '<div style="max-height:420px;overflow:auto"><table class="tbl"><thead><tr>' +
-          '<th style="width:44px"></th><th>Collection name</th><th style="width:160px">Product quantity</th>' +
+        '<div style="max-height:460px;overflow:auto"><table class="tbl"><thead><tr>' +
+          '<th style="width:44px"></th><th>Collection name</th><th style="width:140px">Type</th><th style="width:180px;cursor:pointer" id="cc-sort">Product quantity' + sortArrow + '</th>' +
         '</tr></thead><tbody id="cc-tbody">' +
           (rows.length ? rows.map(ccRow).join('')
-            : '<tr><td colspan="3" style="text-align:center;padding:36px" class="muted">No collections found.</td></tr>') +
+            : '<tr><td colspan="4" style="text-align:center;padding:36px" class="muted">No collections found.</td></tr>') +
         '</tbody></table></div></div>' +
         '<div class="flex items-center justify-between" style="margin-top:14px">' +
-          '<span class="muted" style="font-size:13px"><span id="cc-count">' + PK.selected.size + '</span> selected</span>' +
+          '<span class="muted" style="font-size:13px"><span id="cc-count">' + PK.selected.size + '</span>/' + max + ' collections selected</span>' +
           '<div class="flex items-center gap-2">' +
             '<button class="btn btn-default" data-cc-cancel>Cancel</button>' +
-            '<button class="btn btn-primary" data-cc-add>Add</button>' +
+            '<button class="btn btn-primary"' + (PK.selected.size === 0 ? ' disabled' : '') + ' data-cc-add>Add</button>' +
           '</div>' +
         '</div>';
+      const sortEl = host.querySelector('#cc-sort'); if (sortEl) sortEl.onclick = () => { PK.sortDir = PK.sortDir === 'asc' ? 'desc' : (PK.sortDir === 'desc' ? '' : 'asc'); paint(); };
+      const clr = host.querySelector('[data-cc-clear]'); if (clr) clr.onclick = () => { PK.kw = ''; PK.kwApplied = ''; paint(); };
       const kw = host.querySelector('#cc-kw');
       if (kw) {
         kw.oninput = () => { PK.kw = kw.value; if (!kw.value.trim() && PK.kwApplied) { PK.kwApplied = ''; paint(); } };
@@ -842,7 +1008,9 @@
         paint();
       });
       host.querySelector('[data-cc-cancel]').onclick = ctrl.close;
-      host.querySelector('[data-cc-add]').onclick = () => {
+      const ccAdd = host.querySelector('[data-cc-add]');
+      if (ccAdd) ccAdd.onclick = () => {
+        if (PK.selected.size === 0) return;
         const ids = Array.from(PK.selected);
         const existing = new Map(ST.subCollections.map((c) => [c.id, c]));
         ST.subCollections = ids.map((id, i) => {
@@ -857,6 +1025,7 @@
       return '<tr data-cid="' + c.id + '" style="cursor:pointer">' +
         '<td><input type="checkbox"' + (checked ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);pointer-events:none" /></td>' +
         '<td><div class="flex items-center gap-3">' + prodImg({ image: c.image_url }, 40) + '<span style="color:var(--ink)">' + esc(c.name) + '</span></div></td>' +
+        '<td style="color:var(--ink)">manual</td>' +
         '<td>' + c.product_count + '</td>' +
       '</tr>';
     }

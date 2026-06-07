@@ -321,6 +321,7 @@
   // =====================================================================
   // working copy of the form lives here so the products table + drawer can mutate it
   let FORM = null;
+  let ORIG = null; // snapshot for dirty tracking (originalFormData)
   let IS_EDIT = false;
 
   function blankForm() {
@@ -331,15 +332,32 @@
     };
   }
 
+  // dirty comparison ignores the internal _customized flags (vendorEdit.tsx hasUnsavedChanges)
+  function formSnapshot(f) {
+    return JSON.stringify({
+      name: f.name, address: f.address, description: f.description, image: f.image,
+      status: f.status, handle: f.handle, seoTitle: f.seoTitle, seoDescription: f.seoDescription,
+      seoKeywords: f.seoKeywords, template: f.template, sortOrder: f.sortOrder,
+      products: f.products.map((p) => ({ product_id: p.product_id, sort_order: p.sort_order })),
+    });
+  }
+  const isDirty = () => !!FORM && !!ORIG && formSnapshot(FORM) !== ORIG;
+
   function renderEdit(id) {
     IS_EDIT = id !== '0';
     if (IS_EDIT) {
       const src = D.DETAILS[id] || D.DETAILS[Number(id)];
       if (!src) { renderMissing(id); return; }
       FORM = JSON.parse(JSON.stringify(src));
+      // seed customization flags from loaded detail (loadVendorDetail behavior)
+      FORM._seoTitleCustom = !!FORM.seoTitle && FORM.seoTitle !== (FORM.name || '');
+      FORM._seoDescCustom = !!FORM.seoDescription && FORM.seoDescription !== (FORM.description || '');
+      FORM._handleCustom = !!FORM.handle;
     } else {
       FORM = blankForm();
+      FORM._seoTitleCustom = false; FORM._seoDescCustom = false; FORM._handleCustom = false;
     }
+    ORIG = formSnapshot(FORM);
     paintEdit();
   }
 
@@ -351,6 +369,8 @@
     const heading = IS_EDIT ? (f.name && f.name.trim() ? f.name : 'Edit vendor') : 'Add vendor';
 
     root.innerHTML =
+      // unsaved-changes warning bar (UnSavedChanges) — sticky dark bar at top when dirty
+      (isDirty() ? unsavedBar(IS_EDIT) : '') +
       // fixed 1200px centered container (matches real admin)
       '<div class="detail-wrap">' +
         // header
@@ -380,6 +400,18 @@
       '</div>';
 
     wireEdit();
+  }
+
+  // ---- Unsaved-changes dark bar (UnSavedChanges component) ----
+  // breaks out of the detail-wrap padding to span full width, sticky at top.
+  function unsavedBar(isEdit) {
+    return '<div style="position:sticky;top:0;z-index:30;margin:-20px -24px 16px;background:#242833;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:11px 24px;font-size:13.5px">' +
+      '<span style="font-weight:500">Unsaved changes</span>' +
+      '<div class="flex items-center gap-2">' +
+        '<button class="btn btn-default" data-act="discard" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">Discard</button>' +
+        '<button class="btn btn-primary" data-act="save">' + (isEdit ? 'Update' : 'Add vendor') + '</button>' +
+      '</div>' +
+    '</div>';
   }
 
   function cardOpen(titleHtml, rightHtml) {
@@ -534,7 +566,7 @@
   }
 
   function wireEdit() {
-    const back = root.querySelector('[data-act="back"]'); if (back) back.onclick = () => { location.hash = '#/vendors'; };
+    const back = root.querySelector('[data-act="back"]'); if (back) back.onclick = () => tryLeave();
 
     // form fields -> FORM (live; refresh SEO preview on name/desc change)
     const name = root.querySelector('#f-name');
@@ -542,18 +574,18 @@
       FORM.name = name.value;
       // keep SEO title + handle in sync when not customized (getNextSeoFields behavior)
       if (!FORM._seoTitleCustom) FORM.seoTitle = FORM.name;
-      if (!FORM._handleCustom) FORM.handle = handleFromName(FORM.name);
+      if (!IS_EDIT && !FORM._handleCustom) FORM.handle = handleFromName(FORM.name);
       const err = root.querySelector('#f-name-err'); if (err && FORM.name.trim()) err.style.display = 'none';
-      refreshSeoPreview();
+      refreshSeoPreview(); updateDirtyBar();
     };
-    const addr = root.querySelector('#f-address'); if (addr) addr.oninput = () => { FORM.address = addr.value; };
+    const addr = root.querySelector('#f-address'); if (addr) addr.oninput = () => { FORM.address = addr.value; updateDirtyBar(); };
     const desc = root.querySelector('#f-desc'); if (desc) desc.oninput = () => {
       FORM.description = desc.value;
       if (!FORM._seoDescCustom) FORM.seoDescription = FORM.description;
-      refreshSeoPreview();
+      refreshSeoPreview(); updateDirtyBar();
     };
-    const tpl = root.querySelector('#f-template'); if (tpl) tpl.onchange = () => { FORM.template = tpl.value; };
-    root.querySelectorAll('input[name="v-status"]').forEach((r) => r.onchange = () => { FORM.status = Number(r.value); });
+    const tpl = root.querySelector('#f-template'); if (tpl) tpl.onchange = () => { FORM.template = tpl.value; updateDirtyBar(); };
+    root.querySelectorAll('input[name="v-status"]').forEach((r) => r.onchange = () => { FORM.status = Number(r.value); updateDirtyBar(); });
 
     // products: sort select
     const vpSort = root.querySelector('#vp-sort'); if (vpSort) vpSort.onchange = () => { FORM.sortOrder = vpSort.value; paintEdit(); };
@@ -573,9 +605,17 @@
     const addImg = root.querySelector('[data-act="add-image"]'); if (addImg) addImg.onclick = () => openImageModal();
     const rmImg = root.querySelector('[data-act="rm-image"]'); if (rmImg) rmImg.onclick = () => { FORM.image = ''; paintEdit(); };
 
-    // footer
-    const save = root.querySelector('[data-act="save"]'); if (save) save.onclick = () => handleSave();
+    // footer + unsaved bar — both use data-act="save"; discard lives only in the bar
+    root.querySelectorAll('[data-act="save"]').forEach((b) => b.onclick = () => handleSave());
+    root.querySelectorAll('[data-act="discard"]').forEach((b) => b.onclick = () => handleDiscard());
     const del = root.querySelector('[data-act="delete"]'); if (del) del.onclick = () => openDeleteModal();
+  }
+
+  // surgical: toggle the dark bar only on the dirty-state transition so typing keeps focus
+  function updateDirtyBar() {
+    const barShown = !!root.querySelector('[data-act="discard"]');
+    const dirty = isDirty();
+    if (dirty !== barShown) paintEdit();
   }
 
   function refreshSeoPreview() {
@@ -621,8 +661,50 @@
       const nm = root.querySelector('#f-name'); if (nm) nm.focus();
       return;
     }
+    // commit: trim text fields, refresh the snapshot so the dirty bar clears (vendorEdit.tsx handleSave)
+    FORM.name = FORM.name.trim();
+    FORM.address = FORM.address.trim();
+    FORM.description = FORM.description.trim();
+    FORM.handle = FORM.handle.trim();
+    FORM.seoTitle = FORM.seoTitle.trim();
+    FORM.seoDescription = FORM.seoDescription.trim();
+    ORIG = formSnapshot(FORM);
     toast(IS_EDIT ? 'Updated successfully' : 'Added successfully');
-    if (!IS_EDIT) setTimeout(() => { location.hash = '#/vendors'; }, 350);
+    if (IS_EDIT) paintEdit();
+    else setTimeout(() => { location.hash = '#/vendors'; }, 350);
+  }
+
+  // Discard (UnSavedChanges bar) — confirm, then revert to original (edit) or reset+leave (new)
+  function handleDiscard() {
+    confirmModal({
+      title: 'Are you sure you want to discard changes?',
+      text: 'All unsaved changes will be lost',
+      okText: 'Discard',
+      onOk: () => {
+        if (IS_EDIT) {
+          const src = D.DETAILS[FORM.id] || D.DETAILS[Number(FORM.id)];
+          FORM = JSON.parse(JSON.stringify(src));
+          FORM._seoTitleCustom = !!FORM.seoTitle && FORM.seoTitle !== (FORM.name || '');
+          FORM._seoDescCustom = !!FORM.seoDescription && FORM.seoDescription !== (FORM.description || '');
+          FORM._handleCustom = !!FORM.handle;
+          ORIG = formSnapshot(FORM);
+          paintEdit();
+        } else {
+          location.hash = '#/vendors';
+        }
+      },
+    });
+  }
+
+  // Leave guard (onBeforeRouteLeave) — confirm if dirty before navigating back to the list
+  function tryLeave() {
+    if (!isDirty()) { location.hash = '#/vendors'; return; }
+    confirmModal({
+      title: 'Are you sure you want to leave?',
+      text: 'Unsaved changes will be lost',
+      okText: 'Exit',
+      onOk: () => { location.hash = '#/vendors'; },
+    });
   }
 
   // =====================================================================
@@ -707,72 +789,187 @@
   }
 
   // =====================================================================
-  //  ADD PRODUCTS MODAL  (AddProductsModal — searchable picker w/ checkboxes)
+  //  ADD PRODUCTS MODAL  (AddProductsModal.tsx — table picker: search field +
+  //  status multi-select + Product/Inventory/Price/Status/Vendor columns +
+  //  row checkboxes + pagination + "N/M products selected" footer)
   // =====================================================================
+  // numeric product status for the status filter: 1 Activated / 2 Deactivated / 5 Archived
+  const productStatusValue = (p) => p.is_del === 1 ? 5 : (p.is_show === 1 ? 1 : 2);
+  // Vendor column text (getVendorName): already in this vendor -> "in current vendor",
+  // else "in {vendor.name}" or "-"
+  const vendorCellText = (p, inCurrent) =>
+    inCurrent ? 'in current vendor' : (p.vendor && p.vendor.name ? 'in ' + p.vendor.name : '-');
+
   function openAddProductsModal() {
-    const selectedIds = new Set(FORM.products.map((p) => p.product_id));
-    const picked = new Set();           // newly checked this session
-    let q = '';
+    const PK = {
+      field: 'product_name', kw: '', kwApplied: '', status: [],
+      page: 1, size: 20,
+      // selectedMap: pre-seeded with products already in this vendor (re-selectable);
+      // on Add the full selected set replaces FORM.products (mergeVendorProducts).
+      selected: new Set(FORM.products.map((p) => p.product_id)),
+    };
+    const fieldOpts = D.PRODUCT_SEARCH_FIELDS.map((o) => '<option value="' + o.value + '"' + (o.value === PK.field ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
 
     const backdrop = h('<div class="modal-backdrop"></div>');
-    const m = h('<div class="modal" style="width:720px;max-width:94vw"></div>');
+    const m = h('<div class="modal" style="width:1040px;max-width:94vw"></div>');
     m.innerHTML =
       '<div class="modal-head flex items-center justify-between"><span>Add products</span><span class="drawer-x" data-x style="cursor:pointer">' + I.x + '</span></div>' +
-      '<div class="modal-body" style="padding:0">' +
-        '<div style="position:relative;padding:14px 18px;border-bottom:1px solid var(--hair)">' +
-          '<span style="position:absolute;left:30px;top:24px;color:var(--ink-muted)">' + I.search + '</span>' +
-          '<input class="filter-input" id="ap-q" placeholder="Search products" style="width:100%;padding-left:34px" />' +
-        '</div>' +
-        '<div id="ap-list" style="max-height:420px;overflow:auto"></div>' +
-      '</div>' +
-      '<div class="modal-foot"><span class="muted" id="ap-count" style="margin-right:auto;font-size:13px"></span>' +
-        '<button class="btn btn-default" data-cancel>Cancel</button>' +
-        '<button class="btn btn-primary" data-ok>Add</button></div>';
+      '<div class="modal-body" style="padding:18px"><div id="ap-root"></div></div>';
     backdrop.appendChild(m); document.body.appendChild(backdrop);
+    const host = m.querySelector('#ap-root');
 
-    const listEl = m.querySelector('#ap-list');
-    const countEl = m.querySelector('#ap-count');
-
-    function rows() {
-      const pool = D.PRODUCT_POOL.filter((p) => productTitle(p).toLowerCase().includes(q.toLowerCase()));
-      listEl.innerHTML = pool.map((p) => {
-        const already = selectedIds.has(p.product_id);
-        const checked = already || picked.has(p.product_id);
-        return '<label class="flex items-center gap-3" style="padding:10px 18px;border-bottom:1px solid var(--hair);cursor:' + (already ? 'default' : 'pointer') + ';' + (already ? 'opacity:.55' : '') + '">' +
-          '<input type="checkbox" data-pid="' + p.product_id + '"' + (checked ? ' checked' : '') + (already ? ' disabled' : '') + ' style="width:16px;height:16px;accent-color:var(--brand);flex:none" />' +
-          (p.image
-            ? '<div style="width:40px;height:40px;border-radius:6px;overflow:hidden;background:#f3f4f6;flex:none"><img src="' + p.image + '" alt="" style="width:100%;height:100%;object-fit:cover" /></div>'
-            : '<div style="width:40px;height:40px;border-radius:6px;background:#e5e7eb;display:grid;place-items:center;color:#9ca3af;font-size:11px;flex:none">IMG</div>') +
-          '<div style="flex:1;min-width:0"><div style="font-size:13.5px;color:var(--ink);font-weight:500">' + esc(productTitle(p)) + '</div>' +
-            '<div class="muted" style="font-size:12px">' + formatPrice(p) + ' · ' + (p.on_sale_stock || 0) + ' on sale' + (already ? ' · already added' : '') + '</div></div>' +
-        '</label>';
-      }).join('') || '<div class="muted" style="padding:30px;text-align:center">No products match “' + esc(q) + '”.</div>';
-      listEl.querySelectorAll('input[data-pid]:not([disabled])').forEach((cb) => cb.onchange = () => {
-        const pid = Number(cb.getAttribute('data-pid'));
-        if (cb.checked) picked.add(pid); else picked.delete(pid);
-        updateCount();
-      });
+    function pkFiltered() {
+      let rows = D.PRODUCT_POOL.slice();
+      if (PK.kwApplied) {
+        const q = PK.kwApplied.toLowerCase();
+        rows = rows.filter((p) => {
+          switch (PK.field) {
+            case 'product_spu': return (p.product_spu || '').toLowerCase().includes(q);
+            case 'product_sku': return (p.product_sku || '').toLowerCase().includes(q);
+            case 'product_id': return String(p.product_id).includes(q);
+            default: return productTitle(p).toLowerCase().includes(q);
+          }
+        });
+      }
+      if (PK.status.length) rows = rows.filter((p) => PK.status.includes(productStatusValue(p)));
+      return rows;
     }
-    function updateCount() { countEl.textContent = picked.size ? (picked.size + ' selected') : ''; }
 
-    rows(); updateCount();
-    const qInput = m.querySelector('#ap-q');
-    qInput.oninput = () => { q = qInput.value; rows(); };
+    function paint() {
+      const rows = pkFiltered();
+      const total = rows.length;
+      const pages = Math.max(1, Math.ceil(total / PK.size));
+      if (PK.page > pages) PK.page = pages;
+      const pageRows = rows.slice((PK.page - 1) * PK.size, (PK.page - 1) * PK.size + PK.size);
+      const statusLabel = PK.status.length ? PK.status.map((v) => (D.PRODUCT_STATUS_OPTIONS.find((o) => o.value === v) || {}).label).join(', ') : '';
+
+      host.innerHTML =
+        // filter bar: search field group + status multi-select
+        '<div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px">' +
+          '<div class="flex" style="width:418px">' +
+            '<select class="filter-select" id="ap-field" style="width:150px;border-top-right-radius:0;border-bottom-right-radius:0">' + fieldOpts + '</select>' +
+            '<div style="position:relative;flex:1">' +
+              '<input class="filter-input" id="ap-kw" placeholder="Search" value="' + esc(PK.kw) + '" style="width:100%;padding-left:12px;padding-right:32px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" />' +
+              '<span style="position:absolute;right:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="sel-trigger" id="ap-status" style="width:170px">' +
+            '<span class="' + (PK.status.length ? '' : 'muted') + '">' + (PK.status.length ? esc(statusLabel) : 'Status') + '</span>' + I.chevDown +
+          '</div>' +
+        '</div>' +
+        // applied status filter tag
+        (PK.status.length ? '<div class="flex gap-2" style="margin-bottom:8px"><span class="field-pill" data-clear-status>Status: ' + esc(statusLabel) + ' <span class="x">&times;</span></span></div>' : '') +
+        // table
+        '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden">' +
+        '<div style="max-height:430px;overflow:auto"><table class="tbl"><thead><tr>' +
+          '<th style="width:44px"></th><th style="width:340px">Product</th><th>Inventory quantity</th>' +
+          '<th style="width:150px">Price</th><th style="width:120px">Status</th><th style="width:160px">Vendor</th>' +
+        '</tr></thead><tbody id="ap-tbody">' +
+          (pageRows.length ? pageRows.map(pkRow).join('')
+            : '<tr><td colspan="6" style="text-align:center;padding:36px" class="muted">No products match these filters.</td></tr>') +
+        '</tbody></table></div></div>' +
+        // footer: "N/total products selected" + pager + Cancel/Add
+        '<div class="flex items-center justify-between" style="margin-top:14px;flex-wrap:wrap;gap:10px">' +
+          '<span class="muted" style="font-size:13px"><span id="ap-count">' + PK.selected.size + '</span>/' + total + ' products selected</span>' +
+          '<div class="flex items-center gap-3">' + pkPager(PK.page, pages) +
+            '<button class="btn btn-default" data-cancel>Cancel</button>' +
+            '<button class="btn btn-primary" data-ok>Add</button>' +
+          '</div>' +
+        '</div>';
+
+      // wire filter
+      const field = host.querySelector('#ap-field'); if (field) field.onchange = () => { PK.field = field.value; if (PK.kwApplied) { PK.page = 1; paint(); } };
+      const kw = host.querySelector('#ap-kw');
+      if (kw) {
+        kw.oninput = () => { PK.kw = kw.value; if (!kw.value.trim() && PK.kwApplied) { PK.kwApplied = ''; PK.page = 1; paint(); } };
+        const commit = () => { PK.kwApplied = PK.kw.trim(); PK.page = 1; paint(); };
+        kw.onkeydown = (e) => { if (e.key === 'Enter') commit(); };
+        kw.onblur = commit;
+      }
+      const statusChip = host.querySelector('#ap-status'); if (statusChip) statusChip.onclick = () => openPkStatusPopover(statusChip, PK, paint);
+      const clearStatus = host.querySelector('[data-clear-status]'); if (clearStatus) clearStatus.onclick = () => { PK.status = []; PK.page = 1; paint(); };
+      // row toggles (click anywhere on the row)
+      host.querySelectorAll('#ap-tbody tr[data-pid]').forEach((tr) => tr.onclick = () => {
+        const id = Number(tr.getAttribute('data-pid'));
+        if (PK.selected.has(id)) PK.selected.delete(id); else PK.selected.add(id);
+        paint();
+      });
+      // pager
+      host.querySelectorAll('.pg-item[data-page]').forEach((el) => el.onclick = () => { PK.page = Number(el.getAttribute('data-page')); paint(); });
+      // actions
+      host.querySelector('[data-cancel]').onclick = close;
+      host.querySelector('[data-ok]').onclick = onAdd;
+    }
+
+    function pkRow(p) {
+      const checked = PK.selected.has(p.product_id);
+      const inCurrent = FORM.products.some((e) => e.product_id === p.product_id);
+      const logo = p.image
+        ? '<div style="width:40px;height:40px;border-radius:6px;overflow:hidden;background:#f3f4f6;flex:none"><img src="' + p.image + '" alt="" style="width:100%;height:100%;object-fit:cover" /></div>'
+        : '<div style="width:40px;height:40px;border-radius:6px;background:#e5e7eb;display:grid;place-items:center;color:#9ca3af;font-size:11px;flex:none">IMG</div>';
+      return '<tr data-pid="' + p.product_id + '" style="cursor:pointer">' +
+        '<td><input type="checkbox"' + (checked ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);pointer-events:none" /></td>' +
+        '<td><div class="flex items-center gap-2">' + logo + '<span style="color:var(--ink)">' + esc(productTitle(p)) + '</span></div></td>' +
+        '<td class="muted" style="font-size:13px">' + inventoryText(p) + '</td>' +
+        '<td>' + formatPrice(p) + '</td>' +
+        '<td style="color:var(--ink)">' + productStatusText(p) + '</td>' +
+        '<td class="' + (inCurrent || (p.vendor && p.vendor.name) ? '' : 'muted') + '">' + esc(vendorCellText(p, inCurrent)) + '</td>' +
+      '</tr>';
+    }
+
+    function onAdd() {
+      // replace FORM.products with the full selected set, preserving prior order/data
+      const ids = Array.from(PK.selected);
+      const existing = new Map(FORM.products.map((p) => [p.product_id, p]));
+      const before = FORM.products.length;
+      FORM.products = ids.map((id, i) => {
+        const src = existing.get(id) || D.PRODUCT_POOL.find((x) => x.product_id === id);
+        return Object.assign({}, src, { sort_order: i + 1 });
+      });
+      const added = FORM.products.length - before;
+      close();
+      if (added > 0) toast(added + ' product' + (added > 1 ? 's' : '') + ' added');
+      paintEdit();
+    }
 
     const close = () => backdrop.remove();
     m.querySelector('[data-x]').onclick = close;
-    m.querySelector('[data-cancel]').onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
-    m.querySelector('[data-ok]').onclick = () => {
-      let n = FORM.products.length;
-      picked.forEach((pid) => {
-        const p = D.PRODUCT_POOL.find((x) => x.product_id === pid);
-        if (p && !FORM.products.some((e) => e.product_id === pid)) { n += 1; FORM.products.push(Object.assign({}, p, { sort_order: n })); }
-      });
-      close();
-      if (picked.size) toast(picked.size + ' product' + (picked.size > 1 ? 's' : '') + ' added');
-      paintEdit();
+    paint();
+  }
+
+  // status multi-select popover for the picker (AddProductsModal Status Select mode=multiple)
+  function openPkStatusPopover(anchor, PK, repaint) {
+    closePops();
+    const layer = h('<div class="pop-layer"></div>');
+    const pop = h('<div class="menu-pop" style="position:fixed;min-width:170px;padding:6px"></div>');
+    pop.innerHTML = D.PRODUCT_STATUS_OPTIONS.map((o) =>
+      '<label class="edit-check" style="padding:7px 10px;border-radius:6px">' +
+        '<input type="checkbox" data-v="' + o.value + '"' + (PK.status.includes(o.value) ? ' checked' : '') + ' />' +
+        '<span>' + esc(o.label) + '</span></label>').join('');
+    layer.appendChild(pop); document.body.appendChild(layer);
+    const r = anchor.getBoundingClientRect();
+    pop.style.top = (r.bottom + 6) + 'px'; pop.style.left = r.left + 'px';
+    pop.querySelectorAll('input[data-v]').forEach((cb) => cb.onchange = () => {
+      const val = Number(cb.getAttribute('data-v'));
+      if (cb.checked) { if (!PK.status.includes(val)) PK.status.push(val); }
+      else { PK.status = PK.status.filter((x) => x !== val); }
+      PK.page = 1; repaint();
+    });
+    setTimeout(() => document.addEventListener('mousedown', function hh(e) { if (!pop.contains(e.target) && !anchor.contains(e.target)) { closePops(); document.removeEventListener('mousedown', hh); } }), 0);
+  }
+
+  // compact pager for the picker modal
+  function pkPager(page, pages) {
+    const item = (label, p, opts) => {
+      opts = opts || {};
+      const cls = 'pg-item' + (opts.active ? ' active' : '') + (opts.disabled ? ' disabled' : '');
+      return '<span class="' + cls + '"' + (opts.disabled ? '' : ' data-page="' + p + '"') + '>' + label + '</span>';
     };
+    let nums = ''; const maxBtns = 7; let lo = 1, hi = pages;
+    if (pages > maxBtns) { lo = Math.max(1, page - 3); hi = Math.min(pages, lo + maxBtns - 1); lo = Math.max(1, hi - maxBtns + 1); }
+    for (let p = lo; p <= hi; p++) nums += item(String(p), p, { active: p === page });
+    return '<div class="pg">' + item('‹', page - 1, { disabled: page <= 1 }) + nums + item('›', page + 1, { disabled: page >= pages }) + '</div>';
   }
 
   // ---- Add-image modal (stand-in for SelectFile picker) ----
@@ -809,19 +1006,32 @@
     };
   }
 
-  // ---- Delete confirm modal (vendorEdit.tsx handleDelete) ----
-  function openDeleteModal() {
+  // ---- Generic confirm dialog (Ant Modal.confirm) — title + body lines + OK/Cancel ----
+  // text may contain \n which is rendered as line breaks.
+  function confirmModal({ title, text, okText, cancelText, onOk }) {
     const backdrop = h('<div class="modal-backdrop"></div>');
     const m = h('<div class="modal" style="width:440px"></div>');
+    const bodyHtml = String(text || '').split('\n').map((l) => esc(l)).join('<br/>');
     m.innerHTML =
-      '<div class="modal-head">Confirm to delete?</div>' +
-      '<div class="modal-body"><div class="muted" style="font-size:13.5px;line-height:1.6">Once deleted, the data cannot be retrieved.<br/>Please confirm before proceeding!</div></div>' +
-      '<div class="modal-foot"><button class="btn btn-default" data-cancel>Cancel</button><button class="btn btn-primary" data-ok style="background:var(--err)">Confirm</button></div>';
+      '<div class="modal-head">' + esc(title) + '</div>' +
+      '<div class="modal-body"><div class="muted" style="font-size:13.5px;line-height:1.6">' + bodyHtml + '</div></div>' +
+      '<div class="modal-foot"><button class="btn btn-default" data-cancel>' + esc(cancelText || 'Cancel') + '</button>' +
+        '<button class="btn btn-primary" data-ok>' + esc(okText || 'Confirm') + '</button></div>';
     backdrop.appendChild(m); document.body.appendChild(backdrop);
     const close = () => backdrop.remove();
     m.querySelector('[data-cancel]').onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
-    m.querySelector('[data-ok]').onclick = () => { close(); toast('Deleted successfully'); setTimeout(() => { location.hash = '#/vendors'; }, 350); };
+    m.querySelector('[data-ok]').onclick = () => { close(); if (onOk) onOk(); };
+  }
+
+  // ---- Delete confirm modal (vendorEdit.tsx handleDelete) ----
+  function openDeleteModal() {
+    confirmModal({
+      title: 'Confirm to delete?',
+      text: 'Once deleted, the data cannot be retrieved.\nPlease confirm before proceeding!',
+      okText: 'Confirm',
+      onOk: () => { toast('Deleted successfully'); setTimeout(() => { location.hash = '#/vendors'; }, 350); },
+    });
   }
 
   const closePops = () => document.querySelectorAll('.pop-layer').forEach((p) => p.remove());
