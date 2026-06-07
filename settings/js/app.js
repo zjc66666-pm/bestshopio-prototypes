@@ -1027,6 +1027,45 @@
   // sub-page ids: base | payments | currency | checkout | metafields |
   //   shippable-locations | shipping-rates. Deeper segments pre-seed drill state.
   // ===========================================================================
+  function renderRoles() {
+    const roles = [
+      { name: 'Store owner', desc: 'Full access to the store, billing and staff.', members: 1, system: true },
+      { name: 'Administrator', desc: 'Manage products, orders, customers, content and settings.', members: 2 },
+      { name: 'Staff', desc: 'Manage products and orders; no access to settings.', members: 3 },
+      { name: 'Fulfillment', desc: 'View and fulfill orders only.', members: 1 },
+    ];
+    root.innerHTML =
+      '<div class="set-narrow" style="width:980px">' +
+        '<div class="flex items-center justify-between" style="margin-bottom:16px">' +
+          '<div><div class="page-title">Roles</div><div class="muted" style="font-size:13px;margin-top:4px">Define what each role can access, then assign roles to staff.</div></div>' +
+          '<button class="btn btn-primary">Add role</button>' +
+        '</div>' +
+        '<div class="panel"><table class="tbl"><thead><tr><th>Role</th><th>Description</th><th class="num" style="width:120px">Members</th><th style="width:110px">Action</th></tr></thead><tbody>' +
+          roles.map((r) => '<tr><td style="font-weight:500;color:var(--ink)">' + r.name + (r.system ? ' <span class="pill pill-gray" style="padding:1px 8px;font-size:11px"><span class="dot"></span>System</span>' : '') + '</td><td class="muted">' + r.desc + '</td><td class="num">' + r.members + '</td><td>' + (r.system ? '<span class="muted">--</span>' : '<span class="lnk">Edit</span>') + '</td></tr>').join('') +
+        '</tbody></table></div>' +
+      '</div>';
+  }
+
+  function renderStaff() {
+    const staff = [
+      { name: 'Emma Whitfield', email: 'emma@minilizm.com', role: 'Store owner', status: 'Active', last: '2026-06-06 09:12' },
+      { name: 'Liam Carter', email: 'liam@minilizm.com', role: 'Administrator', status: 'Active', last: '2026-06-05 18:40' },
+      { name: 'Sophia Nguyen', email: 'sophia@minilizm.com', role: 'Staff', status: 'Active', last: '2026-06-04 11:05' },
+      { name: 'Noah Bennett', email: 'noah@minilizm.com', role: 'Fulfillment', status: 'Invited', last: '--' },
+    ];
+    const pillFor = (st) => st === 'Active' ? '<span class="pill pill-green"><span class="dot"></span>Active</span>' : '<span class="pill pill-orange"><span class="dot"></span>Invited</span>';
+    root.innerHTML =
+      '<div class="set-narrow" style="width:980px">' +
+        '<div class="flex items-center justify-between" style="margin-bottom:16px">' +
+          '<div><div class="page-title">Staff</div><div class="muted" style="font-size:13px;margin-top:4px">People who can log in and manage this store.</div></div>' +
+          '<button class="btn btn-primary">Add staff</button>' +
+        '</div>' +
+        '<div class="panel"><table class="tbl"><thead><tr><th>Name</th><th>Email</th><th style="width:150px">Role</th><th style="width:120px">Status</th><th style="width:170px">Last login</th></tr></thead><tbody>' +
+          staff.map((m) => '<tr><td style="font-weight:500;color:var(--ink)">' + m.name + '</td><td class="muted">' + m.email + '</td><td>' + m.role + '</td><td>' + pillFor(m.status) + '</td><td class="muted">' + m.last + '</td></tr>').join('') +
+        '</tbody></table></div>' +
+      '</div>';
+  }
+
   const ROUTES = {
     base: renderBase,
     payments: renderPayments,
@@ -1035,6 +1074,8 @@
     metafields: renderMetafields,
     'shippable-locations': renderLocations,
     'shipping-rates': renderRates,
+    roles: renderRoles,
+    staff: renderStaff,
   };
 
   function show(rest) {

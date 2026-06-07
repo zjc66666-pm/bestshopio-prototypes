@@ -42,6 +42,10 @@ window.NAV_SETTINGS = [
   { id: 'metafields',          label: 'Metafields',     icon: 'code',     route: '#/settings/metafields' },
   { id: 'shippable-locations', label: 'Ship locations', icon: 'pin',      route: '#/settings/shippable-locations' },
   { id: 'shipping-rates',      label: 'Shipping rates', icon: 'pin',      route: '#/settings/shipping-rates' },
+  { id: 'staffperms',          label: 'Staff and permissions', icon: 'userPen', route: '#/settings/roles', children: [
+    { id: 'roles', label: 'Roles', route: '#/settings/roles' },
+    { id: 'staff', label: 'Staff', route: '#/settings/staff' },
+  ] },
 ];
 
 /* route first-segment -> module folder to lazy-load (router uses this). */

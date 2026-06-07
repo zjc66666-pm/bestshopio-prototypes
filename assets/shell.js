@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260607h'; // cache-bust for lazy-loaded module scripts
+  var V = '20260607i'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -32,6 +32,7 @@
     chevDown: s('<path d="m6 9 6 6 6-6"/>'),
     caret: s('<path d="m9 18 6-6-6-6"/>'),
     menu: s('<path d="M3 6h18M3 12h18M3 18h18"/>'),
+    user: s('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
     x: s('<path d="M18 6 6 18M6 6l12 12"/>'),
     collections: s('<path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>'),
     vendors: s('<path d="M4 4h16l1 5a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/>'),
@@ -74,11 +75,43 @@
     return '<a class="nav-item' + (it.id === activeId ? ' active' : '') + '" href="' + it.route + '">' + icon + '<span>' + it.label + '</span></a>';
   }
 
-  function renderSidebar(ctx, activeId) {
-    var items = ctx.settings ? SETTINGS : MENU;
-    navEl.innerHTML = items.map(function (it) { return itemHtml(it, activeId); }).join('');
-    footEl.innerHTML = ctx.settings ? '' : '<a class="nav-item" href="#/settings/base">' + ICONS.settings + '<span>Settings</span></a>';
+  function renderSidebar(activeId) {
+    navEl.innerHTML = MENU.map(function (it) { return itemHtml(it, activeId); }).join('');
+    footEl.innerHTML = '<a class="nav-item' + (activeId === 'settings' ? ' active' : '') + '" href="#/settings/base">' + ICONS.settings + '<span>Settings</span></a>';
   }
+
+  // ---------- full-screen Settings modal (matches the live admin) ----------
+  var settingsModal = null;
+  function settingsNavItem(it, sub) {
+    var icon = ICONS[it.icon] || '';
+    if (it.children) {
+      var childActive = it.children.some(function (c) { return c.id === sub; });
+      var subs = it.children.map(function (c) { return '<a class="settings-sub' + (c.id === sub ? ' active' : '') + '" href="' + c.route + '">' + c.label + '</a>'; }).join('');
+      return '<div class="settings-group"><a class="settings-nav-item' + (childActive ? ' active-parent' : '') + '" href="' + it.route + '">' + icon + '<span>' + it.label + '</span></a><div class="settings-subs">' + subs + '</div></div>';
+    }
+    return '<a class="settings-nav-item' + (it.id === sub ? ' active' : '') + '" href="' + it.route + '">' + icon + '<span>' + it.label + '</span></a>';
+  }
+  function renderSettings(p) {
+    var sub = p.rest.split('/')[0] || 'base';
+    if (!settingsModal) {
+      settingsModal = document.createElement('div');
+      settingsModal.className = 'settings-modal';
+      settingsModal.innerHTML =
+        '<header class="settings-modal-head"><span class="settings-modal-title">Settings</span><a class="settings-modal-x" href="#/orders" title="Close">' + ICONS.x + '</a></header>' +
+        '<div class="settings-modal-body"><nav class="settings-nav scroll-thin"></nav><div class="settings-content scroll-thin" id="settings-content"></div></div>';
+      document.body.appendChild(settingsModal);
+    }
+    settingsModal.querySelector('.settings-nav').innerHTML = SETTINGS.map(function (it) { return settingsNavItem(it, sub); }).join('');
+    var contentEl = settingsModal.querySelector('#settings-content');
+    contentEl.innerHTML = '<div class="placeholder">Loading…</div>';
+    loadModule('settings').then(function () {
+      if (!parse().settings) return;
+      var v = window.VIEWS.settings;
+      if (v && v.render) v.render(contentEl, p.rest);
+      contentEl.scrollTop = 0;
+    });
+  }
+  function removeSettings() { if (settingsModal) { settingsModal.remove(); settingsModal = null; } }
 
   // ---------- lazy module loader ----------
   function loadScript(src) {
@@ -136,19 +169,19 @@
   // ---------- router ----------
   function dispatch() {
     var p = parse();
+    if (p.settings) { renderSettings(p); return; }   // settings = full-screen modal overlay
+    removeSettings();
     var moduleId = ROUTE_MODULE[p.first] || p.first;
-    var activeId = p.settings ? (p.rest.split('/')[0] || 'base') : p.first;
+    var activeId = p.first;
     if (p.first === 'analytics') { var asub = p.rest.split('/')[0]; activeId = asub ? 'analytics-' + asub : 'analytics'; }
-    renderSidebar(p, activeId);
-    settingsBar.style.display = p.settings ? 'flex' : 'none';
+    renderSidebar(activeId);
     if (current && current !== moduleId && window.VIEWS[current] && window.VIEWS[current].unmount) {
       try { window.VIEWS[current].unmount(); } catch (e) {}
     }
     if (moduleId === 'home') { renderHome(); current = 'home'; root.scrollTop = 0; return; }
-    var token = moduleId;
     root.innerHTML = '<div class="view-wrap"><div class="placeholder">Loading…</div></div>';
     loadModule(moduleId).then(function () {
-      if (parse().first !== p.first) return; // route changed while loading
+      if (parse().first !== p.first || parse().settings) return; // route changed while loading
       var v = window.VIEWS[moduleId];
       if (!v || !v.render) { root.innerHTML = '<div class="view-wrap"><div class="placeholder">Module “' + moduleId + '” not found.</div></div>'; return; }
       v.render(root, p.rest);
@@ -168,10 +201,13 @@
       '<header class="app-header">' +
         '<button class="sidebar-toggle" aria-label="Menu">' + ICONS.menu + '</button>' +
         '<a class="hdr-logo" href="#/home" title="Home"><span class="brand-mark">' + String(SITE.store || 'S').charAt(0) + '</span><span class="hdr-logo-name">' + (SITE.store || 'Store') + '</span></a>' +
+        '<div class="hdr-right">' +
+          '<button class="hdr-store">' + (SITE.store || 'Store') + ICONS.chevDown + '</button>' +
+          '<button class="hdr-user" aria-label="Account">' + ICONS.user + '</button>' +
+        '</div>' +
       '</header>' +
       '<div class="app-body">' +
         '<aside class="app-sidebar scroll-thin">' +
-          '<div class="settings-bar" style="display:none"><span>Settings</span><a class="set-close" href="#/orders" title="Close">' + ICONS.x + '</a></div>' +
           '<nav class="nav-scroll scroll-thin"></nav>' +
           '<div class="nav-footer"></div>' +
         '</aside>' +
@@ -180,7 +216,6 @@
 
     navEl = app.querySelector('.nav-scroll');
     footEl = app.querySelector('.nav-footer');
-    settingsBar = app.querySelector('.settings-bar');
     root = document.getElementById('root');
 
     // mobile drawer
