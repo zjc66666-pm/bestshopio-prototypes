@@ -108,7 +108,8 @@
     const pageRows = rows.slice(start, start + LST.size);
 
     const fieldOpts = D.SEARCH_FIELDS.map((o) => '<option value="' + o.value + '"' + (o.value === LST.kwType ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
-    const sortArrow = LST.sortDir === 'asc' ? ' &uarr;' : (LST.sortDir === 'desc' ? ' &darr;' : '');
+    const sortArrow = '<span class="sort-caret"><span style="color:' + (LST.sortDir === 'asc' ? 'var(--brand)' : 'var(--ctl)') + '">▲</span><span style="color:' + (LST.sortDir === 'desc' ? 'var(--brand)' : 'var(--ctl)') + '">▼</span></span>';
+    const sortTip = LST.sortDir === '' ? 'Click to sort ascending' : LST.sortDir === 'asc' ? 'Click to sort descending' : 'Click to cancel sorting';
 
     const tag = LST.kwApplied
       ? '<div class="flex gap-2 mt-3" id="filter-tags"><span class="field-pill" data-clear="kw">Collection name: ' + esc(LST.kwApplied) + ' <span class="x">&times;</span></span></div>'
@@ -141,7 +142,7 @@
             '<th style="width:38px"><input type="checkbox" id="sel-all" ' + (allOnPageSel ? 'checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer" /></th>' +
             '<th>Collection name</th>' +
             '<th style="width:150px">Type</th>' +
-            '<th style="width:200px;cursor:pointer" id="sort-pc">Product quantity' + sortArrow + '</th>' +
+            '<th style="width:200px;cursor:pointer;user-select:none" id="sort-pc" data-tip="' + sortTip + '">Product quantity' + sortArrow + '</th>' +
             '<th style="width:150px">Action</th>' +
           '</tr></thead>' +
           '<tbody id="col-tbody">' +

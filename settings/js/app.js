@@ -1078,7 +1078,23 @@
     staff: renderStaff,
   };
 
+  let curRest = '';
+  // settings dirty bar: any edit in the content flips the shell header to "You have unsaved changes"
+  function wireDirty() {
+    if (!root || root.__dirtyWired) return;
+    root.__dirtyWired = true;
+    const onEdit = () => {
+      if (!window.SettingsChrome) return;
+      window.SettingsChrome.setDirty(true, {
+        onDiscard: () => { show(curRest); if (window.SettingsChrome) window.SettingsChrome.setDirty(false); },
+        onUpdate: () => { toast('Updated successfully'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false); },
+      });
+    };
+    root.addEventListener('input', onEdit);
+    root.addEventListener('change', onEdit);
+  }
   function show(rest) {
+    curRest = rest || '';
     const parts = String(rest || '').split('/').filter(Boolean);
     const key = ROUTES[parts[0]] ? parts[0] : 'base';
     const sub = parts[1];
@@ -1087,6 +1103,7 @@
     rateProfile = (key === 'shipping-rates' && sub != null && sub !== '')
       ? (sub === 'new' ? 'new' : Number(decodeURIComponent(sub))) : null;
     ROUTES[key]();
+    wireDirty();
     if (root && root.parentElement) root.parentElement.scrollTop = 0;
   }
 

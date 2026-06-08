@@ -121,7 +121,8 @@
     if (LST.qtyApplied) tags.push('<span class="field-pill" data-clear="qty">Products quantity: ' + esc(qtyChipText) + ' <span class="x">&times;</span></span>');
     if (LST.status.length) tags.push('<span class="field-pill" data-clear="status">Status: ' + esc(statusLabel) + ' <span class="x">&times;</span></span>');
 
-    const sortArrow = LST.sortDir === 'asc' ? ' ↑' : LST.sortDir === 'desc' ? ' ↓' : '';
+    const sortArrow = '<span class="sort-caret"><span style="color:' + (LST.sortDir === 'asc' ? 'var(--brand)' : 'var(--ctl)') + '">▲</span><span style="color:' + (LST.sortDir === 'desc' ? 'var(--brand)' : 'var(--ctl)') + '">▼</span></span>';
+    const sortTip = LST.sortDir === '' ? 'Click to sort ascending' : LST.sortDir === 'asc' ? 'Click to sort descending' : 'Click to cancel sorting';
 
     root.innerHTML =
       '<div class="flex items-center justify-between mb-4">' +
@@ -161,7 +162,7 @@
           '<thead><tr>' +
             '<th style="width:30%">Vendor</th>' +
             '<th>Address</th>' +
-            '<th data-sort="qty" style="width:180px;cursor:pointer;user-select:none">Product quantity' + sortArrow + '</th>' +
+            '<th data-sort="qty" style="width:180px;cursor:pointer;user-select:none" data-tip="' + sortTip + '">Product quantity' + sortArrow + '</th>' +
             '<th style="width:140px">Status</th>' +
             '<th style="width:80px;text-align:center">Action</th>' +
           '</tr></thead>' +

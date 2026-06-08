@@ -59,11 +59,16 @@
 
   // ---- inventory cell (table.tsx renderInventoryStatus) ----
   function inventoryCell(p) {
-    const variants = p.spec_type === 1 ? ' · ' + p.variant_count + ' variants' : '';
-    const base = '<span style="color:var(--ink)">' + p.on_sale_stock.toLocaleString() + ' on sale</span><span class="muted">' + variants + '</span>';
-    if (p.inventory_status === 1) return '<div class="flex items-center gap-2">' + base + '<span class="pill pill-orange" style="padding:2px 9px">' + I.alert + ' Out of stock</span></div>';
-    if (p.inventory_status === 2) return '<div class="flex items-center gap-2">' + base + '<span class="pill pill-orange" style="padding:2px 9px">' + I.alert + ' Partial - Out of stock</span></div>';
-    return '<div>' + base + '</div>';
+    const onSale = '<span style="color:var(--ink)">' + p.on_sale_stock.toLocaleString() + ' on sale</span>';
+    // multi-variant: on-sale qty on line 1, variant count on line 2 (mirrors real admin)
+    const left = p.spec_type === 1
+      ? '<div style="line-height:1.45">' + onSale + '<div class="muted" style="font-size:13px">' + p.variant_count + ' variants</div></div>'
+      : '<div>' + onSale + '</div>';
+    let badge = '';
+    if (p.inventory_status === 1) badge = '<span class="pill pill-orange" style="padding:2px 9px;white-space:nowrap">' + I.alert + ' Out of stock</span>';
+    else if (p.inventory_status === 2) badge = '<span class="pill pill-orange" style="padding:2px 9px;white-space:nowrap">' + I.alert + ' Partial - Out of stock</span>';
+    // badge sits to the right of the qty block, vertically centered, never wrapping
+    return badge ? '<div class="flex items-center gap-3">' + left + badge + '</div>' : left;
   }
 
   // ================= LIST VIEW =================
@@ -117,12 +122,17 @@
   const tabCount = (key) => key === 0 ? D.PRODUCTS.length : D.PRODUCTS.filter((p) => STATUS_TAB[statusOf(p)] === key).length;
   const selectedRows = () => D.PRODUCTS.filter((p) => LST.sel[p.product_id]);
 
-  // sort-arrow caret for a sortable column header
+  // sort-arrow caret for a sortable column header (stacked ▲▼ with breathing room)
   function sortCaret(field) {
     const active = LST.sortField === field;
-    const up = '<span style="font-size:9px;line-height:7px;color:' + (active && LST.sortOrder === 'asc' ? 'var(--brand)' : 'var(--ctl)') + '">▲</span>';
-    const dn = '<span style="font-size:9px;line-height:7px;color:' + (active && LST.sortOrder === 'desc' ? 'var(--brand)' : 'var(--ctl)') + '">▼</span>';
-    return '<span style="display:inline-flex;flex-direction:column;margin-left:4px;vertical-align:middle">' + up + dn + '</span>';
+    const up = active && LST.sortOrder === 'asc' ? 'var(--brand)' : 'var(--ctl)';
+    const dn = active && LST.sortOrder === 'desc' ? 'var(--brand)' : 'var(--ctl)';
+    return '<span class="sort-caret"><span style="color:' + up + '">▲</span><span style="color:' + dn + '">▼</span></span>';
+  }
+  // antd-style 3-state sort tooltip text for the next click
+  function sortTip(field) {
+    if (LST.sortField !== field) return 'Click to sort ascending';
+    return LST.sortOrder === 'asc' ? 'Click to sort descending' : 'Click to cancel sorting';
   }
 
   function renderList() {
@@ -203,8 +213,8 @@
           '<thead><tr>' +
             '<th style="width:38px"><input type="checkbox" id="sel-all" ' + (allOnPageSel ? 'checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer" /></th>' +
             '<th>Product</th>' +
-            '<th style="width:150px;cursor:pointer;user-select:none" data-sort="price">Price' + sortCaret('price') + '</th>' +
-            '<th style="width:300px;cursor:pointer;user-select:none" data-sort="stock">Inventory quantity' + sortCaret('stock') + '</th>' +
+            '<th style="width:150px;cursor:pointer;user-select:none" data-sort="price" data-tip="' + sortTip('price') + '">Price' + sortCaret('price') + '</th>' +
+            '<th style="width:300px;cursor:pointer;user-select:none" data-sort="stock" data-tip="' + sortTip('stock') + '">Inventory quantity' + sortCaret('stock') + '</th>' +
             '<th style="width:150px">Status</th><th style="width:80px;text-align:center">Action</th>' +
           '</tr></thead>' +
           '<tbody id="pr-tbody">' +
@@ -326,21 +336,21 @@
   function openPricePopover(anchor) {
     closePops();
     const layer = h('<div class="pop-layer"></div>');
-    const pop = h('<div class="menu-pop" style="position:fixed;min-width:260px;padding:14px"></div>');
+    const pop = h('<div class="menu-pop" style="position:fixed;width:360px;padding:16px"></div>');
     pop.innerHTML =
-      '<div class="ctrl-label" style="margin-bottom:8px">Price range</div>' +
       '<div class="flex items-center gap-2">' +
-        '<input class="input" id="pr-min" placeholder="Min" type="number" value="' + esc(LST.priceMin) + '" style="width:96px" />' +
-        '<span class="muted">to</span>' +
-        '<input class="input" id="pr-max" placeholder="Max" type="number" value="' + esc(LST.priceMax) + '" style="width:96px" />' +
+        '<div class="pr-field"><span class="pr-cur">$</span><input class="pr-input" id="pr-min" placeholder="Minimum value" type="number" value="' + esc(LST.priceMin) + '" /></div>' +
+        '<span class="muted">-</span>' +
+        '<div class="pr-field"><span class="pr-cur">$</span><input class="pr-input" id="pr-max" placeholder="Maximum value" type="number" value="' + esc(LST.priceMax) + '" /></div>' +
       '</div>' +
       '<div class="flex justify-end gap-2 mt-3">' +
         '<button class="btn btn-default" data-x>Clear</button>' +
-        '<button class="btn btn-primary" data-apply>Apply</button>' +
+        '<button class="btn btn-primary" data-apply>Confirm</button>' +
       '</div>';
     layer.appendChild(pop); document.body.appendChild(layer);
     const r = anchor.getBoundingClientRect();
-    pop.style.top = (r.bottom + 6) + 'px'; pop.style.left = r.left + 'px';
+    pop.style.top = (r.bottom + 6) + 'px';
+    pop.style.left = Math.max(8, r.right - 360) + 'px'; // right-align under the trigger (matches real admin)
     pop.querySelector('[data-apply]').onclick = () => {
       LST.priceMin = pop.querySelector('#pr-min').value;
       LST.priceMax = pop.querySelector('#pr-max').value;
@@ -531,12 +541,13 @@
   }
 
   // ---- card shell for edit sections (Ant Card + Card.Meta header) ----
-  function card(titleHtml, bodyHtml, right) {
-    return '<div class="panel card-pad mb-4">' +
+  // main-column sections get a grey fill (matches real admin); pass plain=true for the white right-rail cards
+  function card(titleHtml, bodyHtml, right, plain) {
+    return '<div class="panel card-pad mb-4' + (plain ? '' : ' sec-grey') + '">' +
       '<div class="flex items-center justify-between mb-3"><div class="card-title">' + titleHtml + '</div>' + (right || '') + '</div>' +
       bodyHtml + '</div>';
   }
-  const lbl = (t, hint) => '<div class="ctrl-label" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:500;color:var(--ink);margin-bottom:0">' +
+  const lbl = (t, hint) => '<div class="ctrl-label" style="text-transform:none;letter-spacing:normal;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:0">' +
     '<span class="flex items-center gap-1">' + t + (hint ? '<span class="muted" title="' + esc(hint) + '" style="cursor:help;display:inline-flex">' + I.help + '</span>' : '') + '</span></div>';
   const field = (id, label, val, ph, hint) => '<div class="mb-3">' + lbl(label, hint) +
     '<input class="input" id="' + id + '" value="' + esc(val == null ? '' : val) + '" placeholder="' + esc(ph || '') + '" style="margin-top:4px" /></div>';
@@ -873,7 +884,7 @@
         '<span class="' + (catLabel ? '' : 'muted') + '" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="set-category-label">' + esc(catLabel || 'Choose a category') + '</span>' +
         I.chevDown +
       '</div></div>';
-    return card('Product Settings', body);
+    return card('Product Settings', body, null, true);
   }
 
   // SEO URL prefix (settings.tsx urlPrefix: VITE_SHOP_URL + /listing/{product_id}/).
@@ -890,7 +901,7 @@
       '<div style="font-size:13.5px;color:var(--brand);word-break:break-word">' + esc(s.metaTitle || EDIT.name || 'Blank Title') + '</div>' +
       '<div class="muted" style="font-size:13px;word-break:break-word;margin-top:2px">' + esc(s.metaDescription || EDIT.description || 'Blank Description') + '</div>';
     const right = '<button class="back-btn" data-act="seo" title="Edit SEO" style="width:30px;height:30px">' + I.edit3 + '</button>';
-    return card('Search engine optimization', body, right);
+    return card('Search engine optimization', body, right, true);
   }
 
   // Right rail — theme template (settings.tsx; only when isEdit)
@@ -900,7 +911,7 @@
     const body = '<select class="input" id="set-template">' + opts + '</select>' +
       '<div class="muted" style="font-size:12px;margin-top:8px">Choose how you\'d like the page to look like</div>' +
       ((s.homeTemplate && s.homeTemplate !== 'default') ? '<div class="lnk" style="margin-top:6px" data-act="design">Design</div>' : '');
-    return card('Theme template', body);
+    return card('Theme template', body, null, true);
   }
 
   // ---- wire edit interactions ----
@@ -929,7 +940,7 @@
     all('[data-hl-del]').forEach((b) => b.onclick = () => { EDIT.highlights.splice(Number(b.getAttribute('data-hl-del')), 1); markDirty(); rerenderMain(isEdit); });
 
     // images — empty-state buttons
-    const iu = q('[data-img-upload]'); if (iu) iu.onclick = () => { addMockImage(); markDirty(); rerenderMain(isEdit); };
+    const iu = q('[data-img-upload]'); if (iu) iu.onclick = () => pickLocalFiles((added) => { added.forEach((f) => EDIT.images.push({ uid: f.uid, name: f.name, url: f.url })); markDirty(); rerenderMain(isEdit); });
     const is = q('[data-img-select]'); if (is) is.onclick = () => openSelectFileModal(isEdit);
     // images — grid: add tile, delete, expand/collapse, drag reorder
     const at = q('[data-img-add-tile]'); if (at) at.onclick = () => openSelectFileModal(isEdit);
@@ -949,7 +960,7 @@
     // variants toggle (confirm dialog like Variants.tsx)
     const hv = q('#has-variants'); if (hv) hv.onchange = () => {
       modal({
-        title: 'Tip', width: 460, okText: 'OK',
+        title: 'Tip', width: 460, okText: 'OK', icon: 'warn', hideX: true,
         body: '<div class="muted" style="font-size:13.5px;line-height:1.6">' + (isEdit
           ? 'The product Variant ID will be changed. This may impact ad performance, marketing and inventory data management.'
           : "Make sure you've filled in all product variant information. Any change you make here may affect your ad performance, marketing, and inventory.") + '</div>',
@@ -1096,8 +1107,29 @@
     el.oninput = () => { fn(el.value === '' ? undefined : Number(el.value)); markDirty(); };
   }
 
-  function addMockImage() {
-    EDIT.images.push({ uid: 'n' + Date.now(), name: 'image.png', url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="6" fill="%23cbd5e1"/><text x="32" y="38" font-size="11" fill="%2364748b" text-anchor="middle" font-family="sans-serif">NEW</text></svg>') });
+  // open the OS file picker (or accept a drop); read images/videos via FileReader as real media
+  function readFiles(fileList, onDone) {
+    const files = Array.from(fileList || []);
+    if (!files.length) { onDone([]); return; }
+    let pending = files.length; const added = [];
+    files.forEach((f) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          const ext = (f.name.split('.').pop() || '').toUpperCase();
+          added.push({ uid: 'u' + Date.now() + Math.round(Math.random() * 1e6), name: f.name, url: reader.result, kind: (f.type || '').indexOf('video') === 0 ? 'video' : 'image', ext: ext });
+        }
+        if (--pending === 0) onDone(added);
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+  function pickLocalFiles(onPick) {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*,video/*'; inp.multiple = true; inp.style.display = 'none';
+    document.body.appendChild(inp);
+    inp.onchange = () => readFiles(inp.files, (added) => { document.body.removeChild(inp); if (added.length) onPick(added); });
+    inp.click();
   }
 
   // image drag-reorder (AddImageVideo handleDragStart/Over/Drop)
@@ -1151,57 +1183,128 @@
   }
 
   // ================= MODALS / DRAWERS =================
-  function modal({ title, body, width, okText, onOk, onCancel, danger }) {
+  function modal({ title, body, width, okText, onOk, onCancel, danger, icon, hideX }) {
     const backdrop = h('<div class="modal-backdrop"></div>');
     const m = h('<div class="modal"></div>');
     if (width) m.style.width = width + 'px';
+    const iconHtml = icon === 'warn' ? '<span class="modal-warn">' + svg('<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>', 18) + '</span>' : '';
     m.innerHTML =
-      '<div class="modal-head flex items-center justify-between"><span>' + (title || '') + '</span>' +
-        '<span class="drawer-x" data-x style="cursor:pointer">' + I.x + '</span></div>' +
+      '<div class="modal-head flex items-center justify-between"><span class="flex items-center gap-2">' + iconHtml + (title || '') + '</span>' +
+        (hideX ? '' : '<span class="drawer-x" data-x style="cursor:pointer">' + I.x + '</span>') + '</div>' +
       '<div class="modal-body">' + body + '</div>' +
       '<div class="modal-foot"><button class="btn btn-default" data-cancel>Cancel</button>' +
         '<button class="btn ' + (danger ? 'btn-default danger-btn' : 'btn-primary') + '" data-ok>' + (okText || 'Save') + '</button></div>';
     backdrop.appendChild(m); document.body.appendChild(backdrop);
     const close = () => backdrop.remove();
     const cancel = () => { close(); if (onCancel) onCancel(); };
-    m.querySelector('[data-x]').onclick = cancel;
+    const xEl = m.querySelector('[data-x]'); if (xEl) xEl.onclick = cancel;
     m.querySelector('[data-cancel]').onclick = cancel;
     backdrop.onclick = (e) => { if (e.target === backdrop) cancel(); };
     m.querySelector('[data-ok]').onclick = () => onOk(m, close);
     return { m, close };
   }
 
-  // SelectFile modal (SelectFile component) — pick from media library or upload new
+  // Media library (mixed file types) backing the SelectFile modal — mirrors the real admin's asset list
+  function buildMediaLibrary() {
+    const imgs = D.PRODUCTS.map((p) => p.image);
+    const NAMES = ['product-main', 'front-view', 'back-view', 'detail-shot', 'size-chart', 'fabric-closeup', 'model-pose', 'flat-lay', 'packaging', 'lifestyle', 'swatch-card', 'hangtag'];
+    const IMG_EXT = ['WEBP', 'JPG', 'PNG', 'WEBP', 'WEBP', 'PNG', 'WEBP', 'JPG'];
+    const out = [];
+    for (let i = 0; i < 26; i++) {
+      out.push({ id: 'f' + i, name: NAMES[i % NAMES.length] + (i >= NAMES.length ? '-' + (Math.floor(i / NAMES.length) + 1) : ''), ext: IMG_EXT[i % IMG_EXT.length], kind: 'image', url: imgs[i % imgs.length] });
+    }
+    // sprinkle videos + a raw asset bundle so the type filter has something to do
+    out.splice(3, 0, { id: 'v1', name: 'product-demo', ext: 'WEBM', kind: 'video', url: imgs[2] });
+    out.splice(8, 0, { id: 'v2', name: 'unboxing-clip', ext: 'MP4', kind: 'video', url: imgs[6 % imgs.length] });
+    out.splice(13, 0, { id: 'z1', name: 'brand-assets', ext: 'ZIP', kind: 'raw' });
+    return out;
+  }
+
+  // SelectFile modal — media library picker (search + type + sort + drop zone + grid + pager), mirrors real admin
   function openSelectFileModal(isEdit) {
-    const lib = [
-      { name: 'leggings-front.jpg', url: D.PRODUCTS[0].image }, { name: 'leggings-back.jpg', url: D.PRODUCTS[1].image },
-      { name: 'sleeve.jpg', url: D.PRODUCTS[2].image }, { name: 'short.jpg', url: D.PRODUCTS[3].image },
-      { name: 'capri.jpg', url: D.PRODUCTS[4].image }, { name: 'bra.jpg', url: D.PRODUCTS[6].image },
-      { name: 'bodysuit.jpg', url: D.PRODUCTS[7].image }, { name: 'sock.jpg', url: D.PRODUCTS[8].image },
-    ];
-    const sel = {};
-    const grid = lib.map((f, i) =>
-      '<div data-lib="' + i + '" style="position:relative;border:2px solid var(--hair);border-radius:8px;overflow:hidden;cursor:pointer;aspect-ratio:1">' +
-        '<img src="' + f.url + '" style="width:100%;height:100%;object-fit:cover" />' +
-        '<span class="lib-check" style="position:absolute;right:6px;top:6px;width:18px;height:18px;border-radius:4px;border:1px solid var(--ctl);background:#fff;display:none;place-items:center;color:var(--brand)">' + svg('<path d="M20 6 9 17l-5-5"/>', 12) + '</span>' +
-      '</div>').join('');
+    const FILES = buildMediaLibrary();
+    const PAGE = 18;
+    const st = { q: '', type: 'all', sort: 'new', page: 1, sel: {} };
+    const SRCH = svg('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', 15);
+    const CHK = svg('<path d="M20 6 9 17l-5-5"/>', 12);
+    const PLAY = svg('<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>', 22);
+
     const ctrl = modal({
-      title: 'Select file', width: 720, okText: 'Confirm',
-      body: '<div class="flex items-center justify-between mb-3"><div class="muted" style="font-size:13px">Choose from your media library, or upload a new file.</div>' +
-        '<button class="btn btn-default" id="sf-upload">Upload new</button></div>' +
-        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">' + grid + '</div>',
+      title: 'Select file', width: 860, okText: 'Done',
+      body:
+        '<div class="sf-toolbar">' +
+          '<div class="sf-search"><span class="ic">' + SRCH + '</span><input id="sf-q" placeholder="Search by file name" /></div>' +
+          '<select class="filter-select" id="sf-type" style="width:130px">' +
+            '<option value="all">All</option><option value="image">Images</option><option value="video">Videos</option><option value="raw">Other</option>' +
+          '</select>' +
+          '<select class="filter-select" id="sf-sort" style="width:210px">' +
+            '<option value="new">Date added (newest first)</option><option value="old">Date added (oldest first)</option><option value="name">File name (A–Z)</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="sf-drop"><div>Drag and drop images, videos</div><button class="btn btn-default" id="sf-upload">Upload new</button></div>' +
+        '<div class="sf-grid" id="sf-grid"></div>' +
+        '<div class="sf-pager" id="sf-pager"></div>',
       onOk: (m, close) => {
-        const picked = Object.keys(sel).filter((k) => sel[k]).map((k) => lib[Number(k)]);
-        if (picked.length) { picked.forEach((f) => EDIT.images.push({ uid: 'm' + Date.now() + Math.random(), name: f.name, url: f.url })); markDirty(); }
+        const picked = FILES.filter((f) => st.sel[f.id] && f.kind !== 'raw');
+        if (picked.length) { picked.forEach((f) => EDIT.images.push({ uid: 'm' + Date.now() + Math.random(), name: f.name + '.' + f.ext.toLowerCase(), url: f.url })); markDirty(); }
         close(); rerenderMain(isEdit);
       },
     });
-    ctrl.m.querySelectorAll('[data-lib]').forEach((c) => c.onclick = () => {
-      const i = c.getAttribute('data-lib'); sel[i] = !sel[i];
-      c.style.borderColor = sel[i] ? 'var(--brand)' : 'var(--hair)';
-      const ck = c.querySelector('.lib-check'); ck.style.display = sel[i] ? 'grid' : 'none';
-    });
-    ctrl.m.querySelector('#sf-upload').onclick = () => { addMockImage(); markDirty(); ctrl.close(); rerenderMain(isEdit); };
+    const m = ctrl.m;
+    const grid = m.querySelector('#sf-grid');
+    const pager = m.querySelector('#sf-pager');
+
+    function view() {
+      let list = FILES.slice();
+      const q = st.q.trim().toLowerCase();
+      if (q) list = list.filter((f) => (f.name + '.' + f.ext).toLowerCase().indexOf(q) >= 0);
+      if (st.type !== 'all') list = list.filter((f) => f.kind === st.type);
+      if (st.sort === 'old') list.reverse();
+      else if (st.sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+      return list;
+    }
+    function tile(f) {
+      const inner = f.kind === 'raw'
+        ? '<span class="sf-raw">' + esc(f.ext) + '</span>'
+        : '<img src="' + f.url + '" />' + (f.kind === 'video' ? '<span class="sf-play">' + PLAY + '</span>' : '');
+      return '<div class="sf-tile' + (st.sel[f.id] ? ' sel' : '') + '" data-id="' + f.id + '">' +
+        '<div class="sf-thumb">' + inner + '<span class="sf-check">' + CHK + '</span></div>' +
+        '<div class="sf-name" title="' + esc(f.name + '.' + f.ext.toLowerCase()) + '">' + esc(f.name) + '</div>' +
+        '<div class="sf-type">' + esc(f.ext) + '</div>' +
+      '</div>';
+    }
+    function pagerHtml(page, pages) {
+      if (pages <= 1) return '';
+      const it = (lbl, p, d, a) => '<span class="pg-item' + (a ? ' active' : '') + (d ? ' disabled' : '') + '"' + (d ? '' : ' data-p="' + p + '"') + '>' + lbl + '</span>';
+      let s = it('‹', page - 1, page <= 1);
+      for (let p = 1; p <= pages; p++) s += it(String(p), p, false, p === page);
+      s += it('›', page + 1, page >= pages);
+      return '<div class="pg">' + s + '</div>';
+    }
+    function render() {
+      const list = view();
+      const pages = Math.max(1, Math.ceil(list.length / PAGE));
+      if (st.page > pages) st.page = pages;
+      const items = list.slice((st.page - 1) * PAGE, st.page * PAGE);
+      grid.innerHTML = items.length ? items.map(tile).join('') : '<div class="muted" style="grid-column:1/-1;text-align:center;padding:48px 0">No files found.</div>';
+      pager.innerHTML = pagerHtml(st.page, pages);
+      grid.querySelectorAll('.sf-tile').forEach((t) => t.onclick = () => { const id = t.getAttribute('data-id'); st.sel[id] = !st.sel[id]; t.classList.toggle('sel', st.sel[id]); });
+      pager.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => { st.page = Number(b.getAttribute('data-p')); render(); });
+    }
+    render();
+    m.querySelector('#sf-q').oninput = (e) => { st.q = e.target.value; st.page = 1; render(); };
+    m.querySelector('#sf-type').onchange = (e) => { st.type = e.target.value; st.page = 1; render(); };
+    m.querySelector('#sf-sort').onchange = (e) => { st.sort = e.target.value; st.page = 1; render(); };
+    // Upload new / drag-drop: read real files, add to the library grid, auto-select them
+    function ingest(added) {
+      added.forEach((f) => { FILES.unshift({ id: f.uid, name: f.name.replace(/\.[^.]+$/, ''), ext: f.ext || 'IMG', kind: f.kind, url: f.url }); st.sel[f.uid] = true; });
+      st.page = 1; render();
+    }
+    m.querySelector('#sf-upload').onclick = () => pickLocalFiles(ingest);
+    const drop = m.querySelector('.sf-drop');
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('drag'); readFiles(e.dataTransfer.files, ingest); });
   }
 
   // SKU-row image picker (SelectFile, single)
@@ -1418,7 +1521,7 @@
     '.rt-btn:hover{background:#fff;border-color:var(--hair);color:var(--ink)}' +
     '.rt-sep{width:1px;height:18px;background:var(--hair);margin:0 4px}' +
     '.rt-select{height:28px;border:1px solid var(--hair);border-radius:6px;background:#fff;color:var(--ink-body);font-size:12.5px;padding:0 4px;cursor:pointer}' +
-    '.rt-editor{min-height:200px;padding:12px 14px;font-size:13px;color:var(--ink);outline:none;line-height:1.6;overflow:auto}' +
+    '.rt-editor{min-height:200px;padding:12px 14px;font-size:14px;color:var(--ink);outline:none;line-height:1.6;overflow:auto;background:#fff}' +
     '.rt-editor:empty:before{content:attr(data-ph);color:var(--ink-muted)}' +
     '.rt-editor h1,.rt-editor h2,.rt-editor h3{margin:.4em 0;font-weight:600}.rt-editor h2{font-size:1.25em}.rt-editor h3{font-size:1.1em}' +
     '.rt-editor p{margin:.4em 0}.rt-editor ul,.rt-editor ol{margin:.4em 0;padding-left:1.4em}' +

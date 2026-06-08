@@ -158,8 +158,11 @@
             '</div>' +
             '<div class="flex" style="min-width:428px">' +
               '<select class="filter-select" id="time-type" style="width:160px;border-top-right-radius:0;border-bottom-right-radius:0">' + timeOpts + '</select>' +
-              '<input class="filter-input" id="date-start" type="text" placeholder="Start date" value="' + esc(LST.dateStart) + '" style="width:135px;border-radius:0;margin-left:-1px;padding-left:12px" onfocus="this.type=\'date\'" />' +
-              '<input class="filter-input" id="date-end" type="text" placeholder="End date" value="' + esc(LST.dateEnd) + '" style="width:135px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px;padding-left:12px" onfocus="this.type=\'date\'" />' +
+              // dual-month English range picker (widgets.js) — hidden inputs keep ids so wireList reads them
+              '<div class="ui-range filter-input" data-ui-range style="width:268px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px;padding-left:12px;padding-right:10px">' +
+                '<input type="hidden" id="date-start" data-range="start" value="' + esc(LST.dateStart) + '" />' +
+                '<input type="hidden" id="date-end" data-range="end" value="' + esc(LST.dateEnd) + '" />' +
+              '</div>' +
             '</div>' +
             '<div class="sel-trigger" id="total-chip" style="width:240px">' +
               '<span class="' + (LST.totalApplied ? '' : 'muted') + '">' + esc(totalChipText) + '</span>' + I.chevDown +
@@ -245,8 +248,10 @@
     const timeType = root.querySelector('#time-type');
     if (timeType) timeType.onchange = () => { LST.timeType = timeType.value; };
     const ds = root.querySelector('#date-start'), de = root.querySelector('#date-end');
-    if (ds) ds.onchange = () => { LST.dateStart = ds.value; LST.page = 1; renderList(); };
-    if (de) de.onchange = () => { LST.dateEnd = de.value; LST.page = 1; renderList(); };
+    // range picker writes both hidden inputs then fires change on #date-end only -> one re-render
+    const applyDates = () => { LST.dateStart = ds ? ds.value : ''; LST.dateEnd = de ? de.value : ''; LST.page = 1; renderList(); };
+    if (ds) ds.onchange = applyDates;
+    if (de) de.onchange = applyDates;
     const chip = root.querySelector('#total-chip');
     if (chip) chip.onclick = () => openTotalPopover(chip);
     root.querySelectorAll('#filter-tags [data-clear]').forEach((tg) => tg.onclick = () => {

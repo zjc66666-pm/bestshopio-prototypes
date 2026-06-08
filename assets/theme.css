@@ -25,7 +25,7 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
   background: transparent;
-  border-right: none;
+  border-right: 1px solid var(--hair);
   display: flex; flex-direction: column;
   height: 100%;
 }
@@ -40,7 +40,7 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
 .nav-ico { width: 18px; height: 18px; flex: 0 0 18px; color: var(--ink-muted); }
 .nav-badge { margin-left: auto; font-size: 12px; color: var(--ink-muted); }
 .nav-item.active .nav-badge { color: var(--brand); }
-.nav-sub { display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 43px; border-radius: var(--radius); color: var(--ink-body); font-size: 13.5px; cursor: pointer; }
+.nav-sub { display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 38px; border-radius: var(--radius); color: var(--ink-body); font-size: 13.5px; cursor: pointer; }
 .nav-sub:hover { background: var(--panel); }
 .nav-sub.active { background: #e6f0ff; color: var(--brand); font-weight: 600; }
 .nav-caret { margin-left: auto; transition: transform .15s; color: var(--ink-muted); }
@@ -77,6 +77,9 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
 
 /* ---------- Cards ---------- */
 .panel { background: #fff; border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 1px 2px 0 rgb(16 24 40 / 4%); }
+/* main product-edit sections: grey fill, white controls inside (mirrors real admin Add product) */
+.panel.sec-grey { background: var(--panel); }
+.sec-grey .tbl, .sec-grey textarea { background: #fff; }
 .card-pad { padding: 16px; }
 .card-title { font-size: 14px; font-weight: 600; color: var(--ink); }
 .card-link-title { font-size: 14px; font-weight: 600; color: var(--brand); cursor: pointer; }
@@ -97,6 +100,14 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
 /* Back button — match bestvoy-admin .back-button */
 .back-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: #eef0f7; border: none; border-radius: 8px; color: var(--ink); cursor: pointer; transition: background-color .2s; flex: none; }
 .back-btn:hover { background: #e2e6f1; }
+/* row-action icons inside list tables: plain icon, grey only on hover (matches real admin) */
+.tbl .back-btn { background: transparent; }
+.tbl .back-btn:hover { background: #eef0f7; }
+/* sortable column header: stacked caret with breathing room + 3-state hover tooltip */
+.sort-caret { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; margin-left: 6px; vertical-align: middle; line-height: 1; }
+.sort-caret span { font-size: 8px; line-height: 8px; }
+.tbl th[data-tip] { position: relative; }
+.tbl th[data-tip]:hover::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 12px; white-space: nowrap; background: var(--ink); color: #fff; font-size: 12px; font-weight: 400; padding: 5px 9px; border-radius: 6px; box-shadow: var(--float-shadow); z-index: 40; pointer-events: none; }
 
 /* Manage-filters grouped dropdown header */
 .opt-group { padding: 8px 10px 4px; font-size: 11px; color: var(--ink-muted); font-weight: 600; }
@@ -152,7 +163,11 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
 /* ---------- Filters (reports list) ---------- */
 .filter-input { height: 34px; padding: 0 12px 0 32px; border: 1px solid var(--ctl); border-radius: var(--radius); font-size: 13px; color: var(--ink); width: 280px; background: #fff; }
 .filter-input:focus { outline: none; border-color: var(--brand); }
+/* segmented filter controls overlap via margin-left:-1px; lift the hovered/focused one so all 4 borders show */
+.ui-select:hover, .ui-range:hover, .filter-input:hover, .filter-input:focus, .filter-select:hover { position: relative; z-index: 2; }
 .filter-select { height: 34px; padding: 0 10px; border: 1px solid var(--ctl); border-radius: var(--radius); font-size: 13px; color: var(--ink); background: #fff; }
+/* hairline under every list filter bar + symmetric top/bottom padding (overrides inline padding-bottom:8px) */
+.card-pad:has(.filter-select), .card-pad:has(.filter-input) { border-bottom: 1px solid var(--hair); padding-top: 16px !important; padding-bottom: 16px !important; }
 
 /* ---------- Builder (report detail / explore) ---------- */
 .builder { display: flex; gap: 16px; align-items: flex-start; }
@@ -193,9 +208,10 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
 .modal-backdrop { position: fixed; inset: 0; background: rgb(15 23 42 / 35%); display: grid; place-items: center; z-index: 50; }
 .modal { background: #fff; border-radius: 12px; width: 420px; box-shadow: var(--float-shadow); overflow: hidden; }
 .modal-head { padding: 16px 18px; border-bottom: 1px solid var(--hair); font-size: 15px; font-weight: 600; }
+.modal-warn { color: #f59e0b; display: inline-flex; align-items: center; }
 .modal-body { padding: 18px; }
 .modal-foot { padding: 14px 18px; border-top: 1px solid var(--hair); display: flex; justify-content: flex-end; gap: 8px; }
-.input { width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--ctl); border-radius: var(--radius); font-size: 13px; }
+.input { width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--ctl); border-radius: var(--radius); font-size: 14px; background: #fff; }
 .input:focus { outline: none; border-color: var(--brand); }
 
 /* metric tooltip */
@@ -365,8 +381,17 @@ select::-ms-expand { display: none; }
 .hdr-user .nav-ico { width: 18px; height: 18px; }
 
 /* ---- Full-screen Settings modal (matches live admin: Settings + X header, left nav, content) ---- */
-.settings-modal { position: fixed; inset: 0; z-index: 60; background: #fff; display: flex; flex-direction: column; }
+/* starts BELOW the main app header (header stays visible, like the live admin) */
+.settings-modal { position: fixed; inset: var(--header-h) 0 0 0; z-index: 60; background: #fff; display: flex; flex-direction: column; }
 .settings-modal-head { height: 56px; flex: 0 0 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 24px; border-bottom: 1px solid var(--hair); }
+/* dirty state: dark unsaved-changes bar (mirrors the product-edit UnSavedChanges bar) */
+.settings-modal-head.dirty { background: var(--ink); border-bottom: none; padding: 0 24px; }
+.settings-head-sp { flex: 1; }
+.settings-unsaved { display: inline-flex; align-items: center; gap: 8px; color: #fff; font-size: 13.5px; }
+.settings-unsaved-actions { flex: 1; display: flex; justify-content: flex-end; gap: 12px; }
+.settings-modal-head.dirty .btn-primary { height: 32px; }
+.settings-discard { background: transparent; color: #fff; border: 1px solid rgb(255 255 255 / 55%); height: 32px; }
+.settings-discard:hover { background: rgb(255 255 255 / 12%); }
 .settings-modal-title { font-size: 20px; font-weight: 700; color: var(--ink); }
 .settings-modal-x { width: 32px; height: 32px; border-radius: 8px; background: #eef0f7; display: grid; place-items: center; color: var(--ink); text-decoration: none; }
 .settings-modal-x:hover { background: #e2e6f1; }
@@ -383,3 +408,75 @@ select::-ms-expand { display: none; }
 .settings-sub:hover { background: var(--panel); }
 .settings-sub.active { background: #ebf0ff; color: #356dff; font-weight: 600; }
 .settings-content { flex: 1; min-width: 0; overflow-y: auto; padding: 24px 30px 48px; }
+
+/* ---- Shared widgets: antd-style custom Select + dual-month RangePicker (widgets.js) ---- */
+.ui-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; user-select: none; box-sizing: border-box; }
+.ui-select:hover { border-color: var(--brand); }
+.ui-select .ui-select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-select .ui-chev { flex: 0 0 14px; color: var(--ink-muted); }
+.ui-select-pop .opt { padding: 7px 10px; border-radius: 6px; font-size: 13px; color: var(--ink-body); cursor: pointer; white-space: nowrap; }
+.ui-select-pop .opt:hover { background: var(--panel); color: var(--ink); }
+.ui-select-pop .opt.sel { background: #ebf0ff; color: #356dff; font-weight: 600; }
+
+.ui-range { display: flex; align-items: center; cursor: pointer; user-select: none; box-sizing: border-box; }
+.ui-range:hover { border-color: var(--brand); }
+.ui-range .ui-range-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-range .ui-range-text.muted { color: var(--ink-muted); }
+.ui-range .ui-range-ico { flex: 0 0 auto; color: var(--ink-muted); display: inline-flex; margin-left: 8px; }
+
+/* date range popover — presets + dual month + footer; NO scrollbar, roomy (mirrors analytics, bigger) */
+.cal-pop { padding: 0; max-height: none; overflow: visible; }
+.cal-body { display: flex; }
+.cal-presets { border-right: 1px solid var(--hair); padding: 12px 8px; min-width: 134px; display: flex; flex-direction: column; gap: 2px; }
+.cal-preset { padding: 8px 12px; border-radius: 6px; font-size: 13px; color: var(--ink-body); cursor: pointer; white-space: nowrap; }
+.cal-preset:hover { background: var(--panel); color: var(--ink); }
+.cal-wrap { display: flex; gap: 26px; padding: 16px 20px; }
+.cal { width: 240px; }
+.cal-hd { display: flex; align-items: center; height: 32px; margin-bottom: 6px; }
+.cal-hd .cal-sp { flex: 1; }
+.cal-title { font-size: 13.5px; font-weight: 600; color: var(--ink); padding: 0 6px; }
+.cal-nav { width: 26px; height: 26px; border: none; background: transparent; color: var(--ink-muted); cursor: pointer; border-radius: 6px; font-size: 15px; line-height: 1; }
+.cal-nav:hover { background: var(--panel); color: var(--ink); }
+.cal-week { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+.cal-week span { text-align: center; font-size: 12px; color: var(--ink-muted); height: 30px; line-height: 30px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-cell { height: 34px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--ink-body); cursor: pointer; border-radius: 7px; }
+.cal-cell:hover { background: var(--panel); }
+.cal-cell.out { color: var(--ink-muted); opacity: .5; }
+.cal-cell.today { box-shadow: inset 0 0 0 1px var(--brand); }
+.cal-cell.in { background: #ebf0ff; border-radius: 0; }
+.cal-cell.in:hover { background: #dfe7ff; }
+.cal-cell.sel { background: var(--brand); color: #fff; font-weight: 600; }
+.cal-cell.sel:hover { background: var(--brand); }
+.cal-cell.sel.start { border-radius: 7px 0 0 7px; }
+.cal-cell.sel.end { border-radius: 0 7px 7px 0; }
+.cal-foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--hair); }
+.cal-sel-text { font-size: 13px; color: var(--ink-muted); }
+
+/* ---- SelectFile modal: media library picker (products app.js) ---- */
+.sf-toolbar { display: flex; gap: 10px; margin-bottom: 12px; }
+.sf-search { position: relative; flex: 1; }
+.sf-search input { width: 100%; height: 34px; border: 1px solid var(--ctl); border-radius: var(--radius); padding: 0 12px 0 32px; font-size: 13px; color: var(--ink); box-sizing: border-box; }
+.sf-search input:focus { outline: none; border-color: var(--brand); }
+.sf-search .ic { position: absolute; left: 10px; top: 9px; color: var(--ink-muted); display: inline-flex; }
+.sf-drop { border: 1px dashed var(--ctl); border-radius: 10px; padding: 18px; text-align: center; color: var(--ink-muted); font-size: 13px; margin-bottom: 14px; transition: border-color .12s, background .12s; }
+.sf-drop.drag { border-color: var(--brand); background: #f4f7ff; }
+.sf-drop .btn { margin-top: 10px; }
+.sf-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; max-height: 392px; overflow-y: auto; padding: 2px; }
+.sf-tile { cursor: pointer; }
+.sf-thumb { position: relative; aspect-ratio: 1; border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: var(--panel); }
+.sf-tile.sel .sf-thumb { border: 2px solid var(--brand); }
+.sf-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sf-raw { font-size: 13px; font-weight: 700; letter-spacing: .04em; color: var(--ink-muted); }
+.sf-play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgb(0 0 0 / 18%); }
+.sf-check { position: absolute; left: 6px; top: 6px; width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--ctl); background: #fff; display: grid; place-items: center; color: transparent; }
+.sf-tile.sel .sf-check { background: var(--brand); border-color: var(--brand); color: #fff; }
+.sf-name { font-size: 12px; color: var(--ink-body); margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sf-type { font-size: 11px; color: var(--ink-muted); }
+.sf-pager { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+/* ---- Price-range popover inputs ($ prefix), mirrors real admin ---- */
+.pr-field { position: relative; flex: 1; }
+.pr-cur { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--ink-muted); font-size: 13px; pointer-events: none; }
+.pr-input { width: 100%; height: 34px; border: 1px solid var(--ctl); border-radius: var(--radius); padding: 0 10px 0 22px; font-size: 13px; color: var(--ink); box-sizing: border-box; }
+.pr-input:focus { outline: none; border-color: var(--brand); }

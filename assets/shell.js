@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260607k'; // cache-bust for lazy-loaded module scripts
+  var V = '20260608e'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -96,10 +96,29 @@
       settingsModal = document.createElement('div');
       settingsModal.className = 'settings-modal';
       settingsModal.innerHTML =
-        '<header class="settings-modal-head"><span class="settings-modal-title">Settings</span><a class="settings-modal-x" href="#/orders" title="Close">' + ICONS.x + '</a></header>' +
+        '<header class="settings-modal-head"></header>' +
         '<div class="settings-modal-body"><nav class="settings-nav scroll-thin"></nav><div class="settings-content scroll-thin" id="settings-content"></div></div>';
       document.body.appendChild(settingsModal);
     }
+    // header bar: "Settings ✕" when clean; dark "You have unsaved changes / Discard / Update" when dirty (mirrors live admin)
+    var head = settingsModal.querySelector('.settings-modal-head');
+    var handlers = {};
+    var info = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>';
+    function renderSettingsHead(dirty) {
+      head.classList.toggle('dirty', !!dirty);
+      if (dirty) {
+        head.innerHTML =
+          '<div class="settings-head-sp"></div>' +
+          '<div class="settings-unsaved">' + info + '<span>You have unsaved changes</span></div>' +
+          '<div class="settings-unsaved-actions"><button class="btn settings-discard" data-st-discard>Discard</button><button class="btn btn-primary" data-st-update>Update</button></div>';
+        head.querySelector('[data-st-discard]').onclick = function () { if (handlers.onDiscard) handlers.onDiscard(); };
+        head.querySelector('[data-st-update]').onclick = function () { if (handlers.onUpdate) handlers.onUpdate(); };
+      } else {
+        head.innerHTML = '<span class="settings-modal-title">Settings</span><a class="settings-modal-x" href="#/orders" title="Close">' + ICONS.x + '</a>';
+      }
+    }
+    renderSettingsHead(false);
+    window.SettingsChrome = { setDirty: function (dirty, h) { if (h) handlers = h; renderSettingsHead(dirty); } };
     settingsModal.querySelector('.settings-nav').innerHTML = SETTINGS.map(function (it) { return settingsNavItem(it, sub); }).join('');
     var contentEl = settingsModal.querySelector('#settings-content');
     contentEl.innerHTML = '<div class="placeholder">Loading…</div>';
@@ -107,10 +126,11 @@
       if (!parse().settings) return;
       var v = window.VIEWS.settings;
       if (v && v.render) v.render(contentEl, p.rest);
+      if (window.UI) window.UI.scan(contentEl); // enhance settings selects right after render
       contentEl.scrollTop = 0;
     });
   }
-  function removeSettings() { if (settingsModal) { settingsModal.remove(); settingsModal = null; } }
+  function removeSettings() { if (settingsModal) { settingsModal.remove(); settingsModal = null; window.SettingsChrome = null; } }
 
   // ---------- lazy module loader ----------
   function loadScript(src) {
@@ -184,6 +204,7 @@
       var v = window.VIEWS[moduleId];
       if (!v || !v.render) { root.innerHTML = '<div class="view-wrap"><div class="placeholder">Module “' + moduleId + '” not found.</div></div>'; return; }
       v.render(root, p.rest);
+      if (window.UI) window.UI.scan(root); // enhance selects/date-pickers right after render (no observer-timing dependency)
       current = moduleId;
       root.scrollTop = 0;
     }).catch(function () {
