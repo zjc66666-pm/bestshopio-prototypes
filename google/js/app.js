@@ -460,8 +460,8 @@
   }
 
   function renderVariantEdit(unique) {
-    const detail = D.DETAILS[unique];
     const meta = findVariantMeta(unique);
+    const detail = D.DETAILS[unique] || (meta ? D.buildDetail(meta) : null);
     if (!detail) { renderMissing(unique, meta); return; }
 
     const a = detail.gmc_assembled_data || {};

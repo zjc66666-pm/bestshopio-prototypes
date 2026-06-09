@@ -428,11 +428,45 @@
     { key: 4, label: 'Pending' },
   ];
 
+  // Build a full variant-detail record on the fly from a variant's base meta, so EVERY
+  // variant opens a real detail page (DETAILS only carries a few hand-authored ones).
+  function buildDetail(meta) {
+    if (!meta) return null;
+    const prod = PRODUCTS.find((p) => p.product_id === meta.product_id) || {};
+    const opts = meta.detail || {};
+    const optStr = Object.values(opts).join(' / ');
+    const inStock = Number(meta.stock || 0) > 0;
+    return mkDetail({
+      submit_status: meta.submit_status != null ? meta.submit_status : 2,
+      detail: opts,
+      gmc_destinations: meta.gmc_destinations || {
+        FREE_LISTINGS: dest('Approved'), SHOPPING_ADS: dest('Approved'), DISPLAY_ADS: dest('Approved'),
+      },
+      gmc_assembled_data: Object.assign({}, mkDetail().gmc_assembled_data, {
+        name: 'products/online:en:US:' + meta.unique,
+        offer_id: meta.unique,
+        item_group_id: String(meta.product_id),
+        title: (prod.store_name || 'Product') + (optStr ? ' - ' + optStr : ''),
+        link: 'https://silix.example/products/' + meta.product_id + '?variant=' + meta.value_id,
+        image_link: meta.image || '',
+        additional_image_links: [],
+        mobile_link: '', model3d_link: '',
+        mpn: meta.sku || '',
+        gtin: '', identifier_exists: 'false',
+        price: meta.price || '', sale_price: '', sale_price_effective_date: '', promotion_id: '',
+        sell_on_google_quantity: String(meta.stock != null ? meta.stock : '0'),
+        availability: inStock ? 'in_stock' : 'out_of_stock',
+        color: opts.Color || '', size: opts.Size || '',
+      }),
+    });
+  }
+
   window.DATA_GOOGLE = {
     SUBMIT_STATUS,
     PRODUCTS,
     VARIANTS,
     DETAILS,
+    buildDetail,
     RAW_DATA,
     ACCOUNT,
     PRODUCT_KEYWORD_OPTIONS,

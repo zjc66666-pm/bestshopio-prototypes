@@ -66,7 +66,8 @@
   }
 
   // ---- count rows per tab (for tab badges) ----
-  const tabCount = (key) => key === 'all' ? D.ORDERS.length : D.ORDERS.filter((o) => o.order_status === key).length;
+  // tab badges reflect the active search/total filter (mirrors the live admin), excluding the tab itself
+  const tabCount = (key) => { const base = nonTabFiltered(); return key === 'all' ? base.length : base.filter((o) => o.order_status === key).length; };
 
   // ================= LIST VIEW =================
   const LST = {
@@ -76,9 +77,9 @@
     page: 1, size: 20,
   };
 
-  function filteredRows() {
+  // everything EXCEPT the status-tab filter (so tab badges can count this set)
+  function nonTabFiltered() {
     let rows = D.ORDERS.slice();
-    if (LST.tab !== 'all') rows = rows.filter((o) => o.order_status === LST.tab);
     if (LST.kwApplied) {
       const q = LST.kwApplied.toLowerCase();
       rows = rows.filter((o) => {
@@ -98,6 +99,12 @@
       const hi = LST.totalMax === '' ? Infinity : Number(LST.totalMax);
       rows = rows.filter((o) => o.total >= lo && o.total <= hi);
     }
+    return rows;
+  }
+
+  function filteredRows() {
+    let rows = nonTabFiltered();
+    if (LST.tab !== 'all') rows = rows.filter((o) => o.order_status === LST.tab);
     return rows;
   }
 
@@ -152,7 +159,8 @@
             '<div class="flex" style="min-width:428px">' +
               '<select class="filter-select" id="kw-type" style="width:160px;border-top-right-radius:0;border-bottom-right-radius:0">' + kwOpts + '</select>' +
               '<div style="position:relative;flex:1">' +
-                '<input class="filter-input" id="kw-input" placeholder="Search" value="' + esc(LST.kw) + '" style="width:100%;padding-left:12px;padding-right:32px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" />' +
+                '<input class="filter-input" id="kw-input" placeholder="Search" value="' + esc(LST.kw) + '" style="width:100%;padding-left:12px;padding-right:52px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" />' +
+                '<span class="kw-clear" data-kw-clear title="Clear">&times;</span>' +
                 '<span style="position:absolute;right:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
               '</div>' +
             '</div>' +
@@ -245,6 +253,8 @@
       kwInput.onkeydown = (e) => { if (e.key === 'Enter') commit(); };
       kwInput.onblur = commit;
     }
+    const kwClear = root.querySelector('[data-kw-clear]');
+    if (kwClear) kwClear.onclick = () => { LST.kw = ''; LST.kwApplied = ''; LST.page = 1; renderList(); };
     const timeType = root.querySelector('#time-type');
     if (timeType) timeType.onchange = () => { LST.timeType = timeType.value; };
     const ds = root.querySelector('#date-start'), de = root.querySelector('#date-end');

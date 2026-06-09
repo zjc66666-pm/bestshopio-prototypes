@@ -57,7 +57,7 @@
     '<div class="card-title">' + esc(t) + '</div>' + (sub ? '<div class="muted" style="font-size:12.5px;margin-top:2px">' + esc(sub) + '</div>' : '');
 
   // a soft framed inner row block (mirrors the .b-c framed rows in the admin)
-  const block = (inner, bg) => '<div style="border:1px solid var(--hair);border-radius:10px;padding:14px 16px' + (bg ? ';background:' + bg : '') + '">' + inner + '</div>';
+  const block = (inner, bg) => '<div style="border:1px solid var(--hair);border-radius:10px;padding:14px 16px;background:' + (bg || 'var(--panel)') + '">' + inner + '</div>';
 
   // an Ant-style Switch (visual)
   let sw = 0;
