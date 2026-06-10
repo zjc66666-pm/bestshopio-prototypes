@@ -385,6 +385,8 @@
 
     paint(
       pageHead('Payments') +
+      '<div class="set-note mb-4" style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--brand);flex:none;display:inline-flex">' + I.info + '</span>' +
+        '<div class="muted" style="font-size:12.5px;line-height:1.5">Payment connections belong to <b>this store only</b> and are never shared between stores. A newly created store always starts with no processor connected, so you connect fresh credentials here.</div></div>' +
       cardCard + paypalCard,
       true
     );
@@ -1539,8 +1541,657 @@
     });
   }
 
+  // ===========================================================================
+  // V1.139 Self-service · DOMAINS  (Settings → Domains)
+  //   System (free) domain is auto-connected at provisioning and not deletable.
+  //   Custom domains: 3-step Add wizard (input → configure DNS → bound) with
+  //   automatic DNS detection + automatic SSL (issue & auto-renew). State machine
+  //   per PRD §6.2: pending_verification → ssl_pending → connected (dns_error /
+  //   ssl_failed are the failure branches). Mock data is module-scoped.
+  // ===========================================================================
+  let domainsData = [
+    { domain: 'www.nutrofuels.com',         type: 'custom', primary: true,  status: 'connected',            redirectTo: null },
+    { domain: 'nutrofuels.com',             type: 'custom', primary: false, status: 'connected',            redirectTo: 'www.nutrofuels.com' },
+    { domain: 'shop.nutrofuels.io',         type: 'custom', primary: false, status: 'pending_verification', redirectTo: null },
+    { domain: 'nutrofuels.bestshopio.store', type: 'system', primary: false, status: 'connected',           redirectTo: null },
+  ];
+  let domainStep = null;   // null = list · 'add' = configure DNS · 'bound' = success (set by show())
+  let pendingDomain = '';  // domain being added through the wizard
+
+  const DOMAIN_BADGE = {
+    connected:            { cls: 'pill-green',  label: 'Connected' },
+    pending_verification: { cls: 'pill-orange', label: 'Pending verification' },
+    dns_error:            { cls: 'pill-red',    label: 'DNS error' },
+    ssl_pending:          { cls: 'pill-blue',   label: 'SSL pending' },
+    ssl_failed:           { cls: 'pill-red',    label: 'SSL failed' },
+  };
+  const PLATFORM_IP = '76.223.54.18';
+  const PLATFORM_CNAME = 'connect.bestshopio.com';
+
+  const DOMAIN_STYLES = `
+  .dom-wrap { width: 860px; max-width: 100%; margin: 0 auto; }
+  .dom-list { border: 1px solid var(--hair); border-radius: 12px; overflow: hidden; background: #fff; }
+  .dom-row { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-bottom: 1px solid var(--hair); }
+  .dom-row:last-child { border-bottom: none; }
+  .dom-ico { width: 36px; height: 36px; border-radius: 8px; background: #eef2ff; color: var(--brand); display: grid; place-items: center; flex: none; }
+  .dom-info { flex: 1; min-width: 0; }
+  .dom-name { font-weight: 600; font-size: 14px; color: var(--ink); }
+  .dom-meta { color: var(--ink-muted); font-size: 12.5px; margin-top: 3px; }
+  .dom-meta a { color: var(--brand); cursor: pointer; }
+  .dom-actions { display: flex; align-items: center; gap: 14px; flex: none; }
+  .dom-link { color: var(--ink-muted); font-size: 13px; font-weight: 500; cursor: pointer; background: none; border: 0; }
+  .dom-link:hover { color: var(--ink); }
+  .dom-link.danger { color: var(--err); }
+  /* add-domain wizard */
+  .dstep { display: flex; align-items: center; gap: 10px; margin: 4px 0 24px; font-size: 13px; color: var(--ink-muted); }
+  .dstep .sp { display: flex; align-items: center; gap: 8px; }
+  .dstep .sn { width: 22px; height: 22px; border-radius: 50%; background: var(--panel); color: var(--ink-muted); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+  .dstep .sp.on .sn { background: var(--brand); color: #fff; }
+  .dstep .sp.on { color: var(--ink); font-weight: 600; }
+  .dstep .sp.ok .sn { background: #2bb673; color: #fff; }
+  .dstep .ln { width: 30px; height: 1px; background: var(--hair); }
+  .dns-tbl { border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; }
+  .dns-tr { display: grid; grid-template-columns: 96px 90px 1fr 86px; align-items: center; border-bottom: 1px solid var(--hair); }
+  .dns-tr:last-child { border-bottom: none; }
+  .dns-th { background: var(--panel); font-size: 11px; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .4px; }
+  .dns-cell { padding: 11px 14px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dns-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .dns-copy { font-size: 12px; font-weight: 600; color: var(--brand); border: 1px solid var(--ctl); background: #fff; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  .ssl-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-muted); margin-top: 16px; }
+  .ssl-spin { width: 13px; height: 13px; border: 2px solid var(--brand); border-top-color: transparent; border-radius: 50%; animation: dsp .7s linear infinite; }
+  @keyframes dsp { to { transform: rotate(360deg); } }
+  .dbound { text-align: center; padding: 30px 20px 12px; }
+  .dbound .ck { width: 60px; height: 60px; border-radius: 50%; background: #e7f7ee; color: #2bb673; display: grid; place-items: center; margin: 0 auto 16px; }
+  /* modal form fields (Connect domain) — same look as the Roles/Staff modal inputs */
+  .sp-field { margin-bottom: 16px; }
+  .sp-label { display: block; margin-bottom: 7px; font-size: 13.5px; font-weight: 600; color: #2f3542; }
+  .sp-input-wrap { position: relative; }
+  .sp-input { width: 100%; height: 42px; padding: 0 14px; border: 1px solid var(--ctl); border-radius: 6px; font-size: 14px; color: var(--ink); box-sizing: border-box; outline: none; background: #fff; }
+  .sp-input::placeholder { color: var(--ink-muted); }
+  .sp-input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px rgb(0 102 230 / 8%); }
+  .sp-input.err { border-color: var(--err); }
+  .sp-err { margin-top: 6px; color: var(--err); font-size: 13px; }
+  .sp-err:empty { display: none; }
+  @media (max-width: 720px) { .dns-tr { grid-template-columns: 1fr; } .dns-th { display: none; } .dns-cell { border-bottom: 1px solid var(--hair); } .dom-row { flex-wrap: wrap; } }
+  `;
+
+  function domainMetaLine(d) {
+    if (d.type === 'system') return 'Free store domain · always available';
+    if (d.primary) return 'Primary domain';
+    if (d.status === 'connected') {
+      return d.redirectTo
+        ? 'Redirects to ' + esc(d.redirectTo) + ' · <a data-primary="' + esc(d.domain) + '">Set as primary</a>'
+        : '<a data-primary="' + esc(d.domain) + '">Set as primary</a> · <a data-redirect="' + esc(d.domain) + '">Redirect</a>';
+    }
+    if (d.status === 'pending_verification' || d.status === 'dns_error') {
+      const msg = d.status === 'dns_error' ? 'DNS records not detected yet' : 'Waiting for DNS records';
+      return msg + ' · <a data-verify="' + esc(d.domain) + '">Verify now</a> · <a data-guide="' + esc(d.domain) + '">View guide</a>';
+    }
+    if (d.status === 'ssl_pending') return 'DNS verified · issuing SSL certificate…';
+    if (d.status === 'ssl_failed') return 'SSL issuance failed · <a data-verify="' + esc(d.domain) + '">Retry</a>';
+    return '';
+  }
+  function domainRowHtml(d) {
+    const badge = DOMAIN_BADGE[d.status] || { cls: 'pill-gray', label: d.status };
+    const sslSuffix = (d.primary && d.status === 'connected') ? ' · SSL active' : '';
+    const del = d.type === 'system' ? '' : '<button class="dom-link danger" data-del="' + esc(d.domain) + '">Delete</button>';
+    return '<div class="dom-row">' +
+        '<div class="dom-ico">' + I.globe + '</div>' +
+        '<div class="dom-info"><div class="dom-name">' + esc(d.domain) + '</div>' +
+          '<div class="dom-meta">' + domainMetaLine(d) + '</div></div>' +
+        '<div class="dom-actions"><span class="pill ' + badge.cls + '"><span class="dot"></span>' + badge.label + sslSuffix + '</span>' + del + '</div>' +
+      '</div>';
+  }
+  function renderDomainList() {
+    paint(
+      '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
+        pageHead('Domains', 'Connect a custom domain. SSL is issued and renewed automatically — you never touch a certificate.',
+          '<button class="btn btn-primary" data-add-domain>Add domain</button>') +
+        '<div class="dom-list">' + domainsData.map(domainRowHtml).join('') + '</div>' +
+        '<div class="set-note" style="margin-top:18px"><div style="font-weight:600;color:var(--ink);margin-bottom:4px">SSL is automatic</div>' +
+          '<div class="muted" style="font-size:12.5px;line-height:1.5">BestShopio issues and renews SSL certificates for every connected domain. You never touch a certificate or a server.</div></div>' +
+      '</div>',
+      false
+    );
+    root.querySelector('[data-add-domain]').onclick = openAddDomainModal;
+    root.querySelectorAll('[data-del]').forEach((b) => b.onclick = () => deleteDomain(b.getAttribute('data-del')));
+    root.querySelectorAll('[data-primary]').forEach((b) => b.onclick = () => setPrimaryDomain(b.getAttribute('data-primary')));
+    root.querySelectorAll('[data-verify]').forEach((b) => b.onclick = () => verifyDomain(b.getAttribute('data-verify')));
+    root.querySelectorAll('[data-guide]').forEach((b) => b.onclick = () => { pendingDomain = b.getAttribute('data-guide'); location.hash = '#/settings/domains/add'; });
+    root.querySelectorAll('[data-redirect]').forEach((b) => b.onclick = () => toast('Redirect saved'));
+  }
+  function renderAddDomainDNS() {
+    const dom = pendingDomain || 'yourdomain.com';
+    paint(
+      '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
+        pageHead('Add a domain') +
+        '<div class="dstep">' +
+          '<span class="sp ok"><span class="sn">' + I.check + '</span>Add a domain</span><span class="ln"></span>' +
+          '<span class="sp on"><span class="sn">2</span>Configure DNS</span><span class="ln"></span>' +
+          '<span class="sp"><span class="sn">3</span>Domain bound</span>' +
+        '</div>' +
+        '<div class="panel card-pad">' +
+          '<div class="card-title">Add these DNS records at your domain provider</div>' +
+          '<div class="muted" style="font-size:13px;margin:4px 0 16px;line-height:1.5">Sign in to where you bought <b>' + esc(dom) + '</b> (e.g. GoDaddy, Namecheap, Alibaba Cloud) and add the records below. We detect them automatically.</div>' +
+          '<div class="dns-tbl">' +
+            '<div class="dns-tr dns-th"><div class="dns-cell">Type</div><div class="dns-cell">Name</div><div class="dns-cell">Value</div><div class="dns-cell"></div></div>' +
+            '<div class="dns-tr"><div class="dns-cell dns-mono">A</div><div class="dns-cell dns-mono">@</div><div class="dns-cell dns-mono">' + PLATFORM_IP + '</div><div class="dns-cell"><button class="dns-copy" data-copy="' + PLATFORM_IP + '">Copy</button></div></div>' +
+            '<div class="dns-tr"><div class="dns-cell dns-mono">CNAME</div><div class="dns-cell dns-mono">www</div><div class="dns-cell dns-mono">' + PLATFORM_CNAME + '</div><div class="dns-cell"><button class="dns-copy" data-copy="' + PLATFORM_CNAME + '">Copy</button></div></div>' +
+          '</div>' +
+          '<div class="ssl-pill"><span class="ssl-spin"></span>Waiting for DNS to propagate, then SSL is issued automatically (usually within 30 minutes).</div>' +
+          '<div class="flex items-center justify-between" style="margin-top:22px">' +
+            '<a class="lnk" data-guide-faq style="font-size:13px;cursor:pointer">Having issues? View the setup guide</a>' +
+            '<div class="flex" style="gap:10px"><button class="btn btn-gray" data-verify-later>Verify later</button><button class="btn btn-primary" data-verify-now>Verify now</button></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>',
+      false
+    );
+    root.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => { try { navigator.clipboard.writeText(b.getAttribute('data-copy')); } catch (e) {} toast('Copied'); });
+    root.querySelector('[data-verify-later]').onclick = () => { location.hash = '#/settings/domains'; };
+    root.querySelector('[data-verify-now]').onclick = () => { location.hash = '#/settings/domains/bound'; };
+    root.querySelector('[data-guide-faq]').onclick = () => toast('Opening setup guide…');
+  }
+  function renderAddDomainBound() {
+    const dom = pendingDomain || 'yourdomain.com';
+    paint(
+      '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
+        pageHead('Add a domain') +
+        '<div class="dstep">' +
+          '<span class="sp ok"><span class="sn">' + I.check + '</span>Add a domain</span><span class="ln"></span>' +
+          '<span class="sp ok"><span class="sn">' + I.check + '</span>Configure DNS</span><span class="ln"></span>' +
+          '<span class="sp on"><span class="sn">3</span>Domain bound</span>' +
+        '</div>' +
+        '<div class="panel card-pad"><div class="dbound">' +
+          '<div class="ck"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>' +
+          '<div class="page-title" style="font-size:20px">' + esc(dom) + ' is connected</div>' +
+          '<div class="muted" style="font-size:13.5px;margin-top:6px;line-height:1.6">Both <b>https://' + esc(dom) + '</b> and <b>https://www.' + esc(dom) + '</b> are live and secured with SSL.</div>' +
+          '<div style="color:#2bb673;font-weight:600;font-size:13px;margin-top:8px">SSL active · auto-renews before expiry</div>' +
+          '<div style="margin-top:20px"><button class="btn btn-primary" data-back-domains>Back to domains</button></div>' +
+        '</div></div>' +
+      '</div>',
+      false
+    );
+    root.querySelector('[data-back-domains]').onclick = () => {
+      // persist the newly-connected domain into the list (idempotent)
+      if (pendingDomain && !domainsData.some((d) => d.domain === pendingDomain)) {
+        domainsData.splice(domainsData.length - 1, 0, { domain: pendingDomain, type: 'custom', primary: false, status: 'connected', redirectTo: null });
+      }
+      pendingDomain = '';
+      location.hash = '#/settings/domains';
+    };
+  }
+  function renderDomains() {
+    if (domainStep === 'add') return renderAddDomainDNS();
+    if (domainStep === 'bound') return renderAddDomainBound();
+    return renderDomainList();
+  }
+  function validDomain(v) {
+    return /^(?!www\.)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(v);
+  }
+  function openAddDomainModal() {
+    modal({
+      title: 'Connect an existing domain', width: 520, okText: 'Next',
+      body:
+        '<div class="muted" style="font-size:13px;margin-bottom:14px">Use a domain you already own. Enter it without <b>www</b> or <b>https://</b>.</div>' +
+        '<div class="sp-field"><label class="sp-label">Domain</label><div class="sp-input-wrap"><input id="add-dom" class="sp-input" placeholder="yourdomain.com" style="padding-right:14px"/></div><div class="sp-err" data-err="add-dom"></div></div>',
+      onOk: (m, close) => {
+        const v = (m.querySelector('#add-dom').value || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+        setErr(m, 'add-dom', ''); m.querySelector('#add-dom').classList.remove('err');
+        if (!v) { setErr(m, 'add-dom', 'Please enter a domain'); m.querySelector('#add-dom').classList.add('err'); return; }
+        if (!validDomain(v)) { setErr(m, 'add-dom', 'Enter a valid domain without www or https://'); m.querySelector('#add-dom').classList.add('err'); return; }
+        if (domainsData.some((d) => d.domain === v || d.domain === 'www.' + v)) { setErr(m, 'add-dom', 'This domain is already added'); m.querySelector('#add-dom').classList.add('err'); return; }
+        pendingDomain = v; close(); location.hash = '#/settings/domains/add';
+      },
+    });
+  }
+  function deleteDomain(dom) {
+    confirm({
+      title: 'Remove this domain?', okText: 'Remove', danger: true,
+      content: 'Customers will no longer reach your store at ' + dom + '. You can re-add it later.',
+      onOk: () => { domainsData = domainsData.filter((d) => d.domain !== dom); toast('Domain removed'); renderDomainList(); },
+    });
+  }
+  function setPrimaryDomain(dom) {
+    domainsData.forEach((d) => { d.primary = (d.domain === dom); if (d.domain === dom) d.redirectTo = null; });
+    toast('Primary domain updated'); renderDomainList();
+  }
+  function verifyDomain(dom) {
+    const d = domainsData.find((x) => x.domain === dom);
+    if (d) { d.status = 'connected'; }
+    toast('Domain connected · SSL active'); renderDomainList();
+  }
+
+  // ===========================================================================
+  // NOTIFICATIONS (V1.141) — transactional email config, per store.
+  //   List (events grouped) -> Editor (left form + live desktop/mobile preview)
+  //   + Brand settings (shared tokens). Merge tags + dynamic "blocks" expand in
+  //   the preview against sample order data, so the body can't be broken.
+  //   sub-state: notifSub = null (list) | 'brand' | <eventCode> (editor)
+  // ===========================================================================
+  let notifSub = null;
+  let notifDevice = 'desktop';
+
+  // sample order data the preview renders against (resolves {{merge.tags}})
+  const NF_SAMPLE = {
+    'customer.first_name': 'Emma', 'customer.name': 'Emma Johnson',
+    'order.number': '1042', 'order.detail_url': '#', 'order.currency': 'US$',
+    'order.subtotal': 'US$ 88.00', 'order.shipping': 'US$ 8.00', 'order.total': 'US$ 96.00',
+    'order.shipping_address': 'Emma Johnson, 2261 Market St, San Francisco, CA 94114, US',
+    'order.payment_method': 'Visa ···· 4242',
+    'shipment.tracking_number': 'LX123456789CN', 'shipment.carrier': 'YunExpress', 'shipment.tracking_url': '#',
+  };
+  const NF_ITEMS = [
+    { name: 'Aurora Knit Sweater', variant: 'Size M / Sand', qty: 1, price: 'US$ 58.00' },
+    { name: 'Everyday Crossbody Bag', variant: 'Caramel', qty: 1, price: 'US$ 30.00' },
+  ];
+  const NF_CLS = { Transactional: '<span class="nf-cls t">Transactional</span>', Marketing: '<span class="nf-cls m">Marketing</span>', Internal: '<span class="nf-cls i">Internal</span>' };
+  const nfStatusPill = (c) => c.enabled
+    ? '<span class="pill pill-green"><span class="dot"></span>On</span>'
+    : (c.status === 'draft' ? '<span class="pill pill-gray"><span class="dot"></span>Draft</span>' : '<span class="pill pill-gray"><span class="dot"></span>Off</span>');
+
+  function nfFindEvent(code) {
+    for (const g of D.notifications.groups) { const e = (g.events || []).find((x) => x.code === code); if (e) return { ev: e, group: g }; }
+    return null;
+  }
+  const nfSwitch = (on, code) => '<label class="set-switch' + (on ? ' on' : '') + '" data-nf-toggle="' + code + '"><span class="set-knob"></span></label>';
+
+  // resolve a scalar merge tag against brand + sample data
+  function nfResolve(key, b) {
+    if (key === 'store.name') return b.storeName;
+    if (key === 'store.url') return 'm.lovocross.com';
+    if (key === 'store.contact_email') return b.contactEmail;
+    if (key.indexOf('store.') === 0) return b.storeName;
+    return NF_SAMPLE[key];
+  }
+  // expand a dynamic block tag to safe HTML (the merchant never hand-codes loops)
+  function nfBlock(tag, b) {
+    const color = b.primaryColor || '#0066e6';
+    const itemsRows = (items) => '<table role="presentation" width="100%" cellspacing="0" cellpadding="0">' + items.map((it) =>
+      '<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;vertical-align:top">' +
+        '<div style="font-size:14px;font-weight:600;color:#444">' + esc(it.name) + ' &times; ' + it.qty + '</div>' +
+        '<div style="font-size:12.5px;color:#999">' + esc(it.variant) + '</div>' +
+      '</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap;font-size:14px;font-weight:600;color:#444">' + esc(it.price) + '</td></tr>').join('') + '</table>';
+    const totals =
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px">' +
+        '<tr><td style="padding:3px 0;color:#888;font-size:13.5px">Subtotal</td><td style="padding:3px 0;text-align:right;color:#555;font-size:13.5px">' + NF_SAMPLE['order.subtotal'] + '</td></tr>' +
+        '<tr><td style="padding:3px 0;color:#888;font-size:13.5px">Shipping</td><td style="padding:3px 0;text-align:right;color:#555;font-size:13.5px">' + NF_SAMPLE['order.shipping'] + '</td></tr>' +
+        '<tr><td style="padding:10px 0 0;border-top:1px solid #eee;color:#222;font-size:15px;font-weight:700">Total</td><td style="padding:10px 0 0;border-top:1px solid #eee;text-align:right;color:#222;font-size:15px;font-weight:700">' + NF_SAMPLE['order.total'] + '</td></tr>' +
+      '</table>';
+    if (tag === 'block.cta_button')
+      return '<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 8px"><tr>' +
+        '<td style="border-radius:6px;background:' + color + '"><a href="#" style="display:inline-block;padding:12px 22px;color:#fff;font-size:14px;font-weight:600;text-decoration:none">View your order</a></td>' +
+        '<td style="padding-left:14px"><a href="#" style="color:' + color + ';font-size:14px;text-decoration:none">Visit our store</a></td>' +
+        '</tr></table>';
+    if (tag === 'block.tracking')
+      return '<div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin:0 0 14px">' +
+        '<div style="font-size:13px;color:#888;margin-bottom:4px">Tracking number (' + NF_SAMPLE['shipment.carrier'] + ')</div>' +
+        '<div style="font-size:16px;font-weight:600;color:#222;margin-bottom:12px">' + NF_SAMPLE['shipment.tracking_number'] + '</div>' +
+        '<a href="#" style="display:inline-block;padding:10px 18px;border-radius:6px;background:' + color + ';color:#fff;font-size:13px;font-weight:600;text-decoration:none">Track package</a></div>';
+    if (tag === 'block.order_summary') return itemsRows(NF_ITEMS) + totals;
+    if (tag === 'block.line_items') return itemsRows(NF_ITEMS);
+    if (tag === 'block.shipment_items') return itemsRows(NF_ITEMS);
+    return '';
+  }
+  // expand a body string (blocks first, then scalar tags) -> preview HTML
+  function nfExpand(body, b) {
+    return String(body || '')
+      .replace(/\{\{\s*(block\.[a-z_]+)\s*\}\}/gi, (m, t) => nfBlock(t.trim(), b))
+      .replace(/\{\{\s*([a-z0-9_.]+)\s*\}\}/gi, (m, k) => { const v = nfResolve(k.trim(), b); return v != null ? esc(v) : '<span class="nf-unktag">{{' + esc(k.trim()) + '}}</span>'; });
+  }
+  // expand inline text (subject / preheader) -> plain text
+  function nfText(str, b) {
+    return String(str || '').replace(/\{\{\s*([a-z0-9_.]+)\s*\}\}/gi, (m, k) => { const v = nfResolve(k.trim(), b); return v != null ? v : ''; });
+  }
+
+  // the rendered email card (device = 'desktop' | 'mobile')
+  function nfCardHtml(b, st) {
+    const color = b.primaryColor || '#0066e6';
+    const width = st.device === 'mobile' ? 320 : 520;
+    return '<div class="email-card" style="width:' + width + 'px">' +
+      '<div style="padding:22px 26px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:12px">' +
+        '<div style="font-size:18px;font-weight:700;color:#111;letter-spacing:-.01em">' + esc(b.storeName || 'Your store') + '</div>' +
+        '<div style="font-size:11px;color:#aaa;letter-spacing:.04em;text-transform:uppercase">Order #' + NF_SAMPLE['order.number'] + '</div>' +
+      '</div>' +
+      '<div style="padding:26px">' + nfExpand(st.body, b) + '</div>' +
+      '<div style="padding:20px 26px;border-top:1px solid #eee;text-align:center">' +
+        '<div style="font-size:13px;color:#999;line-height:1.6">Questions? Email <a href="#" style="color:' + color + ';text-decoration:none">' + esc(b.contactEmail || '') + '</a></div>' +
+        (b.footerText ? '<div style="font-size:11px;color:#bbb;margin-top:10px">' + esc(b.footerText) + '</div>' : '') +
+        (b.address ? '<div style="font-size:11px;color:#ccc;margin-top:4px">' + esc(b.address) + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  // read the live form values for the preview
+  function nfReadForm(ev) {
+    const g = (id) => { const el = root.querySelector('#' + id); return el ? el.value : ''; };
+    return {
+      device: notifDevice,
+      fromName: g('nf-fromname') || ev.config.fromName,
+      fromEmail: g('nf-fromemail') || ev.config.fromEmail,
+      subject: g('nf-subject') || ev.config.subject,
+      body: (root.querySelector('#nf-body') ? root.querySelector('#nf-body').value : ev.config.body),
+    };
+  }
+  function nfUpdatePreview(ev) {
+    const b = D.notifications.brand;
+    const st = nfReadForm(ev);
+    const inbox = root.querySelector('#nf-inbox');
+    if (inbox) inbox.innerHTML =
+      '<div><span class="l">From </span><span class="v">' + esc(st.fromName) + '</span> <span class="l">&lt;' + esc(st.fromEmail) + '&gt;</span></div>' +
+      '<div style="margin-top:3px"><span class="l">Subject </span><span class="v">' + esc(nfText(st.subject, b)) + '</span></div>';
+    const stage = root.querySelector('#nf-stage');
+    if (stage) { stage.innerHTML = nfCardHtml(b, st); nfFit(); }
+  }
+  // scale the email card to fit the preview stage width (keeps a faithful layout)
+  function nfFit() {
+    try {
+      const stage = root.querySelector('#nf-stage'); const card = stage && stage.querySelector('.email-card');
+      if (!card) return;
+      card.style.transform = 'none';
+      const avail = stage.clientWidth - 24, w = card.offsetWidth;
+      const s = Math.min(1, avail / w);
+      card.style.transformOrigin = 'top center';
+      card.style.transform = 'scale(' + s + ')';
+      stage.style.height = (card.offsetHeight * s + 36) + 'px';
+    } catch (e) {}
+  }
+  function insertAtCursor(el, text) {
+    const s = el.selectionStart || 0, e = el.selectionEnd || 0;
+    el.value = el.value.slice(0, s) + text + el.value.slice(e);
+    el.selectionStart = el.selectionEnd = s + text.length; el.focus();
+  }
+
+  function renderNotifications() {
+    if (notifSub === 'brand') return renderNotifBrand();
+    if (notifSub) { const f = nfFindEvent(notifSub); if (f && !f.group.locked) return renderNotifEditor(f.ev); notifSub = null; }
+    return renderNotifList();
+  }
+
+  function renderNotifList() {
+    const n = D.notifications;
+    const groupsHtml = n.groups.map((g) => {
+      const rows = g.events.map((ev) => {
+        if (g.locked) {
+          return '<div class="nf-row locked">' +
+            '<span class="nf-ico">' + I.globe + '</span>' +
+            '<div class="nf-main"><div class="nf-name">' + esc(ev.name) + ' ' + (NF_CLS[ev.cls] || '') + '</div><div class="nf-desc">' + esc(ev.desc) + '</div></div>' +
+            '<div class="nf-right"><span class="pill pill-gray">Coming soon</span></div></div>';
+        }
+        const c = ev.config;
+        return '<div class="nf-row" data-edit="' + ev.code + '">' +
+          '<span class="nf-ico">' + I.globe + '</span>' +
+          '<div class="nf-main"><div class="nf-name">' + esc(ev.name) + ' ' + (NF_CLS[ev.cls] || '') + '</div>' +
+            '<div class="nf-desc">' + esc(ev.desc) + '</div></div>' +
+          '<div class="nf-meta">Email · ' + esc(c.locale.toUpperCase()) + (c.updatedAt ? ' · edited ' + esc(c.updatedAt) : ' · not configured') + '</div>' +
+          '<div class="nf-right">' + nfStatusPill(c) + nfSwitch(c.enabled, ev.code) + '<span class="nf-chev">' + I.chevR + '</span></div>' +
+        '</div>';
+      }).join('');
+      return '<div class="nf-group">' +
+        '<div class="nf-group-h">' + esc(g.label) + (g.locked ? '<span class="nf-soon">Roadmap</span>' : '') + '</div>' +
+        (g.note ? '<div class="muted" style="font-size:12.5px;margin:0 2px 8px">' + esc(g.note) + '</div>' : '') +
+        '<div class="nf-list">' + rows + '</div></div>';
+    }).join('');
+
+    paint(
+      '<style>' + NOTIF_STYLES + '</style>' +
+      pageHead('Notifications', 'Email your customers when key order events happen. These settings belong to this store only.',
+        '<button class="btn btn-default" data-brand>Brand settings</button>') +
+      '<div class="set-note mb-4" style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--brand);flex:none;display:inline-flex">' + I.info + '</span>' +
+        '<div class="muted" style="font-size:12.5px;line-height:1.5">Turn a notification on to start sending it. Edit the sender, subject and content — the live preview shows exactly what your customer receives. New stores start from a ready-made template, so you never face a blank email.</div></div>' +
+      groupsHtml,
+      false
+    );
+
+    root.querySelectorAll('[data-nf-toggle]').forEach((el) => el.onclick = (e) => {
+      e.stopPropagation();
+      const f = nfFindEvent(el.getAttribute('data-nf-toggle')); if (!f) return;
+      const c = f.ev.config; c.enabled = !c.enabled; if (c.enabled) c.status = 'active';
+      toast(c.enabled ? f.ev.name + ' turned on' : f.ev.name + ' turned off');
+      renderNotifList();
+    });
+    root.querySelectorAll('[data-edit]').forEach((el) => el.onclick = () => { notifSub = el.getAttribute('data-edit'); renderNotifications(); });
+    const bb = root.querySelector('[data-brand]'); if (bb) bb.onclick = () => { notifSub = 'brand'; renderNotifications(); };
+  }
+
+  function renderNotifEditor(ev) {
+    const n = D.notifications, c = ev.config, b = n.brand;
+    const localeOpts = n.locales.map((l) => '<option value="' + l.code + '"' + (l.code === c.locale ? ' selected' : '') + '>' + esc(l.label) + '</option>').join('');
+    const tags = (n.mergeTags.common || []).concat(n.mergeTags[ev.code] || []);
+    const varOpts = '<option value="">Insert variable</option>' + tags.map((t) => '<option value="' + t + '">{{' + t + '}}</option>').join('');
+    const blockList = n.blocks[ev.code] || [];
+    const blockOpts = '<option value="">Insert block</option>' + blockList.map((bl) => '<option value="' + bl.tag + '">' + esc(bl.label) + '</option>').join('');
+
+    const fld = (label, id, value, hint, ph) =>
+      '<div style="margin-bottom:14px"><label class="nf-label" for="' + id + '">' + esc(label) + '</label>' +
+        '<input class="input" id="' + id + '" value="' + esc(value || '') + '" placeholder="' + esc(ph || '') + '" style="width:100%" />' +
+        (hint ? '<div class="nf-hint">' + esc(hint) + '</div>' : '') + '</div>';
+
+    const form =
+      '<div class="panel card-pad">' +
+        '<div class="flex items-center justify-between" style="margin-bottom:16px">' +
+          '<div><div class="nf-label" style="margin:0">Status</div><div class="nf-hint">' + (c.enabled ? 'This notification is being sent.' : 'Turn on to start sending.') + '</div></div>' +
+          nfSwitch(c.enabled, '__editor') +
+        '</div>' +
+        '<div style="margin-bottom:14px"><label class="nf-label">Language</label><select class="input" id="nf-locale" style="width:200px">' + localeOpts + '</select></div>' +
+        fld('From name', 'nf-fromname', c.fromName, '', 'Sender name') +
+        fld('From email', 'nf-fromemail', c.fromEmail, 'Must be an address on your verified sending domain (' + n.sendingDomain + '). Custom domains are on the roadmap.', 'orders@' + n.sendingDomain) +
+        fld('Reply-to', 'nf-replyto', c.replyTo, 'Customer replies go here.', 'service@example.com') +
+        fld('Subject', 'nf-subject', c.subject, '', 'Subject line') +
+        fld('Preheader', 'nf-preheader', c.preheader, 'The short preview text shown in the inbox after the subject.', 'Preview text') +
+        '<div><label class="nf-label">Email body</label>' +
+          '<div class="nf-toolbar">' +
+            '<select class="nf-insert input" data-no-ui id="nf-ins-var">' + varOpts + '</select>' +
+            (blockList.length ? '<select class="nf-insert input" data-no-ui id="nf-ins-block">' + blockOpts + '</select>' : '') +
+            '<button class="btn btn-gray" data-tpl type="button">Start from template</button>' +
+          '</div>' +
+          '<textarea class="nf-body" id="nf-body" spellcheck="false">' + esc(c.body) + '</textarea>' +
+          '<div class="nf-hint">Edit the HTML and insert variables. Dynamic blocks (order summary, tracking…) render order data safely — you never write the loop.</div>' +
+        '</div>' +
+      '</div>';
+
+    const preview =
+      '<div class="nf-preview">' +
+        '<div class="nf-pv-head"><div class="nf-label" style="margin:0">Preview</div>' +
+          '<div class="nf-seg">' +
+            '<button data-dev="desktop" class="' + (notifDevice === 'desktop' ? 'on' : '') + '">Desktop</button>' +
+            '<button data-dev="mobile" class="' + (notifDevice === 'mobile' ? 'on' : '') + '">Mobile</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="nf-inbox" id="nf-inbox"></div>' +
+        '<div class="nf-stage" id="nf-stage"></div>' +
+      '</div>';
+
+    paint(
+      '<style>' + NOTIF_STYLES + '</style>' +
+      '<div class="flex items-center justify-between mb-4" style="gap:12px">' +
+        '<div class="flex items-center gap-3">' +
+          '<button class="back-btn" data-back title="Back">' + I.chevL + '</button>' +
+          '<div><div class="page-title" style="font-size:18px">' + esc(ev.name) + '</div>' +
+            '<div class="muted" style="font-size:12.5px;margin-top:2px">' + (NF_CLS[ev.cls] || '') + ' · Email · sent automatically</div></div>' +
+        '</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<button class="btn btn-default" data-test>Send test email</button>' +
+          '<button class="btn btn-default" data-save-draft>Save draft</button>' +
+          '<button class="btn btn-primary" data-activate>' + (c.enabled ? 'Save changes' : 'Activate') + '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="nf-editor">' + form + preview + '</div>',
+      false
+    );
+
+    nfUpdatePreview(ev);
+    setTimeout(nfFit, 0);
+
+    // back
+    root.querySelector('[data-back]').onclick = () => { notifSub = null; renderNotifications(); };
+    // status toggle in the form
+    const enSw = root.querySelector('[data-nf-toggle="__editor"]');
+    if (enSw) enSw.onclick = () => { enSw.classList.toggle('on'); c.enabled = enSw.classList.contains('on'); };
+    // device toggle
+    root.querySelectorAll('[data-dev]').forEach((bd) => bd.onclick = () => {
+      notifDevice = bd.getAttribute('data-dev');
+      root.querySelectorAll('[data-dev]').forEach((x) => x.classList.toggle('on', x === bd));
+      nfUpdatePreview(ev);
+    });
+    // live preview on edits
+    ['nf-fromname', 'nf-fromemail', 'nf-subject', 'nf-body'].forEach((id) => { const el = root.querySelector('#' + id); if (el) el.addEventListener('input', () => nfUpdatePreview(ev)); });
+    const loc = root.querySelector('#nf-locale'); if (loc) loc.addEventListener('change', () => { c.locale = loc.value; });
+    // variable / block inserters
+    const insVar = root.querySelector('#nf-ins-var');
+    if (insVar) insVar.onchange = () => { if (insVar.value) { insertAtCursor(root.querySelector('#nf-body'), '{{' + insVar.value + '}}'); insVar.selectedIndex = 0; nfUpdatePreview(ev); } };
+    const insBlk = root.querySelector('#nf-ins-block');
+    if (insBlk) insBlk.onchange = () => { if (insBlk.value) { insertAtCursor(root.querySelector('#nf-body'), '\n{{' + insBlk.value + '}}\n'); insBlk.selectedIndex = 0; nfUpdatePreview(ev); } };
+    // start from template
+    const tpl = root.querySelector('[data-tpl]'); if (tpl) tpl.onclick = () => openNotifTemplateModal(ev);
+    // test send
+    root.querySelector('[data-test]').onclick = () => openNotifTestModal(ev);
+    // save / activate
+    root.querySelector('[data-save-draft]').onclick = () => { nfSaveFromForm(ev); ev.config.status = ev.config.enabled ? 'active' : 'draft'; toast('Draft saved'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false); };
+    root.querySelector('[data-activate]').onclick = () => {
+      nfSaveFromForm(ev); const was = c.enabled; c.enabled = true; c.status = 'active';
+      toast(was ? 'Changes saved' : ev.name + ' activated'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
+      notifSub = null; renderNotifications();
+    };
+  }
+
+  // persist the form back into the event config (prototype: in-memory)
+  function nfSaveFromForm(ev) {
+    const g = (id) => { const el = root.querySelector('#' + id); return el ? el.value : undefined; };
+    const c = ev.config;
+    ['fromName|nf-fromname', 'fromEmail|nf-fromemail', 'replyTo|nf-replyto', 'subject|nf-subject', 'preheader|nf-preheader'].forEach((p) => { const [k, id] = p.split('|'); const v = g(id); if (v !== undefined) c[k] = v; });
+    const body = root.querySelector('#nf-body'); if (body) c.body = body.value;
+    const loc = root.querySelector('#nf-locale'); if (loc) c.locale = loc.value;
+    c.updatedAt = '2026-06-10';
+  }
+
+  function openNotifTemplateModal(ev) {
+    const presets = (D.notifications.presets[ev.code] || []);
+    const cards = presets.map((p, i) =>
+      '<label class="nf-tpl" data-tpl-pick="' + i + '">' +
+        '<div class="nf-tpl-thumb">' + esc(p.name.charAt(0)) + '</div>' +
+        '<div><div class="text-sm" style="font-weight:600;color:var(--ink)">' + esc(p.name) + '</div>' +
+          '<div class="muted" style="font-size:12px;margin-top:2px">' + esc(p.subject) + '</div></div>' +
+      '</label>').join('');
+    const ctrl = modal({
+      title: 'Start from a template', width: 520, hideCancel: false, okText: 'Cancel',
+      body: '<div class="muted mb-4" style="font-size:13px">Pick a starting point. You can edit everything afterwards — this replaces the current subject and body.</div><div class="nf-tpl-list">' + cards + '</div>',
+      onOk: (m, close) => close(),
+    });
+    ctrl.m.querySelectorAll('[data-tpl-pick]').forEach((el) => el.onclick = () => {
+      const p = presets[Number(el.getAttribute('data-tpl-pick'))];
+      const sub = root.querySelector('#nf-subject'); if (sub) sub.value = p.subject;
+      const body = root.querySelector('#nf-body'); if (body) body.value = p.body;
+      ctrl.close(); toast('Template applied'); nfUpdatePreview(ev);
+    });
+  }
+
+  function openNotifTestModal(ev) {
+    modal({
+      title: 'Send a test email', width: 460, okText: 'Send test',
+      body: '<div class="muted mb-4" style="font-size:13px">We’ll send this notification with sample order data so you can check how it looks in a real inbox.</div>' +
+        field('Send to', window.SITE && window.SITE.email ? window.SITE.email : '', 'you@example.com'),
+      onOk: (m, close) => { const inp = m.querySelector('input'); const to = inp ? inp.value : ''; close(); toast(to ? 'Test email sent to ' + to : 'Test email sent'); },
+    });
+  }
+
+  function renderNotifBrand() {
+    const b = D.notifications.brand;
+    const logoTile = b.logo.set
+      ? '<div class="up-tile filled"><span class="up-ico">' + I.image + '</span><span class="up-name">' + esc(b.logo.name) + '</span><button class="up-x" title="Remove">' + I.x + '</button></div>'
+      : '<div class="up-tile"><span class="up-plus">' + I.plus + '</span><span class="up-add">Add logo</span></div>';
+    paint(
+      '<style>' + NOTIF_STYLES + '</style>' +
+      '<div class="flex items-center gap-3 mb-4">' +
+        '<button class="back-btn" data-back title="Back">' + I.chevL + '</button>' +
+        '<div><div class="page-title" style="font-size:18px">Brand settings</div>' +
+          '<div class="muted" style="font-size:12.5px;margin-top:2px">Logo, color and footer apply to every notification.</div></div>' +
+      '</div>' +
+      '<div class="panel card-pad">' +
+        '<div style="margin-bottom:16px"><label class="nf-label">Store name</label><input class="input" id="nf-b-name" value="' + esc(b.storeName) + '" style="width:100%;max-width:420px" /></div>' +
+        '<div style="margin-bottom:16px"><label class="nf-label">Email logo</label>' + logoTile + '<div class="nf-hint">Shown at the top of every email. PNG or SVG recommended.</div></div>' +
+        '<div style="margin-bottom:16px"><label class="nf-label">Brand color</label>' +
+          '<div class="flex items-center gap-2"><input type="color" id="nf-b-color" value="' + esc(b.primaryColor) + '" class="nf-color" />' +
+          '<input class="input" id="nf-b-hex" value="' + esc(b.primaryColor) + '" style="width:130px" /></div>' +
+          '<div class="nf-hint">Used for buttons and links in emails.</div></div>' +
+        '<div style="margin-bottom:16px"><label class="nf-label">Contact email</label><input class="input" id="nf-b-contact" value="' + esc(b.contactEmail) + '" style="width:100%;max-width:420px" /><div class="nf-hint">Shown in the footer so customers can reach you.</div></div>' +
+        '<div style="margin-bottom:16px"><label class="nf-label">Footer text</label><input class="input" id="nf-b-footer" value="' + esc(b.footerText) + '" style="width:100%" /></div>' +
+        '<div><label class="nf-label">Business address</label><input class="input" id="nf-b-address" value="' + esc(b.address) + '" style="width:100%" /><div class="nf-hint">Recommended for compliance footers.</div></div>' +
+      '</div>' +
+      '<div class="flex justify-end mt-4"><button class="btn btn-primary" data-save-brand>Save brand settings</button></div>',
+      true
+    );
+    root.querySelector('[data-back]').onclick = () => { notifSub = null; renderNotifications(); };
+    const col = root.querySelector('#nf-b-color'), hex = root.querySelector('#nf-b-hex');
+    if (col && hex) { col.oninput = () => { hex.value = col.value; }; hex.oninput = () => { if (/^#[0-9a-f]{6}$/i.test(hex.value)) col.value = hex.value; }; }
+    root.querySelector('[data-save-brand]').onclick = () => {
+      const g = (id) => { const el = root.querySelector('#' + id); return el ? el.value : undefined; };
+      b.storeName = g('nf-b-name'); b.primaryColor = g('nf-b-hex'); b.contactEmail = g('nf-b-contact'); b.footerText = g('nf-b-footer'); b.address = g('nf-b-address');
+      toast('Brand settings saved'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
+    };
+  }
+
+  const NOTIF_STYLES = `
+  .nf-group { margin-bottom: 22px; }
+  .nf-group:last-child { margin-bottom: 0; }
+  .nf-group-h { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); margin: 0 2px 8px; }
+  .nf-soon { text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 500; color: var(--ink-muted); background: var(--panel); border: 1px solid var(--hair); border-radius: 9999px; padding: 1px 8px; }
+  .nf-list { display: flex; flex-direction: column; gap: 10px; }
+  .nf-row { display: flex; align-items: center; gap: 14px; padding: 13px 16px; border: 1px solid var(--hair); border-radius: 10px; background: #fff; cursor: pointer; transition: border-color .12s, background .12s; }
+  .nf-row:hover { border-color: var(--brand); background: #fcfdff; }
+  .nf-row.locked { cursor: default; background: var(--panel); }
+  .nf-row.locked:hover { border-color: var(--hair); background: var(--panel); }
+  .nf-ico { width: 36px; height: 36px; border-radius: 8px; background: #e6f0ff; color: var(--brand); display: grid; place-items: center; flex: none; }
+  .nf-row.locked .nf-ico { background: #eef0f4; color: var(--ink-muted); }
+  .nf-main { flex: 1; min-width: 0; }
+  .nf-name { font-size: 14px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .nf-desc { font-size: 12.5px; color: var(--ink-muted); margin-top: 2px; }
+  .nf-meta { font-size: 12px; color: var(--ink-muted); white-space: nowrap; }
+  .nf-cls { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 9999px; }
+  .nf-cls.t { background: #e0f2ec; color: #00684a; }
+  .nf-cls.m { background: #ffedd5; color: #b45309; }
+  .nf-cls.i { background: #dbeafe; color: #2563eb; }
+  .nf-right { display: flex; align-items: center; gap: 12px; flex: none; }
+  .nf-chev { color: var(--ink-muted); display: inline-flex; }
+  @media (max-width: 760px) { .nf-meta { display: none; } }
+
+  /* editor */
+  .nf-editor { display: grid; grid-template-columns: minmax(360px, 440px) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 1080px) { .nf-editor { grid-template-columns: 1fr; } }
+  .nf-label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin: 0 0 6px; }
+  .nf-hint { font-size: 11.5px; color: var(--ink-muted); margin-top: 5px; line-height: 1.5; }
+  .nf-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .nf-insert { height: 32px; width: auto; min-width: 140px; padding: 0 10px; }
+  .nf-body { width: 100%; min-height: 220px; font: 12.5px/1.6 ui-monospace, Menlo, Consolas, monospace; padding: 10px 12px; border: 1px solid var(--ctl); border-radius: 8px; resize: vertical; color: var(--ink); background: #fff; }
+  .nf-body:focus { outline: none; border-color: var(--brand); }
+
+  /* preview */
+  .nf-preview { position: sticky; top: 8px; }
+  .nf-pv-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .nf-seg { display: inline-flex; border: 1px solid var(--ctl); border-radius: 8px; overflow: hidden; }
+  .nf-seg button { border: none; background: #fff; padding: 6px 14px; font-size: 12.5px; color: var(--ink-body); cursor: pointer; }
+  .nf-seg button + button { border-left: 1px solid var(--ctl); }
+  .nf-seg button.on { background: var(--brand); color: #fff; }
+  .nf-inbox { border: 1px solid var(--hair); border-bottom: none; border-radius: 10px 10px 0 0; background: #fff; padding: 10px 14px; font-size: 12.5px; }
+  .nf-inbox .l { color: var(--ink-muted); } .nf-inbox .v { color: var(--ink); font-weight: 500; }
+  .nf-stage { border: 1px solid var(--hair); border-radius: 0 0 10px 10px; background: #eef1f5; padding: 18px 12px; overflow: hidden; }
+  .email-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgb(0 0 0 / 8%); overflow: hidden; margin: 0 auto; font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .email-card .nf-lead { margin: 0 0 16px; font-size: 15px; color: #555; line-height: 1.6; }
+  .email-card .nf-fine { margin: 16px 0 0; font-size: 13px; color: #999; line-height: 1.6; }
+  .nf-unktag { background: #fff4d6; color: #92660a; border-radius: 4px; padding: 0 4px; font-size: .92em; }
+  .nf-color { width: 40px; height: 34px; padding: 2px; border: 1px solid var(--ctl); border-radius: 8px; background: #fff; cursor: pointer; }
+
+  /* template picker */
+  .nf-tpl-list { display: flex; flex-direction: column; gap: 10px; }
+  .nf-tpl { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--hair); border-radius: 10px; cursor: pointer; }
+  .nf-tpl:hover { border-color: var(--brand); background: #fcfdff; }
+  .nf-tpl-thumb { width: 40px; height: 40px; border-radius: 8px; background: #e6f0ff; color: var(--brand); font-weight: 700; display: grid; place-items: center; flex: none; }
+  `;
+
   const ROUTES = {
+    notifications: renderNotifications,
     base: renderBase,
+    domains: renderDomains,
     payments: renderPayments,
     currency: renderCurrency,
     checkout: renderCheckout,
@@ -1576,6 +2227,8 @@
     mfAdding = false;
     rateProfile = (key === 'shipping-rates' && sub != null && sub !== '')
       ? (sub === 'new' ? 'new' : Number(decodeURIComponent(sub))) : null;
+    domainStep = (key === 'domains' && sub) ? sub : null;
+    notifSub = (key === 'notifications' && sub != null && sub !== '') ? decodeURIComponent(sub) : null;
     ROUTES[key]();
     wireDirty();
     if (root && root.parentElement) root.parentElement.scrollTop = 0;

@@ -5,7 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stores · BestShopio</title>
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-  <link rel="stylesheet" href="styles.css?v=20260609a" />
+  <link rel="stylesheet" href="styles.css?v=20260610f" />
+  <style>
+    /* "Create a new store" card — first cell of the grid (self-service entry) */
+    .store-card-new { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 188px; padding: 22px; border: 1.5px dashed #b9c6ef; border-radius: 14px; background: #f4f7ff; color: var(--blue); text-align: center; text-decoration: none; transition: border-color .2s, background .2s, transform .2s; }
+    .store-card-new:hover { border-color: var(--blue); background: #eef2ff; transform: translateY(-1px); }
+    .store-card-new .plus { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #e3eaff; font-size: 28px; font-weight: 300; line-height: 1; margin-bottom: 12px; }
+    .store-card-new .new-label { font-size: 15px; font-weight: 700; color: #2a3656; }
+    .store-card-new .new-sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+    .stores-actions { display: flex; align-items: center; gap: 10px; }
+    .store-card.provisioning { cursor: pointer; }
+    .store-setup-line { display: inline-flex; align-items: center; gap: 7px; }
+    .store-setup-line .spin { width: 13px; height: 13px; border: 2px solid var(--blue); border-top-color: transparent; border-radius: 50%; animation: sp .7s linear infinite; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
   <!-- ===== top bar ===== -->
@@ -48,7 +61,10 @@
       <section class="stores-main">
         <div class="stores-toolbar">
           <h1 class="welcome-title" id="greeting">Choose a store to get started</h1>
-          <button class="btn btn-primary" id="req-access">Request access to a store</button>
+          <div class="stores-actions">
+            <button class="btn" id="req-access">Request access to a store</button>
+            <a class="btn btn-primary" href="create-store.html">Create store</a>
+          </div>
         </div>
         <div class="store-grid" id="store-grid"></div>
       </section>
@@ -67,12 +83,13 @@
     // Stores the signed-in account can access. Only "Active" stores are enterable.
     // Access code 0815 is the demo code that matches a store in "Request access".
     var STORES = [
-      { name: 'Lovocross',    url: 'm.lovocross.com',      status: 'Active',          orders: 1284, gmv: 48320.50 },
-      { name: 'Silixwear-ES', url: 'www.silixwear-es.com', status: 'Active',          orders: 326,  gmv: 12540.00 },
-      { name: 'Gigaxin',      url: 'www.gugaxin.com',      status: 'Active',          orders: 58,   gmv: 3180.00 },
-      { name: 'Bumpbabe',     url: 'www.bumpbabe.com',     status: 'Request pending', orders: '*',  gmv: '*' }
+      { name: 'Lovocross',    url: 'm.lovocross.com',         status: 'Active',          orders: 1284, gmv: 48320.50 },
+      { name: 'Silixwear-ES', url: 'www.silixwear-es.com',    status: 'Active',          orders: 326,  gmv: 12540.00 },
+      { name: 'Nutrofuels',   url: 'nutrofuels.bestshopio.store', status: 'Provisioning', orders: '*',  gmv: '*' },
+      { name: 'Gigaxin',      url: 'www.gugaxin.com',         status: 'Active',          orders: 58,   gmv: 3180.00 },
+      { name: 'Bumpbabe',     url: 'www.bumpbabe.com',        status: 'Request pending', orders: '*',  gmv: '*' }
     ];
-    var TAG = { 'Active': 'tag-green', 'Request pending': 'tag-gold', 'Request rejected': 'tag-blue', 'No access': 'tag-gray' };
+    var TAG = { 'Active': 'tag-green', 'Provisioning': 'tag-blue', 'Request pending': 'tag-gold', 'Request rejected': 'tag-blue', 'No access': 'tag-gray' };
 
     function toast(msg, kind) {
       var host = document.getElementById('toast-host');
@@ -95,36 +112,38 @@
     // render cards
     (function renderGrid() {
       var grid = document.getElementById('store-grid');
-      if (!STORES.length) {
-        grid.outerHTML = '<div class="empty-panel" style="grid-column:1/-1">' +
-          '<div class="empty-icon"><span class="awning"></span><span class="body"></span></div>' +
-          '<div class="empty-title">You do not have access to any stores yet.</div>' +
-          '<button class="btn btn-primary" onclick="openRequestAccess()">Request access to a store</button></div>';
-        return;
-      }
-      grid.innerHTML = STORES.map(function (s) {
+      // self-service entry — always the first cell
+      var createCard = '<a class="store-card-new" href="create-store.html">' +
+        '<div class="plus">+</div>' +
+        '<div class="new-label">Create a new store</div>' +
+        '<div class="new-sub">Live in under 3 minutes</div></a>';
+      var cards = STORES.map(function (s) {
         var active = s.status === 'Active';
+        var provisioning = s.status === 'Provisioning';
         var metrics = active
           ? '<div class="metric-col"><div class="metric-num">' + nf(s.orders) + '</div><div class="metric-label">Total order<br/>in 30 days</div></div>' +
             '<div class="metric-col"><div class="metric-num">' + cur(s.gmv) + '</div><div class="metric-label">Total order amount<br/>in 30 days</div></div>'
           : '<div class="metric-col"><div class="metric-num">- -</div><div class="metric-label">Total order<br/>in 30 days</div></div>' +
             '<div class="metric-col"><div class="metric-num">- -</div><div class="metric-label">Total order amount<br/>in 30 days</div></div>';
         var tag = '<span class="tag ' + (TAG[s.status] || 'tag-gray') + '">' + s.status + '</span>';
-        var attrs = active
-          ? 'href="../index.html?store=' + encodeURIComponent(s.name) + '"'
-          : 'class="store-card disabled" aria-disabled="true"';
-        var open = active ? '<a class="store-card" ' + attrs + '>' : '<div ' + attrs + '>';
-        var closeTag = active ? '</a>' : '</div>';
+        var domainHtml = provisioning
+          ? '<div class="store-domain"><span class="store-setup-line"><span class="spin"></span>Setting up your store…</span></div>'
+          : '<div class="store-domain">' + s.url + '</div>';
+        var open, closeTag;
+        if (active) { open = '<a class="store-card" href="../index.html?store=' + encodeURIComponent(s.name) + '">'; closeTag = '</a>'; }
+        else if (provisioning) { open = '<a class="store-card provisioning" href="provisioning.html?store=' + encodeURIComponent(s.name) + '">'; closeTag = '</a>'; }
+        else { open = '<div class="store-card disabled" aria-disabled="true">'; closeTag = '</div>'; }
         return open +
             '<div class="store-card-head">' +
               '<div class="store-icon"><span class="awning"></span><span class="body"></span></div>' +
               '<div class="store-copy"><h2 class="store-name">' + s.name + '</h2>' +
-                '<div class="store-domain">' + s.url + '</div>' + tag + '</div>' +
+                domainHtml + tag + '</div>' +
             '</div>' +
             '<div class="store-divider"></div>' +
             '<div class="store-metrics">' + metrics + '</div>' +
           closeTag;
       }).join('');
+      grid.innerHTML = createCard + cards;
     })();
 
     // ===== avatar dropdown =====

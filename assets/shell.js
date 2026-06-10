@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260610b'; // cache-bust for lazy-loaded module scripts
+  var V = '20260610e'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -46,10 +46,14 @@
   var SITE = window.SITE || { store: 'Store' };
   var STORES = window.STORES || [];
   // The SSO stores panel enters a store via index.html?store=<name>; reflect it in the chrome.
+  var isNewStore = false;
   try {
     var qsStore = new URLSearchParams(location.search).get('store');
     if (qsStore) SITE.store = qsStore;
+    // V1.139: provisioning sends merchants here with ?new=1 so Home shows the Setup guide.
+    isNewStore = new URLSearchParams(location.search).get('new') === '1';
   } catch (e) {}
+  var setupDismissed = false;
   window.VIEWS = window.VIEWS || {};
 
   var navEl, footEl, settingsBar, root, current = null, loaded = {};
@@ -154,6 +158,56 @@
     return loaded[id];
   }
 
+  // ---------- Setup guide (V1.139) — store-onboarding card on Home ----------
+  // Shown when a merchant enters a freshly-provisioned store (?new=1). Tasks bind
+  // to the activation milestones (D1 product / D3 payments / D7 go-live). PRD §7.4.
+  var SETUP_STYLES =
+    '.sg-card{padding:0;overflow:hidden;margin-bottom:22px;border:1px solid var(--hair)}' +
+    '.sg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 22px 12px}' +
+    '.sg-h1{font-size:17px;font-weight:700;color:var(--ink)}' +
+    '.sg-meta{font-size:12.5px;color:var(--ink-muted);margin-top:4px}' +
+    '.sg-x{border:0;background:none;color:var(--ink-muted);cursor:pointer;display:inline-flex;padding:4px;border-radius:6px}' +
+    '.sg-x:hover{background:var(--panel);color:var(--ink)}.sg-x svg{width:18px;height:18px}' +
+    '.sg-bar{height:7px;margin:0 22px 6px;background:var(--panel);border-radius:999px;overflow:hidden}' +
+    '.sg-bar i{display:block;height:100%;background:var(--brand);border-radius:999px}' +
+    '.sg-task{display:flex;align-items:center;gap:14px;padding:14px 22px;border-top:1px solid var(--hair)}' +
+    '.sg-tc{width:24px;height:24px;border-radius:50%;border:2px solid var(--ctl);flex:none;display:inline-flex;align-items:center;justify-content:center;color:transparent}' +
+    '.sg-tc.done{background:#2bb673;border-color:#2bb673;color:#fff}.sg-tc svg{width:13px;height:13px}' +
+    '.sg-tt{flex:1;min-width:0}.sg-tname{font-size:14px;font-weight:600;color:var(--ink)}' +
+    '.sg-task.done .sg-tname{color:var(--ink-muted);text-decoration:line-through}' +
+    '.sg-tdesc{font-size:12.5px;color:var(--ink-muted);margin-top:2px}' +
+    '.sg-opt{font-size:11px;color:var(--ink-muted);font-weight:600;border:1px solid var(--hair);border-radius:4px;padding:1px 6px;margin-left:4px}' +
+    '.sg-cta{height:32px;padding:0 14px;font-size:13px}';
+  function setupGuideHtml() {
+    var tasks = [
+      { done: true,  title: 'Choose a theme',          desc: 'A starter theme is ready. Customize it anytime.',        route: '#/online-store',     cta: 'Customize' },
+      { done: true,  title: 'Add your first product',  desc: 'List a product so customers have something to buy.',     route: '#/products',         cta: 'Add' },
+      { done: false, title: 'Set up payments',         desc: 'Connect Airwallex, Stripe or PayPal to get paid.',       route: '#/settings/payments', cta: 'Start' },
+      { done: false, title: 'Connect your domain',     desc: 'Use your own domain instead of the free one.',           route: '#/settings/domains', cta: 'Start', opt: true },
+      { done: false, title: 'Preview & go live',       desc: 'Review your store and open it to customers.',            route: '#/online-store',     cta: 'Start' },
+    ];
+    var doneN = tasks.filter(function (t) { return t.done; }).length;
+    var pct = Math.round(doneN / tasks.length * 100);
+    var rows = tasks.map(function (t) {
+      var check = '<span class="sg-tc' + (t.done ? ' done' : '') + '">' + (t.done ? MICO.check : '') + '</span>';
+      var cta = t.done ? '' : '<a class="btn btn-primary sg-cta" href="' + t.route + '">' + t.cta + '</a>';
+      var opt = t.opt ? ' <span class="sg-opt">Optional</span>' : '';
+      return '<div class="sg-task' + (t.done ? ' done' : '') + '">' + check +
+        '<div class="sg-tt"><div class="sg-tname">' + t.title + opt + '</div><div class="sg-tdesc">' + t.desc + '</div></div>' + cta + '</div>';
+    }).join('');
+    return '<div class="sg-card panel"><style>' + SETUP_STYLES + '</style>' +
+      '<div class="sg-head"><div><div class="sg-h1">Set up your store</div>' +
+        '<div class="sg-meta">' + doneN + ' of ' + tasks.length + ' tasks done · ' + pct + '%</div></div>' +
+        '<button class="sg-x" data-sg-dismiss title="Hide">' + ICONS.x + '</button></div>' +
+      '<div class="sg-bar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="sg-tasks">' + rows + '</div>' +
+    '</div>';
+  }
+  function wireSetupGuide() {
+    var x = root.querySelector('[data-sg-dismiss]');
+    if (x) x.onclick = function () { setupDismissed = true; var c = root.querySelector('.sg-card'); if (c) c.remove(); };
+  }
+
   // ---------- Home hub view ----------
   function renderHome() {
     var CL = window.CHANGELOG || [];
@@ -181,13 +235,16 @@
         '<div class="cl-body"><div class="cl-head"><span class="cl-ver">' + e.version + '</span><span class="cl-date">' + (e.date || '') + '</span></div>' +
         '<div class="cl-title">' + e.title + (mods ? ' &mdash; ' + mods : '') + '</div><ul class="cl-list">' + lis + '</ul></div></div>';
     }).join('');
+    var setupHtml = (isNewStore && !setupDismissed) ? setupGuideHtml() : '';
     root.innerHTML =
       '<div class="view-wrap">' +
+        setupHtml +
         '<div class="hub-hero"><div class="hub-h1">' + (SITE.brand || 'BestShopio') + ' &mdash; Admin prototype</div>' +
         '<div class="hub-sub">One living set of merchant-admin prototypes, mirroring the live admin. Pick a module, or see what changed below.</div></div>' +
         '<div class="builder hub-cols" style="gap:24px"><div class="builder-main"><div class="mod-grid">' + cardHtml + '</div></div>' +
         '<div class="builder-side"><div class="panel card-pad"><div class="card-title" style="margin-bottom:14px">What changed</div><div class="cl">' + clHtml + '</div></div></div></div>' +
       '</div>';
+    if (setupHtml) wireSetupGuide();
   }
 
   // ---------- router ----------

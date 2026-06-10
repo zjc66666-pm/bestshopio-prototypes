@@ -43,6 +43,7 @@ a { color: inherit; }
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
+  text-decoration: none;
   cursor: pointer;
   transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
@@ -61,7 +62,6 @@ a { color: inherit; }
   justify-content: space-between;
   padding: 0 24px 0 16px;
   background: var(--page);
-  border-bottom: 1px solid #e3e8f3;
   color: #1f2430;
 }
 .acct-brand { display: flex; align-items: center; height: 40px; text-decoration: none; }

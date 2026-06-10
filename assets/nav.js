@@ -47,6 +47,8 @@ window.NAV_SETTINGS = [
   { id: 'payments',            label: 'Payments',       icon: 'card',     route: '#/settings/payments' },
   { id: 'currency',            label: 'Currency',       icon: 'coin',     route: '#/settings/currency' },
   { id: 'checkout',            label: 'Checkout',       icon: 'cart',     route: '#/settings/checkout' },
+  { id: 'notifications',       label: 'Notifications',  icon: 'bell',     route: '#/settings/notifications' },
+  { id: 'domains',             label: 'Domains',        icon: 'globe',    route: '#/settings/domains' },
   { id: 'metafields',          label: 'Metafields',     icon: 'code',     route: '#/settings/metafields' },
   { id: 'shippable-locations', label: 'Ship locations', icon: 'pin',      route: '#/settings/shippable-locations' },
   { id: 'shipping-rates',      label: 'Shipping rates', icon: 'pin',      route: '#/settings/shipping-rates' },
@@ -66,6 +68,24 @@ window.ROUTE_MODULE = {
 
 /* Newest first. `modules` lists the route ids each version touched (for the Home changelog). */
 window.CHANGELOG = [
+  {
+    version: 'V1.141', date: '2026-06', title: 'Notifications — configurable order emails',
+    modules: [],
+    items: [
+      'Settings → Notifications: turn order confirmation & shipping emails on/off per store — no code, no redeploy (replaces the hardcoded per-site templates)',
+      'Email editor with merge variables + safe dynamic blocks (order summary / tracking) and a starter template library, with a live desktop/mobile preview and test send',
+      'Brand settings (logo / color / footer) shared across every notification; extensible event catalog for refund, welcome, verification and more',
+    ],
+  },
+  {
+    version: 'V1.139', date: '2026-06', title: 'Self-service store provisioning',
+    modules: [],
+    items: [
+      'Account portal: Create store wizard → live Provisioning progress (database / storage / search / OMS / domain / SSL) in under 3 minutes',
+      'Store Home: Setup guide card (Add product · Set up payments · Choose theme · Connect domain · Go live)',
+      'Settings → Domains: connect a custom domain with auto DNS detection + automatic SSL (issue & renew)',
+    ],
+  },
   {
     version: 'V1.129', date: '2026-06', title: 'Staff & permissions + SSO multi-store portal',
     modules: [],
