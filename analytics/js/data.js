@@ -6,7 +6,6 @@ window.DATA = (function () {
       { id: 'orders', label: 'Orders', icon: 'inbox', route: '#/m/orders' },
       { id: 'products', label: 'Products', icon: 'tag', children: [
         { label: 'Collections', route: '#/m/collections' },
-        { label: 'Vendors', route: '#/m/vendors' },
         { label: 'Reviews', route: '#/m/reviews' },
       ] },
       { id: 'customers', label: 'Customers', icon: 'userPen', route: '#/m/customers' },
@@ -195,36 +194,36 @@ window.DATA = (function () {
   const SESSIONS_BY_SOCIAL = [{ name: 'facebook', value: 18000 }, { name: 'instagram', value: 12000 }, { name: 'snapchat', value: 820 }];
 
   // ---- Product data details (bespoke report; views/funnel = 神策待建) ----
-  // commerce 真实可落: name/vendor/sku/qty/sales/orders ; behavior 待神策: views/funnel
+  // commerce 真实可落: name/sku/qty/sales/orders ; behavior 待神策: views/funnel
   const PRODUCT_DATA = [
-    { name: '3D Anti-Cellulite Leggings', vendor: 'Silix Official', sku: 'SX-3DACL-01', qty: 8420, sales: 1310000, pct: 71.8, orders: 6900, views: 1134380 },
-    { name: 'Silix Pocket 3D Sculpting Leggings', vendor: 'Silix Official', sku: 'SX-P3DSL-02', qty: 1180, sales: 187100, pct: 10.3, orders: 980, views: 152947 },
-    { name: 'Silix 3D Compression Sleeves', vendor: 'BumpBabe', sku: 'BB-3DCS-03', qty: 620, sales: 75500, pct: 4.1, orders: 540, views: 48400 },
-    { name: '3D Anti-Cellulite Short Leggings', vendor: 'Silix Official', sku: 'SX-3DASL-04', qty: 540, sales: 68400, pct: 3.7, orders: 470, views: 41200 },
-    { name: 'SILIX Butt-Lifting Pocket Capris', vendor: 'Folast', sku: 'FL-BLPC-05', qty: 410, sales: 48100, pct: 2.6, orders: 360, views: 33800 },
-    { name: 'Seamless High-Waist Briefs', vendor: 'Lovocross', sku: 'LV-SHWB-06', qty: 380, sales: 32600, pct: 1.8, orders: 300, views: 27500 },
-    { name: 'Silix Sport Bra Pro', vendor: 'Folast', sku: 'FL-SBP-07', qty: 290, sales: 28900, pct: 1.6, orders: 240, views: 21900 },
-    { name: 'Compression Maternity Leggings', vendor: 'BumpBabe', sku: 'BB-CML-08', qty: 240, sales: 24100, pct: 1.3, orders: 210, views: 18600 },
-    { name: 'Silix Ankle Support Sleeve', vendor: 'Minilizm', sku: 'MN-ASS-09', qty: 180, sales: 12800, pct: 0.7, orders: 150, views: 12685 },
-    { name: 'Silix Yoga Flow Pants', vendor: 'Silix Official', sku: 'SX-YFP-10', qty: 120, sales: 9400, pct: 0.5, orders: 100, views: 8900 },
-    { name: 'Silix Seamless Camisole', vendor: 'Lovocross', sku: 'LV-SSC-11', qty: 90, sales: 6300, pct: 0.3, orders: 80, views: 6400 },
-    { name: 'Silix Knee Compression Band', vendor: 'Minilizm', sku: 'MN-KCB-12', qty: 60, sales: 3900, pct: 0.2, orders: 55, views: 4100 },
+    { name: '3D Anti-Cellulite Leggings', sku: 'SX-3DACL-01', qty: 8420, sales: 1310000, pct: 71.8, orders: 6900, views: 1134380 },
+    { name: 'Silix Pocket 3D Sculpting Leggings', sku: 'SX-P3DSL-02', qty: 1180, sales: 187100, pct: 10.3, orders: 980, views: 152947 },
+    { name: 'Silix 3D Compression Sleeves', sku: 'BB-3DCS-03', qty: 620, sales: 75500, pct: 4.1, orders: 540, views: 48400 },
+    { name: '3D Anti-Cellulite Short Leggings', sku: 'SX-3DASL-04', qty: 540, sales: 68400, pct: 3.7, orders: 470, views: 41200 },
+    { name: 'SILIX Butt-Lifting Pocket Capris', sku: 'FL-BLPC-05', qty: 410, sales: 48100, pct: 2.6, orders: 360, views: 33800 },
+    { name: 'Seamless High-Waist Briefs', sku: 'LV-SHWB-06', qty: 380, sales: 32600, pct: 1.8, orders: 300, views: 27500 },
+    { name: 'Silix Sport Bra Pro', sku: 'FL-SBP-07', qty: 290, sales: 28900, pct: 1.6, orders: 240, views: 21900 },
+    { name: 'Compression Maternity Leggings', sku: 'BB-CML-08', qty: 240, sales: 24100, pct: 1.3, orders: 210, views: 18600 },
+    { name: 'Silix Ankle Support Sleeve', sku: 'MN-ASS-09', qty: 180, sales: 12800, pct: 0.7, orders: 150, views: 12685 },
+    { name: 'Silix Yoga Flow Pants', sku: 'SX-YFP-10', qty: 120, sales: 9400, pct: 0.5, orders: 100, views: 8900 },
+    { name: 'Silix Seamless Camisole', sku: 'LV-SSC-11', qty: 90, sales: 6300, pct: 0.3, orders: 80, views: 6400 },
+    { name: 'Silix Knee Compression Band', sku: 'MN-KCB-12', qty: 60, sales: 3900, pct: 0.2, orders: 55, views: 4100 },
   ];
   const VARIANT_DATA = [
-    { spec: 'Black / S', sku: 'SX-3DACL-BLK-S', product: '3D Anti-Cellulite Leggings', vendor: 'Silix Official', qty: 1820, sales: 280400, pct: 15.4 },
-    { spec: 'Black / M', sku: 'SX-3DACL-BLK-M', product: '3D Anti-Cellulite Leggings', vendor: 'Silix Official', qty: 1640, sales: 252600, pct: 13.8 },
-    { spec: 'Black / L', sku: 'SX-3DACL-BLK-L', product: '3D Anti-Cellulite Leggings', vendor: 'Silix Official', qty: 1510, sales: 232500, pct: 12.7 },
-    { spec: 'Black / XL', sku: 'SX-3DACL-BLK-XL', product: '3D Anti-Cellulite Leggings', vendor: 'Silix Official', qty: 980, sales: 150900, pct: 8.3 },
-    { spec: 'Grey / M', sku: 'SX-3DACL-GRY-M', product: '3D Anti-Cellulite Leggings', vendor: 'Silix Official', qty: 740, sales: 113900, pct: 6.2 },
-    { spec: 'Grey / L', sku: 'SX-3DACL-GRY-L', product: '3D Anti-Cellulite Leggings', vendor: 'Silix Official', qty: 690, sales: 106200, pct: 5.8 },
-    { spec: 'Black / M', sku: 'SX-P3DSL-BLK-M', product: 'Silix Pocket 3D Sculpting Leggings', vendor: 'Silix Official', qty: 520, sales: 82400, pct: 4.5 },
-    { spec: 'Black / L', sku: 'SX-P3DSL-BLK-L', product: 'Silix Pocket 3D Sculpting Leggings', vendor: 'Silix Official', qty: 480, sales: 76100, pct: 4.2 },
-    { spec: 'One Size', sku: 'BB-3DCS-OS', product: 'Silix 3D Compression Sleeves', vendor: 'BumpBabe', qty: 620, sales: 75500, pct: 4.1 },
-    { spec: 'Black / S', sku: 'SX-3DASL-BLK-S', product: '3D Anti-Cellulite Short Leggings', vendor: 'Silix Official', qty: 300, sales: 38000, pct: 2.1 },
-    { spec: 'Black / M', sku: 'SX-3DASL-BLK-M', product: '3D Anti-Cellulite Short Leggings', vendor: 'Silix Official', qty: 240, sales: 30400, pct: 1.7 },
-    { spec: 'Nude / M', sku: 'FL-BLPC-NUD-M', product: 'SILIX Butt-Lifting Pocket Capris', vendor: 'Folast', qty: 230, sales: 27000, pct: 1.5 },
-    { spec: 'Black / L', sku: 'FL-BLPC-BLK-L', product: 'SILIX Butt-Lifting Pocket Capris', vendor: 'Folast', qty: 180, sales: 21100, pct: 1.2 },
-    { spec: 'Beige / M', sku: 'LV-SHWB-BEI-M', product: 'Seamless High-Waist Briefs', vendor: 'Lovocross', qty: 200, sales: 17200, pct: 0.9 },
+    { spec: 'Black / S', sku: 'SX-3DACL-BLK-S', product: '3D Anti-Cellulite Leggings', qty: 1820, sales: 280400, pct: 15.4 },
+    { spec: 'Black / M', sku: 'SX-3DACL-BLK-M', product: '3D Anti-Cellulite Leggings', qty: 1640, sales: 252600, pct: 13.8 },
+    { spec: 'Black / L', sku: 'SX-3DACL-BLK-L', product: '3D Anti-Cellulite Leggings', qty: 1510, sales: 232500, pct: 12.7 },
+    { spec: 'Black / XL', sku: 'SX-3DACL-BLK-XL', product: '3D Anti-Cellulite Leggings', qty: 980, sales: 150900, pct: 8.3 },
+    { spec: 'Grey / M', sku: 'SX-3DACL-GRY-M', product: '3D Anti-Cellulite Leggings', qty: 740, sales: 113900, pct: 6.2 },
+    { spec: 'Grey / L', sku: 'SX-3DACL-GRY-L', product: '3D Anti-Cellulite Leggings', qty: 690, sales: 106200, pct: 5.8 },
+    { spec: 'Black / M', sku: 'SX-P3DSL-BLK-M', product: 'Silix Pocket 3D Sculpting Leggings', qty: 520, sales: 82400, pct: 4.5 },
+    { spec: 'Black / L', sku: 'SX-P3DSL-BLK-L', product: 'Silix Pocket 3D Sculpting Leggings', qty: 480, sales: 76100, pct: 4.2 },
+    { spec: 'One Size', sku: 'BB-3DCS-OS', product: 'Silix 3D Compression Sleeves', qty: 620, sales: 75500, pct: 4.1 },
+    { spec: 'Black / S', sku: 'SX-3DASL-BLK-S', product: '3D Anti-Cellulite Short Leggings', qty: 300, sales: 38000, pct: 2.1 },
+    { spec: 'Black / M', sku: 'SX-3DASL-BLK-M', product: '3D Anti-Cellulite Short Leggings', qty: 240, sales: 30400, pct: 1.7 },
+    { spec: 'Nude / M', sku: 'FL-BLPC-NUD-M', product: 'SILIX Butt-Lifting Pocket Capris', qty: 230, sales: 27000, pct: 1.5 },
+    { spec: 'Black / L', sku: 'FL-BLPC-BLK-L', product: 'SILIX Butt-Lifting Pocket Capris', qty: 180, sales: 21100, pct: 1.2 },
+    { spec: 'Beige / M', sku: 'LV-SHWB-BEI-M', product: 'Seamless High-Waist Briefs', qty: 200, sales: 17200, pct: 0.9 },
   ];
 
   // ---- Traffic acquisition: By country/region (bespoke; behavior = 神策待建) ----
@@ -255,7 +254,6 @@ window.DATA = (function () {
     { id: 'sales_over_time', name: 'Sales: By date range', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-29', viz: 'line', metrics: ['total_sales'], dims: ['day'] },
     { id: 'sales_by_product', name: 'Product data details', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-28', viz: 'barH', metrics: ['total_sales'], dims: ['product_title'] },
     { id: 'sales_by_variant', name: 'Sales by variant (SKU)', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-20', viz: 'barH', metrics: ['total_sales'], dims: ['variant'] },
-    { id: 'sales_by_vendor', name: 'Sales by vendor', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-22', viz: 'barH', metrics: ['vendor_sales'], dims: ['vendor'] },
     { id: 'sales_by_channel', name: 'Sales by channel', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-26', viz: 'donut', metrics: ['total_sales'], dims: ['channel'] },
     { id: 'sales_by_discount', name: 'Sales by discount code', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-18', viz: 'table', metrics: ['orders', 'discounts', 'gross_sales'], dims: ['discount_code'] },
     { id: 'sales_by_billing_location', name: 'Sales by country/region', cat: 'Sales', source: 'Commerce', by: 'System', viewed: '2026-05-15', viz: 'barH', metrics: ['total_sales'], dims: ['billing_country'] },
@@ -265,7 +263,6 @@ window.DATA = (function () {
     // Orders
     { id: 'orders_over_time', name: 'Orders over time', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-26', viz: 'line', metrics: ['orders'], dims: ['day'] },
     { id: 'fulfillment_status', name: 'Orders by fulfillment status', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-24', viz: 'donut', metrics: ['orders'], dims: ['fulfillment_status'] },
-    { id: 'sub_orders_by_vendor', name: 'Sub-orders by vendor', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-23', viz: 'barH', metrics: ['sub_orders'], dims: ['vendor'] },
     { id: 'partial_shipped', name: 'Partial shipped orders', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '—', viz: 'table', metrics: ['orders'], dims: ['order_no', 'fulfillment_status'] },
     { id: 'time_to_fulfill', name: 'Average time to fulfill', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-12', viz: 'line', metrics: ['hours_to_fulfill'], dims: ['day'] },
     { id: 'payment_success_rate', name: 'Payment success rate', cat: 'Orders', source: 'Commerce', by: 'System', viewed: '2026-05-25', viz: 'table', metrics: ['payment_success_rate'], dims: ['payment_channel'] },
@@ -318,8 +315,8 @@ window.DATA = (function () {
   // Semantic-layer catalog (for the query builder Metric/Dimension pickers + BestQL词库)
   const CATALOG = {
     Commerce: {
-      metrics: ['total_sales', 'gross_sales', 'net_sales', 'discounts', 'returns', 'taxes', 'orders', 'aov', 'units_sold', 'gross_profit', 'refunds', 'vendor_sales', 'sub_orders', 'customers', 'new_customers', 'total_spent', 'inventory', 'sell_through_rate', 'avg_rating'],
-      dimensions: ['day', 'week', 'month', 'product_title', 'variant', 'vendor', 'channel', 'billing_country', 'currency', 'discount_code', 'payment_method', 'fulfillment_status', 'customer_type', 'order_no'],
+      metrics: ['total_sales', 'gross_sales', 'net_sales', 'discounts', 'returns', 'taxes', 'orders', 'aov', 'units_sold', 'gross_profit', 'refunds', 'customers', 'new_customers', 'total_spent', 'inventory', 'sell_through_rate', 'avg_rating'],
+      dimensions: ['day', 'week', 'month', 'product_title', 'variant', 'channel', 'billing_country', 'currency', 'discount_code', 'payment_method', 'fulfillment_status', 'customer_type', 'order_no'],
     },
     Behavior: {
       metrics: ['sessions', 'visitors', 'page_views', 'conversion_rate', 'add_to_cart_rate', 'bounce_rate', 'attributed_sales', 'users', 'retention_rate'],

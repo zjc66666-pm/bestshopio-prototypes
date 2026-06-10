@@ -215,6 +215,40 @@
     box.addEventListener('ui-range-refresh', refresh);
   }
 
+  // ---------- shared "Unsaved changes" bar (UnSavedChanges.tsx) ----------
+  // One implementation for every edit page so they can't drift apart again. Dark,
+  // full-width, fixed to the very top of the viewport (covers the 60px header) — the
+  // products module / live-admin treatment. unsavedBar() returns the markup (always
+  // hidden initially); setUnsavedBar() flips it on/off from a module's dirty-sync.
+  var ALERT_ICO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>';
+  function escAttr(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  // opts: { saveLabel:'Add'|'Update'|…, saveAct:'save-bar'(default), discardAct:'discard'(default),
+  //         show:false(default) }. saveAct/discardAct let a module keep its existing [data-act] wiring.
+  // Default is hidden (render-once + toggle via setUnsavedBar). Modules that conditionally inject the
+  // bar only when dirty pass show:true so it renders visible.
+  function unsavedBar(opts) {
+    opts = opts || {};
+    var saveLabel = opts.saveLabel || 'Save';
+    var saveAct = opts.saveAct || 'save-bar';
+    var discardAct = opts.discardAct || 'discard';
+    var hidden = opts.show ? '' : ' style="display:none"';
+    return '<div id="unsaved-bar" class="unsaved-bar"' + hidden + '>' +
+      '<div style="flex:1"></div>' +
+      '<div class="flex items-center gap-2"><span style="display:inline-flex">' + ALERT_ICO + '</span>' +
+        '<span style="font-size:13.5px">You have unsaved changes</span></div>' +
+      '<div class="flex items-center justify-end gap-3" style="flex:1">' +
+        '<button class="btn unsaved-discard" data-act="' + escAttr(discardAct) + '">Discard</button>' +
+        '<button class="btn btn-primary" data-act="' + escAttr(saveAct) + '">' + escAttr(saveLabel) + '</button>' +
+      '</div>' +
+    '</div>';
+  }
+  // Toggle the bar within `scope` (an element or document). Pass the module's dirty flag.
+  function setUnsavedBar(scope, dirty) {
+    var host = (scope && scope.querySelector) ? scope : document;
+    var bar = host.querySelector('#unsaved-bar');
+    if (bar) bar.style.display = dirty ? 'flex' : 'none';
+  }
+
   // ---------- scan + observe ----------
   // enhance filter-bar selects, page-size, and form-field selects (.input);
   // skip the rich-text toolbar (.rt-select) and anything opting out via data-no-ui.
@@ -237,5 +271,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  window.UI = { scan: scan, closePop: closePop };
+  window.UI = { scan: scan, closePop: closePop, unsavedBar: unsavedBar, setUnsavedBar: setUnsavedBar };
 })();

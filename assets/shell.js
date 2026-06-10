@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260609a'; // cache-bust for lazy-loaded module scripts
+  var V = '20260609p'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -35,7 +35,6 @@
     user: s('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
     x: s('<path d="M18 6 6 18M6 6l12 12"/>'),
     collections: s('<path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>'),
-    vendors: s('<path d="M4 4h16l1 5a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M5 13v7h14v-7"/>'),
     reviews: s('<path d="m12 3 2.9 6 6.1.9-4.5 4.3 1 6.1-5.5-2.9-5.5 2.9 1-6.1L3 9.9 9 9z"/>'),
     page: s('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/>'),
   };
@@ -45,6 +44,12 @@
   var SETTINGS = window.NAV_SETTINGS || [];
   var ROUTE_MODULE = window.ROUTE_MODULE || {};
   var SITE = window.SITE || { store: 'Store' };
+  var STORES = window.STORES || [];
+  // The SSO stores panel enters a store via index.html?store=<name>; reflect it in the chrome.
+  try {
+    var qsStore = new URLSearchParams(location.search).get('store');
+    if (qsStore) SITE.store = qsStore;
+  } catch (e) {}
   window.VIEWS = window.VIEWS || {};
 
   var navEl, footEl, settingsBar, root, current = null, loaded = {};
@@ -212,6 +217,122 @@
     });
   }
 
+  // ---------- header dropdowns: store switcher + account menu (V1.129 SSO) ----------
+  var MICO = {
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+    lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    out: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
+  };
+  function closeHdrMenus() {
+    var open = document.querySelectorAll('.hdr-menu');
+    open.forEach(function (m) { m.remove(); });
+    document.removeEventListener('mousedown', onDocClickHdr, true);
+  }
+  function onDocClickHdr(e) { if (!(e.target.closest && e.target.closest('.hdr-menu-wrap'))) closeHdrMenus(); }
+  function toggleHdrMenu(wrap, html, onMount) {
+    var already = wrap.querySelector('.hdr-menu');
+    closeHdrMenus();
+    if (already) return;
+    var panel = document.createElement('div');
+    panel.className = 'hdr-menu';
+    panel.innerHTML = html;
+    wrap.appendChild(panel);
+    if (onMount) onMount(panel);
+    setTimeout(function () { document.addEventListener('mousedown', onDocClickHdr, true); }, 0);
+  }
+  function storeSwitcherHtml() {
+    var rows = STORES.map(function (st) {
+      var cur = st.name === SITE.store;
+      return '<button class="hdr-store-row' + (cur ? ' current' : '') + '" data-store="' + st.name + '">' +
+        '<span class="hdr-store-ico"></span>' +
+        '<span class="hdr-store-meta"><span class="hdr-store-name">' + st.name + '</span><span class="hdr-store-url">' + st.url + '</span></span>' +
+        (cur ? '<span class="hdr-store-check">' + MICO.check + '</span>' : '') +
+      '</button>';
+    }).join('');
+    return '<div class="hdr-store-list">' + rows + '</div>' +
+      '<a class="hdr-menu-foot" href="account/stores.html">View all stores</a>';
+  }
+  function userMenuHtml() {
+    return '<div class="hdr-menu-head">' + MICO.user + '<span>' + (SITE.email || 'owner@bestshopio.com') + '</span></div>' +
+      '<div class="hdr-menu-divider"></div>' +
+      '<button class="hdr-menu-item" data-changepw>' + MICO.lock + 'Change password</button>' +
+      '<a class="hdr-menu-item" href="account/signin.html">' + MICO.out + 'Sign out</a>';
+  }
+  // Change password — shell-level dialog (PRD 7.3 store-admin top bar)
+  function openChangePassword() {
+    var bd = document.createElement('div');
+    bd.className = 'sh-modal-bd';
+    var fld = function (label, id, ph) {
+      return '<div class="sh-fld"><label class="sh-fld-label">' + label + '</label>' +
+        '<input id="' + id + '" class="sh-fld-input" type="password" placeholder="' + ph + '" />' +
+        '<div class="sh-fld-error" data-err="' + id + '"></div></div>';
+    };
+    bd.innerHTML = '<div class="sh-modal">' +
+      '<div class="sh-modal-head"><span>Change password</span><button data-x>' + ICONS.x + '</button></div>' +
+      '<div class="sh-modal-body">' +
+        fld('Current password', 'cp-cur', 'Enter current password') +
+        fld('New password', 'cp-new', 'Enter new password') +
+        fld('Confirm new password', 'cp-cf', 'Re-enter new password') +
+      '</div>' +
+      '<div class="sh-modal-foot"><button class="btn btn-default" data-cancel>Cancel</button><button class="btn btn-primary" data-done>Done</button></div>' +
+    '</div>';
+    document.body.appendChild(bd);
+    var close = function () { bd.remove(); };
+    bd.addEventListener('mousedown', function (e) { if (e.target === bd) close(); });
+    bd.querySelector('[data-x]').onclick = close;
+    bd.querySelector('[data-cancel]').onclick = close;
+    var setErr = function (id, msg) {
+      var el = bd.querySelector('[data-err="' + id + '"]'); var inp = bd.querySelector('#' + id);
+      if (el) el.textContent = msg || ''; if (inp) inp.classList.toggle('has-error', !!msg);
+    };
+    bd.querySelector('[data-done]').onclick = function () {
+      var cur = bd.querySelector('#cp-cur').value, nw = bd.querySelector('#cp-new').value, cf = bd.querySelector('#cp-cf').value;
+      var ok = true;
+      setErr('cp-cur', ''); setErr('cp-new', ''); setErr('cp-cf', '');
+      if (!cur) { setErr('cp-cur', 'Please enter current password'); ok = false; }
+      if (!nw) { setErr('cp-new', 'Please enter new password'); ok = false; }
+      else if (nw.length < 8) { setErr('cp-new', '8 characters minimum'); ok = false; }
+      if (cf !== nw) { setErr('cp-cf', 'Passwords do not match.'); ok = false; }
+      if (!ok) return;
+      close();
+      shellToast('Change password successfully');
+    };
+  }
+  // small bottom toast for shell-level actions (settings module has its own)
+  function shellToast(msg) {
+    var t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#eafaf1;color:#1f8f4e;border:1px solid #cdeedb;padding:10px 16px;border-radius:8px;font-size:13.5px;font-weight:500;z-index:200;box-shadow:0 8px 24px rgba(20,40,28,.14)';
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 2000);
+  }
+  function wireHeader(app) {
+    var storeBtn = app.querySelector('#hdr-store');
+    var userBtn = app.querySelector('#hdr-user');
+    if (storeBtn) storeBtn.onclick = function (e) {
+      e.stopPropagation();
+      toggleHdrMenu(storeBtn.parentNode, storeSwitcherHtml(), function (panel) {
+        panel.querySelectorAll('[data-store]').forEach(function (row) {
+          row.onclick = function () {
+            var name = row.getAttribute('data-store');
+            closeHdrMenus();
+            if (name === SITE.store) return;
+            // PRD 7.3: open the chosen store admin in a new tab
+            window.open('index.html?store=' + encodeURIComponent(name), '_blank', 'noopener');
+          };
+        });
+      });
+    };
+    if (userBtn) userBtn.onclick = function (e) {
+      e.stopPropagation();
+      toggleHdrMenu(userBtn.parentNode, userMenuHtml(), function (panel) {
+        var cp = panel.querySelector('[data-changepw]');
+        if (cp) cp.onclick = function () { closeHdrMenus(); openChangePassword(); };
+      });
+    };
+  }
+
   // ---------- build persistent chrome ----------
   function build() {
     var app = document.getElementById('app');
@@ -222,8 +343,8 @@
         '<button class="sidebar-toggle" aria-label="Menu">' + ICONS.menu + '</button>' +
         '<a class="hdr-logo" href="#/home" title="Home"><span class="brand-mark">' + String(SITE.store || 'S').charAt(0) + '</span><span class="hdr-logo-name">' + (SITE.store || 'Store') + '</span></a>' +
         '<div class="hdr-right">' +
-          '<button class="hdr-store">' + (SITE.store || 'Store') + ICONS.chevDown + '</button>' +
-          '<button class="hdr-user" aria-label="Account">' + ICONS.user + '</button>' +
+          '<div class="hdr-menu-wrap"><button class="hdr-store" id="hdr-store">' + (SITE.store || 'Store') + ICONS.chevDown + '</button></div>' +
+          '<div class="hdr-menu-wrap"><button class="hdr-user" id="hdr-user" aria-label="Account">' + ICONS.user + '</button></div>' +
         '</div>' +
       '</header>' +
       '<div class="app-body">' +
@@ -237,6 +358,7 @@
     navEl = app.querySelector('.nav-scroll');
     footEl = app.querySelector('.nav-footer');
     root = document.getElementById('root');
+    wireHeader(app);
 
     // mobile drawer
     var backdrop = document.createElement('div'); backdrop.className = 'sidebar-backdrop'; document.body.appendChild(backdrop);

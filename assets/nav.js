@@ -10,14 +10,22 @@
    Analytics is NOT in the live admin — it's our addition; per product decision it
    sits as a top-level item between Content and Online store. */
 
-window.SITE = { brand: 'BestShopio', store: 'Silix', role: 'Owner' };
+window.SITE = { brand: 'BestShopio', store: 'Lovocross', role: 'Owner', email: 'zhengjican@bestfulfill.com' };
+
+/* Stores this signed-in account can access — drives the header store-switcher.
+   Mirrors the SSO stores panel (prototypes/account/stores.html). Entering a store
+   from the panel opens index.html?store=<name>; the switcher opens others in a new tab. */
+window.STORES = [
+  { name: 'Lovocross',    url: 'm.lovocross.com' },
+  { name: 'Silixwear-ES', url: 'www.silixwear-es.com' },
+  { name: 'Gigaxin',      url: 'www.gugaxin.com' },
+];
 
 window.NAV_MENU = [
-  { id: 'orders',       label: 'Orders',       icon: 'inbox',        route: '#/orders',       desc: 'Orders, fulfillment, refunds and split-order by vendor.' },
+  { id: 'orders',       label: 'Orders',       icon: 'inbox',        route: '#/orders',       desc: 'Orders, fulfillment, refunds and returns.' },
   { id: 'products',     label: 'Products',     icon: 'tag',          route: '#/products',     desc: 'Products, variants, inventory, media and metafields.', children: [
     { id: 'collections', label: 'Collections', route: '#/collections', desc: 'Group products into collections with nesting and SEO.' },
-    { id: 'vendors',     label: 'Vendors',     route: '#/vendors',     desc: 'Multi-vendor marketplace: stores, products and SEO.' },
-    { id: 'reviews',     label: 'Reviews',     route: '#/reviews',     desc: 'Product and vendor reviews, replies and moderation.' },
+    { id: 'reviews',     label: 'Reviews',     route: '#/reviews',     desc: 'Product reviews, replies and moderation.' },
   ] },
   { id: 'customers',    label: 'Customers',    icon: 'userPen',      route: '#/customers',    desc: 'Customer profiles, orders, subscriptions and timeline.' },
   { id: 'discounts',    label: 'Discounts',    icon: 'badgePercent', route: '#/discounts',    desc: 'Product / order / shipping discounts with stacking rules.' },
@@ -51,13 +59,22 @@ window.NAV_SETTINGS = [
 /* route first-segment -> module folder to lazy-load (router uses this). */
 window.ROUTE_MODULE = {
   home: 'home', orders: 'orders', products: 'products', collections: 'collections',
-  vendors: 'vendors', reviews: 'reviews', customers: 'customers', discounts: 'discounts',
+  reviews: 'reviews', customers: 'customers', discounts: 'discounts',
   blog: 'blog', page: 'page', menu: 'menu', analytics: 'analytics',
   'online-store': 'online-store', google: 'google', settings: 'settings',
 };
 
 /* Newest first. `modules` lists the route ids each version touched (for the Home changelog). */
 window.CHANGELOG = [
+  {
+    version: 'V1.129', date: '2026-06', title: 'Staff & permissions + SSO multi-store portal',
+    modules: [],
+    items: [
+      'SSO portal (account/signin.html → stores.html): sign in once, pick a store card to enter its admin',
+      'Header store-switcher + account menu (Change password / Sign out) tie the admin back to the portal',
+      'Settings → Roles (permission tree) and Staff (5-state lifecycle: Add / Edit / Review / Delete)',
+    ],
+  },
   {
     version: 'SPA', date: '2026-06', title: 'Single-page app — one persistent shell, instant routing',
     modules: ['orders', 'products', 'analytics'],
@@ -69,10 +86,10 @@ window.CHANGELOG = [
   },
   {
     version: 'Modules', date: '2026-06', title: 'Full merchant-admin module set',
-    modules: ['products', 'collections', 'vendors', 'reviews', 'orders', 'discounts', 'customers', 'blog', 'page', 'menu', 'online-store', 'google'],
+    modules: ['products', 'collections', 'reviews', 'orders', 'discounts', 'customers', 'blog', 'page', 'menu', 'online-store', 'google'],
     items: [
       'Catalog, Sales, Content, Channels and Settings modules built against reference/bestvoy-admin',
-      'Orders: split-order by vendor, 3-layer discounts, refund / fulfill flows',
+      'Orders: 3-layer discounts, refund / fulfill flows',
     ],
   },
   {

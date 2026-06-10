@@ -68,8 +68,11 @@
   function chipBar(opts) {
     opts = opts || {};
     const chip = (key, icon) => `<span class="chip" data-chip="${key}">${icon}<span class="chip-label" data-chip-label="${key}">${CHIP_STATE[key]}</span>${ICON.chevDown}</span>`;
-    let html = `<div class="flex items-center gap-2 mb-4">` + chip('date', ICON.calendar) + chip('comparison', ICON.compare);
-    if (opts.currency) html += chip('currency', ICON.money);
+    // Date range reuses the shared Orders dual-month picker (widgets.js enhanceRange) for a consistent, roomy calendar.
+    const dateBox = `<div class="ui-range filter-input" data-ui-range data-ph="Date range" style="width:248px">` +
+      `<input type="hidden" id="an-dstart" data-range="start" value="2026-05-01"/><input type="hidden" id="an-dend" data-range="end" value="2026-05-26"/></div>`;
+    let html = `<div class="flex items-center gap-2 mb-4">` + dateBox + chip('comparison', ICON.compare);
+    // currency switcher removed — analytics uses the store's default currency (USD)
     if (opts.timeunit) html += `<span class="chip" data-chip="timeunit">${ICON.calendar}<span class="muted" style="margin-right:4px">Time unit:</span><span class="chip-label" data-chip-label="timeunit">${CHIP_STATE.timeunit}</span>${ICON.chevDown}</span>`;
     return html + `</div>`;
   }
@@ -361,7 +364,6 @@
   const DIM_LABELS = {
     product_title: ['3D Anti-Cellulite Leggings', 'Pocket Sculpting Leggings', 'Compression Sleeves', 'Short Leggings', 'Butt-Lifting Capris', 'Seamless Briefs'],
     variant: ['Black / S', 'Black / M', 'Black / L', 'Black / XL', 'Grey / M', 'Grey / L'],
-    vendor: ['Silix Official', 'BumpBabe', 'Folast', 'Lovocross', 'Minilizm'],
     channel: ['Online Store', 'Shop', 'Draft Orders', 'POS'],
     billing_country: ['United States', 'Australia', 'United Kingdom', 'Canada', 'Germany'],
     country: ['United States', 'Australia', 'United Kingdom', 'Canada', 'Germany'],
@@ -428,7 +430,7 @@
 
   // ----- Reports library -----
   const CAT_DESC = {
-    Sales: 'Compare sales across products, variants, vendors, channels, and discounts.',
+    Sales: 'Compare sales across products, variants, channels, and discounts.',
     Orders: 'Track orders, fulfillment, payment success, and returns.',
     Customers: 'Acquisition, retention, cohorts, and spending habits.',
     Behavior: 'Session trends by source, device, country, and landing page.',
@@ -462,11 +464,129 @@
         <div class="muted" style="font-size:13px;text-align:center;margin-top:24px">Learn more about Reports</div>
       </div>`;
       view.querySelectorAll('[data-open]').forEach((e) => (e.onclick = () => (location.hash = '#/analytics/reports/' + e.getAttribute('data-open'))));
-      view.querySelector('[data-act="create"]').onclick = () => toast('Create custom report — roadmap (V2 builder)');
+      view.querySelector('[data-act="create"]').onclick = () => createReportModal();
       const si = document.getElementById('rsearch');
       if (si) si.oninput = (e) => { state.q = e.target.value.toLowerCase(); const pos = e.target.selectionStart; render(); const n = document.getElementById('rsearch'); n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) {} };
     }
     render();
+  }
+
+  // ============ Create custom report — SHOPLINE-style builder (dataset modal → editor) ============
+  const DATASETS = [
+    { id: 'sales', label: 'Sales performance', source: 'Commerce', dim: 'Order No.', metrics: ['Total sales', 'Discounts', 'Net sales', 'Orders'] },
+    { id: 'orders', label: 'Order details', source: 'Commerce', dim: 'Order No.', metrics: ['Orders', 'Total sales'] },
+    { id: 'products', label: 'Product performance', source: 'Commerce', dim: 'Product name', metrics: ['Sales quantity', 'Total sales', 'Gross profit'] },
+    { id: 'customers', label: 'Customer analysis', source: 'Commerce', dim: 'Customer name', metrics: ['Orders', 'Total sales'] },
+    { id: 'traffic', label: 'Traffic & actions', source: 'Behavior', dim: 'Referrer source', metrics: ['Sessions', 'Reached checkout', 'Conversion rate'] },
+    { id: 'marketing', label: 'Marketing attribution', source: 'Behavior', dim: 'UTM source', metrics: ['Sessions', 'Completed checkout'] },
+  ];
+  let PENDING_REPORT = null;
+  const BUILDER_EXTRA = { 'Order No.': ['SILIX1042', 'SILIX1041', 'SILIX1040', 'SILIX1039', 'SILIX1038', 'SILIX1037'], 'Customer name': ['Emma W.', 'Liam S.', 'Olivia M.', 'Noah T.', 'Ava R.', 'Mia K.'] };
+  // lazy lookup — COMMERCE_DIM_LABELS / BEHAVIOR_LABELS are declared later in the module, so resolve at call time (avoid TDZ)
+  const BUILDER_LABELS = (dim) => BUILDER_EXTRA[dim] || COMMERCE_DIM_LABELS[dim] || BEHAVIOR_LABELS[dim];
+  const isMoneyL = (l) => /sales|amount|profit|value|subtotal|fee|tip|payment|cost|refund|discount|shipping|tax/i.test(l);
+  const isRateL = (l) => /rate|margin| per transaction/i.test(l);
+  const DIM_KEY = { 'Order No.': 'order_no', 'Product name': 'product_title', 'Customer name': 'customer_name', 'Country/Region': 'billing_country', 'Referrer source': 'referrer', 'UTM source': 'utm_campaign', 'Channel': 'channel', 'Payment method': 'payment_method', 'Discount code': 'discount_code', 'Variant': 'variant', 'Customer type': 'customer_type', 'City': 'city', 'Device type': 'device' };
+  const _ci = (p) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const CHART_ICON = { table: _ci('<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M3 15h18M9 3v18"/>'), card: _ci('<rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/>'), line: _ci('<path d="M3 17l5-6 4 3 6-8"/>'), bar: _ci('<rect x="4" y="10" width="3" height="10"/><rect x="10.5" y="5" width="3" height="15"/><rect x="17" y="13" width="3" height="7"/>'), barH: _ci('<rect x="4" y="5" width="12" height="3"/><rect x="4" y="11" width="16" height="3"/><rect x="4" y="17" width="8" height="3"/>'), donut: _ci('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/>') };
+  const CHART_TYPES = [['table', 'Table'], ['card', 'Card'], ['line', 'Line'], ['bar', 'Column'], ['barH', 'Bar'], ['donut', 'Donut']];
+
+  function createReportModal() {
+    const back = document.createElement('div'); back.className = 'modal-backdrop';
+    const close = () => back.remove();
+    const sel = { title: '', ds: '' };
+    back.innerHTML = `<div class="modal" style="width:460px"><div class="modal-head">Create custom report</div><div class="modal-body">
+      <input class="input" id="cr-title" placeholder="Enter a custom title" style="margin-bottom:12px;width:100%" />
+      <div style="position:relative"><div class="sel-trigger" id="cr-trig"><span class="muted">Please select a dataset</span>${ICON.chevDown}</div><div class="menu-pop sel-pop" id="cr-pop" style="display:none;position:absolute;left:0;right:0;top:42px;z-index:5">${DATASETS.map((d) => `<div class="opt" data-ds="${d.id}">${d.label}</div>`).join('')}</div></div>
+      </div><div class="modal-foot"><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-next>Next</button></div></div>`;
+    document.body.appendChild(back);
+    const trig = back.querySelector('#cr-trig'), pop = back.querySelector('#cr-pop'), nextB = back.querySelector('[data-next]');
+    const refresh = () => (nextB.style.opacity = sel.title && sel.ds ? '1' : '.5');
+    refresh();
+    back.querySelector('#cr-title').oninput = (e) => { sel.title = e.target.value.trim(); refresh(); };
+    trig.onclick = (e) => { e.stopPropagation(); pop.style.display = pop.style.display === 'block' ? 'none' : 'block'; };
+    back.querySelectorAll('[data-ds]').forEach((o) => (o.onclick = () => { sel.ds = o.getAttribute('data-ds'); trig.innerHTML = `${DATASETS.find((d) => d.id === sel.ds).label}${ICON.chevDown}`; pop.style.display = 'none'; refresh(); }));
+    back.addEventListener('click', (e) => { if (e.target === back) close(); else if (!e.target.closest('#cr-trig') && !e.target.closest('#cr-pop')) pop.style.display = 'none'; });
+    back.querySelector('[data-x]').onclick = close;
+    nextB.onclick = () => { if (!sel.title || !sel.ds) return toast('Enter a title and pick a dataset'); PENDING_REPORT = { title: sel.title, dataset: DATASETS.find((d) => d.id === sel.ds) }; close(); location.hash = '#/analytics/builder'; };
+    setTimeout(() => back.querySelector('#cr-title').focus(), 30);
+  }
+
+  function builderRows(dim, metrics) {
+    const labels = BUILDER_LABELS(dim) || ['Group A', 'Group B', 'Group C', 'Group D', 'Group E'];
+    return labels.map((lab) => { const vals = {}; metrics.forEach((m) => { const rr = { s: seedOf(dim + '|' + lab + '|' + m) }; vals[m] = isMoneyL(m) ? Math.round(60000 * (0.35 + rand(rr) * 0.65)) : isRateL(m) ? +(1.5 + rand(rr) * 4).toFixed(1) : Math.round(900 * (0.35 + rand(rr) * 0.65)); }); return { label: lab, vals }; });
+  }
+
+  function viewCustomReportBuilder(view) {
+    const ds = (PENDING_REPORT && PENDING_REPORT.dataset) || DATASETS[0];
+    const st = { title: (PENDING_REPORT && PENDING_REPORT.title) || 'Untitled report', source: ds.source, dims: [ds.dim], metrics: ds.metrics.slice(), chart: 'table', q: '' };
+    const cat = CATALOG_FOR(st.source);
+    const flat = (groups) => groups.reduce((a, g) => a.concat(g[1].map((it) => [g[0], it])), []);
+    onChipChange = () => renderPreview();
+    function fmtVal(m, v) { const cur = CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 }; return isMoneyL(m) ? cur.sym + Math.round(v * cur.rate).toLocaleString() : isRateL(m) ? v + '%' : (v || 0).toLocaleString(); }
+    function renderPreview() {
+      const area = view.querySelector('#bld-preview'); if (!area) return;
+      disposeCharts();
+      if (!st.metrics.length || !st.dims.length) { area.innerHTML = `<div class="bld-empty"><div class="muted" style="font-size:13px">Select at least one metric and one dimension to preview</div></div>`; return; }
+      const dim = st.dims[0];
+      const rows = builderRows(dim, st.metrics);
+      if (st.chart === 'table' || st.chart === 'card') {
+        const cols = [...st.dims, ...st.metrics];
+        area.innerHTML = `<div style="overflow-x:auto"><table class="tbl"><thead><tr>${cols.map((c, i) => `<th class="${i >= st.dims.length ? 'num' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${st.dims.map((d, di) => `<td>${di === 0 ? r.label : (BUILDER_LABELS(d) ? BUILDER_LABELS(d)[0] : '—')}</td>`).join('')}${st.metrics.map((m) => `<td class="num">${fmtVal(m, r.vals[m])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      } else {
+        area.innerHTML = `<div id="bld-chart" style="height:360px;padding:12px"></div>`;
+        const m0 = st.metrics[0], data = rows.map((r) => ({ name: r.label, value: r.vals[m0] }));
+        const color = st.source === 'Behavior' ? '#5ab1ef' : '#0066e6', node = view.querySelector('#bld-chart');
+        if (st.chart === 'donut') mkChart(node, donutOpt(data.slice(0, 6), '', ['#0066e6', '#5ab1ef', '#a5c8ff', '#cfe1ff', '#e6f0ff', '#dbeafe']));
+        else if (st.chart === 'bar') mkChart(node, barOptV(data, color));
+        else if (st.chart === 'barH') mkChart(node, barOptH(data, color));
+        else mkChart(node, mkLineOpt(data.map((d) => d.name), data.map((d) => d.value), color, null));
+      }
+    }
+    function renderPanel() {
+      const mfilt = flat(cat.metrics).filter(([, it]) => !st.q || it.toLowerCase().includes(st.q));
+      const dfilt = flat(cat.dimensions).filter(([g, it]) => g !== 'Time' && (!st.q || it.toLowerCase().includes(st.q)));
+      const row = (kind, it, on) => `<label class="bld-check"><span class="bld-drag">${ICON.drag || '⠿'}</span><input type="checkbox" data-bk="${kind}" data-bv="${it}"${on ? ' checked' : ''}/><span>${it}</span></label>`;
+      view.querySelector('#bld-metrics').innerHTML = mfilt.map(([, it]) => row('met', it, st.metrics.includes(it))).join('') || '<div class="muted" style="padding:8px 14px;font-size:13px">No match</div>';
+      view.querySelector('#bld-dims').innerHTML = dfilt.map(([, it]) => row('dim', it, st.dims.includes(it))).join('') || '<div class="muted" style="padding:8px 14px;font-size:13px">No match</div>';
+      view.querySelectorAll('[data-bk]').forEach((c) => (c.onchange = () => { const kind = c.getAttribute('data-bk'), v = c.getAttribute('data-bv'), arr = kind === 'met' ? st.metrics : st.dims, i = arr.indexOf(v); if (c.checked && i < 0) arr.push(v); else if (!c.checked && i >= 0) arr.splice(i, 1); renderPreview(); }));
+    }
+    function render() {
+      view.innerHTML = `<div class="bld">
+        ${window.UI ? UI.unsavedBar({ saveLabel: 'Save', saveAct: 'save', discardAct: 'cancel' }) : ''}
+        <div class="bld-body">
+          <div class="bld-canvas">
+            <div class="flex items-center gap-2 mb-3"><button class="back-btn" data-act="cancel">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:17px">${st.title}</h1><span class="muted" data-act="rename" style="cursor:pointer" title="Rename">${ICON.edit || '✎'}</span></div>
+            ${chipBar({})}
+            <div class="panel" style="padding:0;min-height:440px"><div id="bld-preview"></div></div>
+          </div>
+          <div class="bld-side">
+            <div class="bld-side-head">${st.title} · Settings</div>
+            <div style="position:relative;padding:6px 12px 10px"><span style="position:absolute;left:22px;top:15px;color:var(--ink-muted)">${ICON.search}</span><input class="filter-input" id="bld-q" placeholder="Search name" value="${st.q}" style="width:100%;padding-left:30px" /></div>
+            <div class="bld-sec-label">Metrics</div><div id="bld-metrics" class="bld-list"></div>
+            <div class="bld-sec-label">Dimensions</div><div id="bld-dims" class="bld-list"></div>
+            <div class="bld-sec-label">Chart</div><div class="bld-charts">${CHART_TYPES.map(([k, lbl]) => `<button class="bld-chart-btn${st.chart === k ? ' active' : ''}" data-ct="${k}" title="${lbl}">${CHART_ICON[k]}</button>`).join('')}</div>
+          </div>
+        </div>
+      </div>`;
+      renderPanel(); renderPreview();
+      view.querySelectorAll('[data-act="cancel"]').forEach((b) => (b.onclick = () => (location.hash = '#/analytics/reports')));
+      if (window.UI) UI.setUnsavedBar(view, true);
+      view.querySelector('[data-act="save"]').onclick = () => saveCustom(st);
+      view.querySelector('[data-act="rename"]').onclick = () => { const n = prompt('Report name', st.title); if (n && n.trim()) { st.title = n.trim(); render(); } };
+      view.querySelectorAll('[data-ct]').forEach((b) => (b.onclick = () => { st.chart = b.getAttribute('data-ct'); render(); }));
+      const q = view.querySelector('#bld-q'); if (q) q.oninput = (e) => { st.q = e.target.value.toLowerCase(); const p = e.target.selectionStart; renderPanel(); const n = view.querySelector('#bld-q'); n.focus(); try { n.setSelectionRange(p, p); } catch (x) {} };
+    }
+    render();
+  }
+
+  function saveCustom(st) {
+    const id = 'custom_' + Date.now().toString(36);
+    REPORTS.unshift({ id, name: st.title, cat: 'Custom reports', source: st.source, by: 'You', viewed: '2026-06-09', viz: ['line', 'bar', 'barH', 'donut'].includes(st.chart) ? st.chart : 'table', metrics: st.metrics.slice(), dims: [DIM_KEY[st.dims[0]] || 'product_title'] });
+    if (!REPORT_CATEGORIES.includes('Custom reports')) REPORT_CATEGORIES.unshift('Custom reports');
+    PENDING_REPORT = null;
+    toast('Report saved to your library');
+    location.hash = '#/analytics/reports';
   }
 
   const getReport = (id) => REPORTS.find((r) => r.id === id);
@@ -509,7 +629,27 @@
   // ---- Bespoke report renderers (SHOPLINE-style; generic template for the rest) ----
   const TREND_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="14 7 21 7 21 14"></polyline></svg>';
   function viewProductDataDetails(view) {
-    const state = { dim: 'product', sortCol: null, sortDir: 'desc', page: 1, pageSize: 20, q: '', trend: null, focus: false };
+    const state = { dim: 'product', sortCol: null, sortDir: 'desc', page: 1, pageSize: 20, q: '', trend: null, focus: false, filters: [], metricsByDim: { product: ['Sales quantity', 'Sales', 'Sales %', 'Orders', 'Product views'], variant: ['Sales quantity', 'Sales', 'Sales %'] } };
+    // Edit-able metric columns per dimension. Synth metrics derive from real fields so the table stays internally consistent.
+    const METRICS = {
+      product: [
+        { l: 'Sales quantity', t: 'int', v: (x) => x.qty || 0 },
+        { l: 'Sales', t: 'money', v: (x) => x.sales || 0 },
+        { l: 'Sales %', t: 'pct', v: (x) => x.pct || 0 },
+        { l: 'Orders', t: 'int', v: (x) => x.orders || 0 },
+        { l: 'Product views', t: 'int', v: (x) => x.views || 0 },
+        { l: 'Gross profit', t: 'money', v: (x) => Math.round((x.sales || 0) * 0.42) },
+        { l: 'Refund amount', t: 'money', v: (x) => Math.round((x.sales || 0) * 0.03) },
+        { l: 'Conversion rate', t: 'pct', v: (x) => (x.views ? Math.round((x.orders / x.views) * 1000) / 10 : 0) },
+      ],
+      variant: [
+        { l: 'Sales quantity', t: 'int', v: (x) => x.qty || 0 },
+        { l: 'Sales', t: 'money', v: (x) => x.sales || 0 },
+        { l: 'Sales %', t: 'pct', v: (x) => x.pct || 0 },
+        { l: 'Gross profit', t: 'money', v: (x) => Math.round((x.sales || 0) * 0.42) },
+        { l: 'Refund amount', t: 'money', v: (x) => Math.round((x.sales || 0) * 0.03) },
+      ],
+    };
     onChipChange = () => render();
     function render() {
       disposeCharts();
@@ -519,22 +659,27 @@
       const src = isProd ? PRODUCT_DATA : VARIANT_DATA;
       const q = state.q.toLowerCase();
       let rows = src.filter((x) => !q || (x.name || x.product || '').toLowerCase().includes(q) || (x.spec || '').toLowerCase().includes(q) || (x.sku || '').toLowerCase().includes(q));
-      const sortKeys = isProd ? ['qty', 'sales', 'pct', 'orders', 'views'] : ['qty', 'sales', 'pct'];
-      if (state.sortCol != null) { const k = sortKeys[state.sortCol]; rows = rows.slice().sort((a, b) => state.sortDir === 'desc' ? b[k] - a[k] : a[k] - b[k]); }
+      state.filters.forEach((f) => { if (!f.value) return; const fv = String(f.value).toLowerCase(); rows = rows.filter((x) => { const field = String(f.dim === 'SKU' ? (x.sku || '') : (x.name || x.product || '')).toLowerCase(); return f.op === 'is' ? field === fv : f.op === 'is not' ? field !== fv : field.includes(fv); }); });
+      const money = (v) => cur.sym + Math.round((v || 0) * cur.rate).toLocaleString();
+      const METS = METRICS[state.dim] || [];
+      const selMet = (state.metricsByDim[state.dim] || []).map((l) => METS.find((m) => m.l === l)).filter(Boolean);
+      const fmtMet = (m, x) => m.t === 'money' ? money(m.v(x)) : m.t === 'pct' ? (Math.round(m.v(x) * 10) / 10) + '%' : (m.v(x) || 0).toLocaleString();
+      if (state.sortCol != null && selMet[state.sortCol]) { const mv = selMet[state.sortCol].v; rows = rows.slice().sort((a, b) => state.sortDir === 'desc' ? mv(b) - mv(a) : mv(a) - mv(b)); }
       const totalRows = rows.length;
       const totalPages = Math.max(1, Math.ceil(totalRows / state.pageSize));
       if (state.page > totalPages) state.page = totalPages;
       const pageRows = rows.slice((state.page - 1) * state.pageSize, state.page * state.pageSize);
-      const money = (v) => cur.sym + Math.round(v * cur.rate).toLocaleString();
       const thumb = '<span style="display:inline-block;width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#e6f0ff,#cfe1ff);margin-right:8px;flex:none"></span>';
       const sTh = (label, ci) => `<th class="num" data-sort="${ci}" style="cursor:pointer;white-space:nowrap">${label}${state.sortCol === ci ? (state.sortDir === 'desc' ? ' ↓' : ' ↑') : ''}</th>`;
+      const metTh = selMet.map((m, ci) => sTh(m.l, ci)).join('');
+      const metTd = (x) => selMet.map((m) => `<td class="num">${fmtMet(m, x)}</td>`).join('');
       let thead, tbody;
       if (isProd) {
-        thead = `<tr><th>NO.</th><th>Product</th><th>Vendor</th><th>SKU</th>${sTh('Sales quantity', 0)}${sTh('Sales', 1)}${sTh('Sales %', 2)}${sTh('Orders', 3)}${sTh('Product views', 4)}<th class="num">Trend</th></tr>`;
-        tbody = pageRows.map((x, i) => `<tr><td>${(state.page - 1) * state.pageSize + i + 1}</td><td><span style="display:flex;align-items:center">${thumb}<span style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.name}</span></span></td><td>${x.vendor || 'N/A'}</td><td class="muted">${x.sku || 'N/A'}</td><td class="num">${x.qty.toLocaleString()}</td><td class="num">${money(x.sales)}</td><td class="num">${x.pct}%</td><td class="num">${x.orders.toLocaleString()}</td><td class="num">${x.views.toLocaleString()}</td><td class="num"><span data-trend="${x.name}" title="Product trend" style="cursor:pointer;color:var(--brand);display:inline-flex">${TREND_SVG}</span></td></tr>`).join('');
+        thead = `<tr><th>NO.</th><th>Product</th><th>SKU</th>${metTh}<th class="num">Trend</th></tr>`;
+        tbody = pageRows.map((x, i) => `<tr><td>${(state.page - 1) * state.pageSize + i + 1}</td><td><span style="display:flex;align-items:center">${thumb}<span style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.name}</span></span></td><td class="muted">${x.sku || 'N/A'}</td>${metTd(x)}<td class="num"><span data-trend="${x.name}" title="Product trend" style="cursor:pointer;color:var(--brand);display:inline-flex">${TREND_SVG}</span></td></tr>`).join('');
       } else {
-        thead = `<tr><th>NO.</th><th>Sub-variant</th><th>SKU</th><th>Product</th><th>Vendor</th>${sTh('Sales quantity', 0)}${sTh('Sales', 1)}${sTh('Sales %', 2)}<th class="num">Trend</th></tr>`;
-        tbody = pageRows.map((x, i) => `<tr><td>${(state.page - 1) * state.pageSize + i + 1}</td><td><span style="display:flex;align-items:center">${thumb}<span>${x.spec}</span></span></td><td class="muted">${x.sku || 'N/A'}</td><td><span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${x.product}</span></td><td>${x.vendor || 'N/A'}</td><td class="num">${x.qty.toLocaleString()}</td><td class="num">${money(x.sales)}</td><td class="num">${x.pct}%</td><td class="num"><span data-trend="${x.spec}" title="Variant trend" style="cursor:pointer;color:var(--brand);display:inline-flex">${TREND_SVG}</span></td></tr>`).join('');
+        thead = `<tr><th>NO.</th><th>Sub-variant</th><th>SKU</th><th>Product</th>${metTh}<th class="num">Trend</th></tr>`;
+        tbody = pageRows.map((x, i) => `<tr><td>${(state.page - 1) * state.pageSize + i + 1}</td><td><span style="display:flex;align-items:center">${thumb}<span>${x.spec}</span></span></td><td class="muted">${x.sku || 'N/A'}</td><td><span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${x.product}</span></td>${metTd(x)}<td class="num"><span data-trend="${x.spec}" title="Variant trend" style="cursor:pointer;color:var(--brand);display:inline-flex">${TREND_SVG}</span></td></tr>`).join('');
       }
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3">
@@ -546,8 +691,8 @@
         <div class="panel">
           <div class="p-3 flex items-center gap-3" style="border-bottom:1px solid var(--hair)">
             <div style="position:relative"><span style="position:absolute;left:10px;top:9px;color:var(--ink-muted)">${ICON.search}</span><input id="pq" class="filter-input" placeholder="Search product / SKU" value="${state.q}" /></div>
-            <button class="btn btn-default" style="margin-left:auto">More filters</button>
-            <button class="btn btn-default">Edit</button>
+            <button class="btn btn-default" style="margin-left:auto" data-act="filters">More filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>
+            <button class="btn btn-default" data-act="edit">Edit</button>
           </div>
           <div id="ptable"><table class="tbl"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>
           <div class="p-3 flex items-center justify-between" style="border-top:1px solid var(--hair)">
@@ -563,6 +708,8 @@
       </div>`;
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       view.querySelector('[data-act="export"]').onclick = () => toast('Exporting product data…');
+      view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, [['Product', ['SKU', 'Product name']]]);
+      view.querySelector('[data-act="edit"]').onclick = () => editDrawer({ dimensions: [], metrics: [[isProd ? 'Product metrics' : 'Sub-variant metrics', METRICS[state.dim].map((m) => m.l)]] }, { dims: new Set(), metrics: new Set(state.metricsByDim[state.dim]) }, (res) => { if (res.metrics && res.metrics.length) { state.metricsByDim[state.dim] = res.metrics; state.sortCol = null; render(); } });
       view.querySelectorAll('[data-dim]').forEach((e) => (e.onclick = () => { state.dim = e.getAttribute('data-dim'); state.page = 1; state.sortCol = null; render(); }));
       view.querySelectorAll('[data-sort]').forEach((th) => (th.onclick = () => { const ci = +th.getAttribute('data-sort'); if (state.sortCol === ci) state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc'; else { state.sortCol = ci; state.sortDir = 'desc'; } render(); }));
       view.querySelectorAll('[data-pg]').forEach((b) => (b.onclick = () => { const v = b.getAttribute('data-pg'); if (v === 'prev') state.page = Math.max(1, state.page - 1); else if (v === 'next') state.page = Math.min(totalPages, state.page + 1); else state.page = +v; render(); }));
@@ -618,11 +765,32 @@
     ],
   };
   const FILTER_DIMS = BEHAVIOR_CAT.dimensions;
+  // Filter value enumerations — every filterable field offers its real possible values (vs free text)
+  const FILTER_EXTRA = {
+    'Order status': ['To pay', 'To ship', 'Shipped', 'Awaiting Review', 'Done', 'Refunded', 'Canceled'],
+    'Pay status': ['Paid', 'Unpaid'],
+    'Refund status': ['No refund', 'Refunding', 'Refunded'],
+    'Fulfillment status': ['Fulfilled', 'Unfulfilled'],
+    'SKU': ['SX-3DACL-01', 'SX-PSL-02', 'SX-CS-03', 'SX-SL-04', 'SX-BLC-05', 'SX-SB-06'],
+    'Email': ['emma.w@example.com', 'liam.s@example.com', 'olivia.m@example.com', 'noah.t@example.com', 'ava.r@example.com'],
+    'Sales channel': ['Online Store', 'Draft order'],
+    'Currency': ['USD', 'AUD', 'GBP', 'CAD', 'EUR', 'NZD'],
+    'Landing page path': ['/', '/user/signIn', '/products/3d-anti-cellulite-leggings', '/collections/leggings', '/cart', '/checkout', '/products/short-leggings'],
+    'Referrer name': ['Facebook', 'Google', 'Instagram', 'TikTok', 'YouTube', 'Pinterest'],
+  };
+  // resolve at call time — COMMERCE_DIM_LABELS is declared later in the module (avoid TDZ)
+  const filterEnumsFor = (dim) => BEHAVIOR_LABELS[dim] || COMMERCE_DIM_LABELS[dim] || BUILDER_EXTRA[dim] || FILTER_EXTRA[dim] || null;
+
   function manageFiltersModal(filters, onApply, dims) {
     const draft = filters.map((f) => ({ dim: f.dim, op: f.op, value: f.value }));
     if (!draft.length) draft.push({ dim: '', op: 'is', value: '' });
     const back = document.createElement('div'); back.className = 'modal-backdrop';
     const close = () => back.remove();
+    const valueCell = (f, i) => {
+      const enums = f.dim ? filterEnumsFor(f.dim) : null;
+      if (enums) return `<div style="position:relative;flex:1"><div class="sel-trigger" data-valtrigger="${i}">${f.value ? f.value : '<span class="muted">Select a value</span>'}${ICON.chevDown}</div><div class="menu-pop sel-pop" data-valpop="${i}" style="display:none;position:absolute;left:0;right:0;top:38px;z-index:6;max-height:230px;overflow:auto">${enums.map((v) => `<div class="opt${f.value === v ? ' sel' : ''}" data-vpick="${v}">${v}</div>`).join('')}</div></div>`;
+      return `<input class="filter-input" data-val="${i}" placeholder="Enter a value" value="${f.value || ''}" style="flex:1;width:auto;padding-left:12px" />`;
+    };
     const groups = (dims || FILTER_DIMS).map(([g, items]) => `<div class="opt-group">${g}</div>${items.map((it) => `<div class="opt" data-pick="${it}">${it}</div>`).join('')}`).join('');
     function paint() {
       back.innerHTML = `<div class="modal" style="width:470px">
@@ -635,7 +803,7 @@
             </div>
             <div class="flex items-center gap-2">
               <select class="filter-select" data-op="${i}" style="width:96px"><option${f.op === 'is' ? ' selected' : ''}>is</option><option${f.op === 'is not' ? ' selected' : ''}>is not</option><option${f.op === 'contains' ? ' selected' : ''}>contains</option></select>
-              <input class="filter-input" data-val="${i}" placeholder="Search" value="${f.value || ''}" style="flex:1;width:auto;padding-left:12px" />
+              ${valueCell(f, i)}
               ${draft.length > 1 ? `<span class="field-pill" data-rm="${i}" style="cursor:pointer">×</span>` : ''}
             </div>
           </div>`).join('')}
@@ -644,7 +812,9 @@
         <div class="modal-foot"><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-apply>Apply</button></div>
       </div>`;
       back.querySelectorAll('[data-seltrigger]').forEach((t) => (t.onclick = (e) => { e.stopPropagation(); const i = t.getAttribute('data-seltrigger'); const pop = back.querySelector(`[data-selpop="${i}"]`); const isOpen = pop.style.display === 'block'; back.querySelectorAll('.sel-pop').forEach((p) => (p.style.display = 'none')); pop.style.display = isOpen ? 'none' : 'block'; }));
-      back.querySelectorAll('.sel-pop .opt').forEach((o) => (o.onclick = (e) => { e.stopPropagation(); const i = +o.closest('[data-row]').getAttribute('data-row'); draft[i].dim = o.getAttribute('data-pick'); paint(); }));
+      back.querySelectorAll('[data-pick]').forEach((o) => (o.onclick = (e) => { e.stopPropagation(); const i = +o.closest('[data-row]').getAttribute('data-row'); draft[i].dim = o.getAttribute('data-pick'); draft[i].value = ''; paint(); }));
+      back.querySelectorAll('[data-vpick]').forEach((o) => (o.onclick = (e) => { e.stopPropagation(); const i = +o.closest('[data-row]').getAttribute('data-row'); draft[i].value = o.getAttribute('data-vpick'); paint(); }));
+      back.querySelectorAll('[data-valtrigger]').forEach((t) => (t.onclick = (e) => { e.stopPropagation(); const i = t.getAttribute('data-valtrigger'); const pop = back.querySelector(`[data-valpop="${i}"]`); const isOpen = pop.style.display === 'block'; back.querySelectorAll('.sel-pop').forEach((p) => (p.style.display = 'none')); pop.style.display = isOpen ? 'none' : 'block'; }));
       back.querySelectorAll('[data-op]').forEach((s) => (s.onchange = (e) => { draft[+s.getAttribute('data-op')].op = e.target.value; }));
       back.querySelectorAll('[data-val]').forEach((s) => (s.oninput = (e) => { draft[+s.getAttribute('data-val')].value = e.target.value; }));
       back.querySelectorAll('[data-rm]').forEach((b) => (b.onclick = () => { draft.splice(+b.getAttribute('data-rm'), 1); paint(); }));
@@ -683,8 +853,8 @@
         <div class="drawer-head"><span>Edit</span><span class="drawer-x" data-x>${ICON.close || '✕'}</span></div>
         <div class="drawer-search"><span class="search-ico">${ICON.search}</span><input class="filter-input" data-q placeholder="Search chart header" value="${q}" style="width:100%" /></div>
         <div class="drawer-body">
-          <div class="edit-sec-label">DIMENSION</div>${dimH || '<div class="muted" style="padding:6px 0;font-size:13px">No match</div>'}
-          <div class="edit-sec-label" style="margin-top:10px">METRIC</div>${metH || '<div class="muted" style="padding:6px 0;font-size:13px">No match</div>'}
+          ${dimGroups.length ? `<div class="edit-sec-label">DIMENSION</div>${dimH || '<div class="muted" style="padding:6px 0;font-size:13px">No match</div>'}` : ''}
+          <div class="edit-sec-label"${dimGroups.length ? ' style="margin-top:10px"' : ''}>METRIC</div>${metH || '<div class="muted" style="padding:6px 0;font-size:13px">No match</div>'}
         </div>
         <div class="drawer-foot"><button class="btn btn-default" data-reset>Reset</button><span style="flex:1"></span><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-apply>Update</button></div>
       </div>`;
@@ -795,7 +965,7 @@
   const COMMERCE_CAT = {
     dimensions: [
       ['Orders', ['Order No.', 'Order status', 'Pay status', 'Refund status', 'Fulfillment status', 'Payment method']],
-      ['Product', ['Product name', 'Vendor', 'SKU', 'Variant']],
+      ['Product', ['Product name', 'SKU', 'Variant']],
       ['Customer', ['Customer name', 'Email', 'Customer type']],
       ['Location', ['Country/Region', 'Province/State', 'City']],
       ['Discount', ['Discount code']],
@@ -956,7 +1126,6 @@
   // ============ Commerce "By dimension" report (T2) + Social→platform drill ⭐ ============
   const COMMERCE_DIM_LABELS = {
     'Channel': ['Direct', 'Search', 'Social', 'Email', 'Referral', 'Paid'],
-    'Vendor': ['Silix Official', 'BumpBabe', 'Folast', 'Lovocross', 'Minilizm'],
     'Country/Region': ['United States', 'Australia', 'United Kingdom', 'Canada', 'Germany', 'New Zealand', 'Singapore', 'Ireland', 'France', 'Netherlands'],
     'Discount code': ['SUMMER20', 'WELCOME10', 'VIP15', 'FLASH30', 'FREESHIP', 'BUNDLE25'],
     'Variant': ['Black / S', 'Black / M', 'Black / L', 'Black / XL', 'Grey / M', 'Grey / L', 'Nude / M', 'Beige / M'],
@@ -1033,7 +1202,7 @@
             <span class="flex items-center gap-2" style="flex-wrap:wrap"><button class="btn btn-gray" data-act="filters">Manage filters${state.filters.length ? ` (${state.filters.length})` : ''}</button>${state.filters.map((f, i) => `<span class="chip" style="background:#e6f0ff;color:var(--brand);border-color:#cfe1ff">${f.dim} ${f.op} ${f.value}<span data-rmf="${i}" style="cursor:pointer;margin-left:6px">×</span></span>`).join('')}${cfg.drill ? '<span class="muted" style="font-size:12px">· Social row expands to platforms</span>' : ''}</span>
             <button class="btn btn-default" data-act="edit">Edit</button>
           </div>
-          <div><table class="tbl"><thead><tr><th>${state.dim}</th>${state.metrics.map((m, ci) => sTh(m, ci)).join('')}</tr></thead><tbody><tr style="font-weight:600;background:var(--panel)"><td>Summary</td>${state.metrics.map((m) => `<td class="num">${fmt(m, sum[m])}</td>`).join('')}</tr>${body}</tbody></table></div>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>${state.dim}</th>${state.metrics.map((m, ci) => sTh(m, ci)).join('')}</tr></thead><tbody><tr style="font-weight:600;background:var(--panel)"><td>Summary</td>${state.metrics.map((m) => `<td class="num">${fmt(m, sum[m])}</td>`).join('')}</tr>${body}</tbody></table></div>
           <div class="p-3 flex items-center justify-between" style="border-top:1px solid var(--hair)">
             <span class="muted" style="font-size:13px">Total ${totalRows} records</span>
             <div class="pg">
@@ -1085,7 +1254,7 @@
           <div id="ps-chart" style="height:280px"></div>
         </div>
         <div class="panel">
-          <div><table class="tbl"><thead><tr><th>Payment channel</th><th class="num">Total payments</th><th class="num">Successful payments</th><th class="num">Payment success rate</th><th class="num">Options</th></tr></thead><tbody>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Payment channel</th><th class="num">Total payments</th><th class="num">Successful payments</th><th class="num">Payment success rate</th><th class="num">Options</th></tr></thead><tbody>
             <tr style="font-weight:600;background:var(--panel)"><td>Summary</td><td class="num">${sumT.toLocaleString()}</td><td class="num">${sumS.toLocaleString()}</td><td class="num">${rate(sumS, sumT)}</td><td class="num">—</td></tr>
             ${CH.map((c) => `<tr><td>${c.ch}</td><td class="num">${c.total.toLocaleString()}</td><td class="num">${c.success.toLocaleString()}</td><td class="num">${rate(c.success, c.total)}</td><td class="num"><span class="lnk" data-view="${c.ch}">View</span></td></tr>`).join('')}
           </tbody></table></div>
@@ -1234,7 +1403,7 @@
     function render() {
       disposeCharts();
       const cur = CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 };
-      let rows = PRODUCT_DATA.map((p) => ({ name: p.name, vendor: p.vendor, rev: p.sales })).sort((a, b) => b.rev - a.rev);
+      let rows = PRODUCT_DATA.map((p) => ({ name: p.name, rev: p.sales })).sort((a, b) => b.rev - a.rev);
       const total = rows.reduce((s, r) => s + r.rev, 0);
       let cum = 0;
       rows = rows.map((r) => { cum += r.rev; const cumPct = cum / total * 100; return Object.assign(r, { pct: r.rev / total * 100, cumPct, grade: cumPct <= 80 ? 'A' : cumPct <= 95 ? 'B' : 'C' }); });
@@ -1243,8 +1412,8 @@
         ${t4Header('ABC product analysis')}
         ${chipBar({ currency: true })}
         <div class="muted mb-3" style="font-size:13px">Pareto classification by revenue contribution — A: top 80%, B: next 15%, C: last 5%.</div>
-        <div class="panel"><table class="tbl"><thead><tr><th>NO.</th><th>Product</th><th>Vendor</th><th class="num">Revenue</th><th class="num">% of total</th><th class="num">Cumulative %</th><th class="num">Grade</th></tr></thead><tbody>
-          ${rows.map((r, i) => `<tr><td>${i + 1}</td><td><span style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${r.name}</span></td><td>${r.vendor}</td><td class="num">${cur.sym}${Math.round(r.rev * cur.rate).toLocaleString()}</td><td class="num">${r.pct.toFixed(1)}%</td><td class="num">${r.cumPct.toFixed(1)}%</td><td class="num">${badge(r.grade)}</td></tr>`).join('')}
+        <div class="panel"><table class="tbl"><thead><tr><th>NO.</th><th>Product</th><th class="num">Revenue</th><th class="num">% of total</th><th class="num">Cumulative %</th><th class="num">Grade</th></tr></thead><tbody>
+          ${rows.map((r, i) => `<tr><td>${i + 1}</td><td><span style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${r.name}</span></td><td class="num">${cur.sym}${Math.round(r.rev * cur.rate).toLocaleString()}</td><td class="num">${r.pct.toFixed(1)}%</td><td class="num">${r.cumPct.toFixed(1)}%</td><td class="num">${badge(r.grade)}</td></tr>`).join('')}
         </tbody></table></div>
       </div>`;
       t4Bind(view);
@@ -1266,7 +1435,6 @@
   Object.keys(DATE_RANGE_CFG).forEach((id) => (BESPOKE_REPORTS[id] = (view) => viewDateRangeReport(view, Object.assign({ id }, DATE_RANGE_CFG[id]))));
   const COMMERCE_DIM_CFG = {
     sales_by_channel: { title: 'Sales: By channel', source: 'Commerce', dim: 'Channel', metrics: ['Total sales', 'Orders', 'Average order value', 'Gross profit'], drill: true },
-    sales_by_vendor: { title: 'Sales: By vendor', source: 'Commerce', dim: 'Vendor', metrics: ['Total sales', 'Orders', 'Average order value', 'Gross profit', 'Gross margin'] },
     sales_by_billing_location: { title: 'Sales: By country/region', source: 'Commerce', dim: 'Country/Region', metrics: ['Total sales', 'Orders', 'Average order value'] },
     sales_by_discount: { title: 'Sales: By discount code', source: 'Commerce', dim: 'Discount code', metrics: ['Orders', 'Discounts', 'Total sales'] },
     sales_by_variant: { title: 'Sales: By variant (SKU)', source: 'Commerce', dim: 'Variant', metrics: ['Total sales', 'Sales quantity', 'Orders'] },
@@ -1295,20 +1463,28 @@
     const showChart = ['line', 'bar', 'barH', 'donut', 'funnel', 'cohort'].includes(r.viz) && !isSingle;
     const showTable = !isSingle && model.kind !== 'cohort';
     const dimName = prettify(model.dim || r.dims[0] || 'metric');
-    const state = { sortCol: null, sortDir: 'desc', filters: [], fpOpen: false, viz: r.viz, page: 1, pageSize: 20 };
+    const state = { sortCol: null, sortDir: 'desc', filters: [], fpOpen: false, viz: r.viz, page: 1, pageSize: 20, metrics: (model.metricKeys || []).slice() };
+    // ---- Edit (columns): map drawer labels <-> metric keys + synthesize values for metrics added via Edit ----
+    const _catMet = (CATALOG_FOR(r.source).metrics || []).reduce((a, g) => a.concat(g[1]), []);
+    const LABELOF = {}, KEYOF = {};
+    (model.metricKeys || []).forEach((k) => { const L = _catMet.find((l) => l.toLowerCase() === prettify(k).toLowerCase()) || prettify(k); LABELOF[k] = L; KEYOF[L.toLowerCase()] = k; });
+    const labelOf = (k) => LABELOF[k] || prettify(k);
+    const slugKey = (s) => 'x_' + String(s).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    function ensureVals(keys) { (model.rows || []).forEach((row) => keys.forEach((m) => { if (row.vals[m] == null) { const rr = { s: seedOf(r.id + '|' + row.label + '|' + m) }; row.vals[m] = Math.round((isMoney(m) ? 60000 : isRate(m) ? 100 : 900) * (0.35 + rand(rr) * 0.65)); } })); }
+    let mk = (model.metricKeys || []).slice();
     const VIZ_SHAPES = [['line', 'Line'], ['bar', 'Column'], ['barH', 'Bar'], ['donut', 'Donut']];
     const showSwitcher = ['line', 'bar', 'barH', 'donut'].includes(r.viz);
     onChipChange = () => render();
     function processed() {
       let rows = (model.rows || []).map((x) => ({ label: x.label, vals: Object.assign({}, x.vals) }));
-      if (isTime) { rows = rows.slice(CHIP_STATE._range.s, CHIP_STATE._range.e + 1); rows = aggRows(rows, CHIP_STATE.timeunit, model.metricKeys); }
+      if (isTime) { rows = rows.slice(CHIP_STATE._range.s, CHIP_STATE._range.e + 1); rows = aggRows(rows, CHIP_STATE.timeunit, mk); }
       state.filters.forEach((f) => { rows = rows.filter((row) => f.op === 'is' ? row.label === f.value : f.op === 'is not' ? row.label !== f.value : String(row.label).toLowerCase().includes(String(f.value).toLowerCase())); });
       return rows;
     }
     function render() {
       disposeCharts();
       const cur = CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 };
-      const mk = model.metricKeys || [];
+      mk = state.metrics; ensureVals(mk);
       const fmtV = (m, v) => isMoney(m) ? cur.sym + Math.round(v * cur.rate).toLocaleString() : isRate(m) ? (Math.round(v * 100) / 100) + '%' : Math.round(v).toLocaleString();
       let rows = processed();
       if (state.sortCol != null && mk[state.sortCol]) { const m = mk[state.sortCol]; rows = rows.slice().sort((a, b) => state.sortDir === 'desc' ? b.vals[m] - a.vals[m] : a.vals[m] - b.vals[m]); }
@@ -1359,7 +1535,7 @@
       }
       if (showTable) {
         const ta = document.getElementById('table-area');
-        const cols = [dimName, ...mk.map(prettify)];
+        const cols = [dimName, ...mk.map(labelOf)];
         ta.innerHTML = `<table class="tbl"><thead><tr>${cols.map((c, i) => `<th class="${i ? 'num' : ''}" ${i ? `data-sort="${i - 1}" style="cursor:pointer"` : ''}>${c}${i && state.sortCol === i - 1 ? (state.sortDir === 'desc' ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>${pageRows.map((row) => `<tr><td>${row.label}</td>${mk.map((m) => `<td class="num">${fmtV(m, row.vals[m])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
         ta.querySelectorAll('[data-sort]').forEach((th) => (th.onclick = () => { const i = +th.getAttribute('data-sort'); if (state.sortCol === i) state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc'; else { state.sortCol = i; state.sortDir = 'desc'; } render(); }));
         view.querySelectorAll('[data-pg]').forEach((b) => (b.onclick = () => { const v = b.getAttribute('data-pg'); if (v === 'prev') state.page = Math.max(1, state.page - 1); else if (v === 'next') state.page = Math.min(totalPages, state.page + 1); else state.page = +v; render(); }));
@@ -1373,7 +1549,7 @@
           document.querySelector('[data-act="addfilter"]').onclick = () => { state.filters.push({ op: 'is', value: labelOpts[0] }); render(); };
         }
         document.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, CATALOG_FOR(r.source).dimensions);
-        document.querySelector('[data-act="edit"]').onclick = () => editDrawer(CATALOG_FOR(r.source), { dims: new Set(), metrics: new Set((mk || []).map(prettify)) }, () => render());
+        document.querySelector('[data-act="edit"]').onclick = () => editDrawer({ dimensions: [], metrics: CATALOG_FOR(r.source).metrics }, { dims: new Set(), metrics: new Set(mk.map(labelOf)) }, (res) => { if (res.metrics && res.metrics.length) { state.metrics = res.metrics.map((L) => { const k = KEYOF[L.toLowerCase()] || slugKey(L); LABELOF[k] = L; KEYOF[L.toLowerCase()] = k; return k; }); state.sortCol = null; state.page = 1; render(); } });
       }
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       const ctBtn = view.querySelector('[data-chart-type]');
@@ -1491,6 +1667,7 @@
     const v = root.querySelector('#an-content');
 
     if (isDetail) viewReportDetail(v, parts[1]);
+    else if (seg === 'builder') viewCustomReportBuilder(v);
     else if (seg === 'reports') viewReports(v);
     else if (seg === 'live') viewLive(v);
     else viewOverview(v);
@@ -1520,6 +1697,17 @@
   // hash router, no initial render here — the shell drives render()/unmount().
   initTooltips();
   document.addEventListener('click', (e) => { const c = e.target.closest('[data-chip]'); if (c) openChip(c); });
+  // shared date-range picker commits by firing change on #an-dend → map the picked range onto the mock series + re-render
+  document.addEventListener('change', (e) => {
+    if (!e.target || e.target.id !== 'an-dend') return;
+    const pi = (v) => { const m = /-(\d{2})-(\d{2})$/.exec(v || ''); if (!m) return null; const mo = +m[1], d = +m[2]; return mo < 5 ? 0 : mo > 5 ? 25 : Math.max(0, Math.min(25, d - 1)); };
+    const ds = document.getElementById('an-dstart'), de = document.getElementById('an-dend');
+    let s = pi(ds && ds.value), en = pi(de && de.value);
+    if (s == null || en == null) return;
+    if (en < s) { const t = s; s = en; en = t; }
+    CHIP_STATE._range = { s, e: en };
+    if (onChipChange) onChipChange('date');
+  });
 
   // ---------------- SPA shell registration ----------------
   window.VIEWS = window.VIEWS || {};
