@@ -1,6 +1,6 @@
 /* BestShopio Admin · Reviews prototype — list + detail/edit + modals, hash-routed.
    Chrome (sidebar + header) is injected by ../assets/shell.js; this file only
-   renders the module body into #root. Mirrors reference/bestvoy-admin product/vendor
+   renders the module body into #root. Mirrors reference/bestvoy-admin product
    reviews (reviewsList / table / search / reviewEdit / replyModal / emptyState).
    1:1 with views/admin/products/{pages,components}/reviews + api/modules/admin/review.ts. */
 (function () {
@@ -76,16 +76,15 @@
   // filter state lives on a module-level object so re-renders keep it
   const LST = {
     tab: 'all', kwField: 'reviewContent', kw: '', kwApplied: '',
-    rating: [], type: [], status: [],   // multi-select arrays
+    rating: [], status: [],   // multi-select arrays
     page: 1, size: 20,
   };
 
-  function tabType(tab) { return tab === 'product' ? 'product' : tab === 'vendor' ? 'vendor' : null; }
+  function tabType(tab) { return tab === 'product' ? 'product' : null; }
 
-  // count_statistics: applies keyword/rating/status but NOT the type/tab axis
-  // (review.ts buildReviewCountStatisticsParams drops page/limit; reply_type carried only
-  //  via the type multi-select — tab change drives reply_type so per-tab counts shown are
-  //  the all/product/vendor partitions of the keyword/rating/status filtered set).
+  // count_statistics: applies the keyword/rating/status filters (review.ts
+  // buildReviewCountStatisticsParams drops page/limit). The "All" tab count reflects
+  // the keyword/rating/status filtered set.
   function statFiltered() {
     let rows = D.REVIEWS.slice();
     if (LST.kwApplied) {
@@ -99,7 +98,6 @@
           case 'productSku':    return (r.productSku || '').toLowerCase().includes(q);
           case 'productBarcode':return (r.productBarcode || '').toLowerCase().includes(q);
           case 'productId':     return String(r.productId || '').includes(q);
-          case 'vendorName':    return (r.vendorName || '').toLowerCase().includes(q);
           case 'variantId':     return String(r.variantId || '').includes(q);
           default: return true;
         }
@@ -121,13 +119,12 @@
     let rows = statFiltered();
     const t = tabType(LST.tab);
     if (t) rows = rows.filter((r) => r.reviewType === t);
-    if (LST.type.length) rows = rows.filter((r) => LST.type.includes(r.reviewType));
     // newest first (table.tsx sortByCreatedAtDesc)
     rows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return rows;
   }
 
-  const hasActiveFilters = () => !!(LST.kwApplied || LST.rating.length || LST.type.length || LST.status.length);
+  const hasActiveFilters = () => !!(LST.kwApplied || LST.rating.length || LST.status.length);
 
   function renderList() {
     LST.page = LST.page || 1;
@@ -155,11 +152,9 @@
       tags.push('<span class="field-pill" data-clear="kw">' + esc(lbl) + ': ' + esc(LST.kwApplied) + ' <span class="x">&times;</span></span>');
     }
     if (LST.rating.length) tags.push('<span class="field-pill" data-clear="rating">Rating: ' + LST.rating.slice().sort().map((n) => n + ' stars').join(', ') + ' <span class="x">&times;</span></span>');
-    if (LST.type.length) tags.push('<span class="field-pill" data-clear="type">Review type: ' + LST.type.map((t) => t === 'vendor' ? 'Vendor' : 'Product').join(', ') + ' <span class="x">&times;</span></span>');
     if (LST.status.length) tags.push('<span class="field-pill" data-clear="status">Status: ' + LST.status.map((s) => D.STATUS[s].text).join(', ') + ' <span class="x">&times;</span></span>');
 
     const ratingChip = LST.rating.length ? LST.rating.length + ' selected' : 'Rating';
-    const typeChip = LST.type.length ? LST.type.length + ' selected' : 'Review type';
     const statusChip = LST.status.length ? LST.status.length + ' selected' : 'Status';
 
     root.innerHTML =
@@ -182,18 +177,16 @@
             '</div>' +
             // rating multi-select
             '<div class="sel-trigger" id="rating-chip" style="width:180px"><span class="' + (LST.rating.length ? '' : 'muted') + '">' + esc(ratingChip) + '</span>' + I.chevDown + '</div>' +
-            // review-type multi-select
-            '<div class="sel-trigger" id="type-chip" style="width:180px"><span class="' + (LST.type.length ? '' : 'muted') + '">' + esc(typeChip) + '</span>' + I.chevDown + '</div>' +
             // status multi-select
             '<div class="sel-trigger" id="status-chip" style="width:160px"><span class="' + (LST.status.length ? '' : 'muted') + '">' + esc(statusChip) + '</span>' + I.chevDown + '</div>' +
           '</div>' +
           (tags.length ? '<div class="flex gap-2 mt-3" style="flex-wrap:wrap" id="filter-tags">' + tags.join('') + '</div>' : '') +
         '</div>' +
-        // table (5 columns: Review / Customer / Product · Vendor / Status / Action)
+        // table (5 columns: Review / Customer / Product / Status / Action)
         '<div style="overflow-x:auto">' +
         '<table class="tbl" style="min-width:1080px">' +
           '<thead><tr>' +
-            '<th>Review</th><th style="width:220px">Customer</th><th style="width:320px">Product / Vendor</th>' +
+            '<th>Review</th><th style="width:220px">Customer</th><th style="width:320px">Product</th>' +
             '<th style="width:140px">Status</th><th style="width:80px;text-align:center">Action</th>' +
           '</tr></thead>' +
           '<tbody id="rv-tbody">' +
@@ -222,9 +215,9 @@
         '</span>'
       : '<span style="width:56px;height:56px;border-radius:6px;flex:none;display:grid;place-items:center;background:#e9ecf2;color:#9aa3b2;font-size:11px;font-weight:600">IMG</span>';
 
-    const subjImg = r.reviewType === 'product' ? r.productImage : r.vendorLogo;
-    const subjName = r.reviewType === 'product' ? r.productName : r.vendorName;
-    const clamp = r.reviewType === 'product' ? 2 : 1;
+    const subjImg = r.productImage;
+    const subjName = r.productName;
+    const clamp = 2;
 
     return '<tr data-id="' + r.id + '">' +
       // Review cell: media thumb + comment (2-line clamp) + stars (no type tag — matches real)
@@ -237,7 +230,7 @@
       // Customer (avatar 40 + name)
       '<td><div class="flex items-center gap-3">' + avatarHtml(r.customerName, r.customerAvatar, 40) +
         '<span style="color:var(--ink)">' + esc(r.customerName || '- -') + '</span></div></td>' +
-      // Product / Vendor (image 40 + title, clamp 2 for product / 1 for vendor)
+      // Product (image 40 + title, clamp 2)
       '<td><div class="flex items-center gap-3">' + thumb(subjImg, 40) +
         '<span style="min-width:0;flex:1;display:-webkit-box;-webkit-line-clamp:' + clamp + ';-webkit-box-orient:vertical;overflow:hidden;color:var(--ink)" title="' + esc(subjName || '- -') + '">' + esc(subjName || '- -') + '</span></div></td>' +
       // Status
@@ -278,14 +271,12 @@
     }
     // multi-select popovers
     const rc = root.querySelector('#rating-chip'); if (rc) rc.onclick = () => openMultiPopover(rc, 'rating');
-    const tc = root.querySelector('#type-chip'); if (tc) tc.onclick = () => openMultiPopover(tc, 'type');
     const sc = root.querySelector('#status-chip'); if (sc) sc.onclick = () => openMultiPopover(sc, 'status');
     // filter tags clear
     root.querySelectorAll('#filter-tags [data-clear]').forEach((tg) => tg.onclick = () => {
       const k = tg.getAttribute('data-clear');
       if (k === 'kw') { LST.kw = ''; LST.kwApplied = ''; }
       if (k === 'rating') LST.rating = [];
-      if (k === 'type') LST.type = [];
       if (k === 'status') LST.status = [];
       LST.page = 1; renderList();
     });
@@ -305,7 +296,6 @@
     closePops();
     const optsByKey = {
       rating: [ { label: '1 star', value: 1 }, { label: '2 stars', value: 2 }, { label: '3 stars', value: 3 }, { label: '4 stars', value: 4 }, { label: '5 stars', value: 5 } ],
-      type:   [ { label: 'Product', value: 'product' }, { label: 'Vendor', value: 'vendor' } ],
       status: [ { label: 'Visible', value: 0 }, { label: 'Hidden', value: 1 } ],
     };
     const cur = LST[key];
@@ -367,9 +357,8 @@
 
   function emptyForm() {
     return {
-      id: 0, reviewType: 'product', productId: 0, vendorId: 0,
+      id: 0, reviewType: 'product', productId: 0,
       productName: '', productImage: '', productSku: '', productSpu: '', productBarcode: '', variantId: 0,
-      vendorName: '', vendorLogo: '', vendorAddress: '', vendorProductCount: 0,
       rating: 5, comment: '', createdAt: '2026-06-07 10:00',
       mediaUrls: [], firstMediaUrl: '', videoUrl: '', videoPosterUrl: '',
       status: 0, customerName: '', customerAvatar: '',
@@ -380,7 +369,7 @@
 
   const snapshot = (o) => JSON.parse(JSON.stringify(o));
   const isDirty = () => JSON.stringify(EDIT) !== JSON.stringify(ORIGINAL);
-  const syncBar = () => { const bar = document.getElementById('unsaved-bar'); if (bar) bar.style.display = isDirty() ? 'flex' : 'none'; };
+  const syncBar = () => window.UI.setUnsavedBar(document, isDirty());
 
   function renderDetail(id) {
     const isEdit = String(id) !== '0';
@@ -399,19 +388,12 @@
 
   function paintDetail(isEdit) {
     const r = EDIT;
-    const isProduct = r.reviewType === 'product';
     const saveText = isEdit ? 'Update' : 'Add review';
 
     root.innerHTML =
       '<div class="detail-wrap">' +
-        // unsaved-changes bar (UnSavedChanges.tsx) — dark navy, hidden until dirty
-        '<div id="unsaved-bar" style="display:none;align-items:center;justify-content:space-between;gap:12px;background:#242833;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:16px">' +
-          '<span style="font-size:13.5px">Unsaved changes</span>' +
-          '<div class="flex items-center gap-2">' +
-            '<button class="btn" style="background:rgba(255,255,255,.16);color:#fff;border-color:transparent" data-act="discard">Discard</button>' +
-            '<button class="btn btn-primary" data-act="save-bar">' + saveText + '</button>' +
-          '</div>' +
-        '</div>' +
+        // shared full-width "You have unsaved changes" bar (UI.unsavedBar); toggled by syncBar().
+        window.UI.unsavedBar({ saveLabel: saveText }) +
         // header: back + title; Reply button on the right ONLY when editing
         '<div class="flex items-center justify-between mb-6">' +
           '<div class="flex items-center gap-2">' +
@@ -423,7 +405,7 @@
         // two-column body
         '<div class="detail-cols">' +
           '<div class="detail-main">' +
-            reviewTypeCard(r, isProduct) +
+            reviewTypeCard(r) +
             reviewDetailsCard(r) +
             mediaCard(r) +
             (r.merchantReplyContent ? replyCard(r) : '') +
@@ -452,18 +434,14 @@
       '</div>';
   }
 
-  // ---- Review type card: Product/Vendor radio + linked subject selector (name only, no meta) ----
-  function reviewTypeCard(r, isProduct) {
-    const subjImg = isProduct ? r.productImage : r.vendorLogo;
-    const subjName = isProduct ? r.productName : r.vendorName;
-    const hasSubject = isProduct ? !!r.productId : !!r.vendorId;
-    const radio = (val, label) =>
-      '<label class="flex items-center gap-2" style="cursor:pointer;font-size:13.5px"><input type="radio" name="rv-type" value="' + val + '"' + (r.reviewType === val ? ' checked' : '') + ' style="accent-color:var(--brand);width:15px;height:15px" /> ' + label + '</label>';
+  // ---- Product card: linked product selector (name only, no meta) ----
+  function reviewTypeCard(r) {
+    const hasSubject = !!r.productId;
     // linked selector (reviewEdit renderLinkedSelection): + circle (#171717), then image+name OR placeholder
     const selectorInner = hasSubject
-      ? '<span class="flex items-center gap-2" style="min-width:0">' + thumb(subjImg, 24) +
-          '<span style="min-width:0;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(subjName) + '</span></span>'
-      : '<span style="color:#A3A3A3">' + (isProduct ? 'Select a product' : 'Select a vendor') + '</span>';
+      ? '<span class="flex items-center gap-2" style="min-width:0">' + thumb(r.productImage, 24) +
+          '<span style="min-width:0;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.productName) + '</span></span>'
+      : '<span style="color:#A3A3A3">Select a product</span>';
     const selector =
       '<div style="width:100%;border:1px solid var(--ctl);border-radius:8px;background:#fff;padding:0 12px;font-size:13.5px">' +
         '<button id="subj-trigger" type="button" style="display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:8px 0;text-align:left;background:none;border:none;cursor:pointer">' +
@@ -471,8 +449,7 @@
           selectorInner +
         '</button>' +
       '</div>';
-    return cardOpen('<span>Review type</span>') +
-      '<div class="flex gap-6 mb-3" id="rv-type-group">' + radio('product', 'Product') + radio('vendor', 'Vendor') + '</div>' +
+    return cardOpen('<span>Product</span>') +
       selector +
     '</div>';
   }
@@ -584,14 +561,6 @@
     const back = root.querySelector('[data-act="back"]');
     if (back) back.onclick = () => { if (!leaveGuard()) return; location.hash = '#/reviews'; };
 
-    // review-type radio -> clear opposite subject + repaint
-    root.querySelectorAll('#rv-type-group input[name="rv-type"]').forEach((el) => el.onchange = () => {
-      r.reviewType = el.value;
-      r.productId = 0; r.vendorId = 0;
-      r.productName = ''; r.productImage = '';
-      r.vendorName = ''; r.vendorLogo = '';
-      paintDetail(isEdit); syncBar();
-    });
     // subject selector -> picker modal
     const subj = root.querySelector('#subj-trigger'); if (subj) subj.onclick = () => openSubjectPicker(r, isEdit);
 
@@ -660,8 +629,7 @@
 
   // validateReviewForm (reviewEdit.utils.ts)
   function validateForm(r) {
-    if (r.reviewType === 'product' && !r.productId) return 'Please select a product';
-    if (r.reviewType === 'vendor' && !r.vendorId) return 'Please select a vendor';
+    if (!r.productId) return 'Please select a product';
     if (!r.rating) return 'Please select rating';
     if (!(r.comment || '').trim()) return 'Please enter review content';
     if (!(r.createdAt || '').trim()) return 'Please select review time';
@@ -793,20 +761,16 @@
     if (cm) cm.oninput = () => { if (cc) cc.textContent = cm.value.length + ' / 1000'; };
   }
 
-  // Subject picker (AddProductsModal / addVendorModal) — single-select list
+  // Subject picker (AddProductsModal) — single-select list
   function openSubjectPicker(r, isEdit) {
-    const isProduct = r.reviewType === 'product';
-    // gather distinct subjects from sample data of the matching type
+    // gather distinct products from sample data
     const seen = {}; const items = [];
     D.REVIEWS.forEach((x) => {
-      if (isProduct && x.reviewType === 'product' && x.productId && !seen['p' + x.productId]) {
+      if (x.productId && !seen['p' + x.productId]) {
         seen['p' + x.productId] = 1; items.push({ id: x.productId, name: x.productName, image: x.productImage, meta: 'SKU ' + (x.productSku || '- -') + ' · SPU ' + (x.productSpu || '- -') });
       }
-      if (!isProduct && x.reviewType === 'vendor' && x.vendorId && !seen['v' + x.vendorId]) {
-        seen['v' + x.vendorId] = 1; items.push({ id: x.vendorId, name: x.vendorName, image: x.vendorLogo, meta: (x.vendorAddress || '') + ' · ' + (x.vendorProductCount || 0) + ' products' });
-      }
     });
-    const curId = isProduct ? r.productId : r.vendorId;
+    const curId = r.productId;
     const rowsHtml = items.map((it) =>
       '<label class="flex items-center gap-3" data-pick="' + it.id + '" style="padding:10px 12px;border-bottom:1px solid var(--hair);cursor:pointer">' +
         '<input type="radio" name="subj-pick" value="' + it.id + '"' + (String(it.id) === String(curId) ? ' checked' : '') + ' style="accent-color:var(--brand);width:15px;height:15px" />' +
@@ -815,20 +779,17 @@
         '<span class="muted" style="font-size:12px">' + esc(it.meta) + '</span></span>' +
       '</label>').join('');
     const body =
-      '<div style="position:relative;margin-bottom:10px"><input class="filter-input" id="subj-search" placeholder="Search ' + (isProduct ? 'products' : 'vendors') + '" style="width:100%;padding-left:32px" />' +
+      '<div style="position:relative;margin-bottom:10px"><input class="filter-input" id="subj-search" placeholder="Search products" style="width:100%;padding-left:32px" />' +
         '<span style="position:absolute;left:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span></div>' +
-      '<div style="border:1px solid var(--hair);border-radius:8px;max-height:320px;overflow:auto" id="subj-list">' + (rowsHtml || '<div class="muted" style="padding:20px;text-align:center">No ' + (isProduct ? 'products' : 'vendors') + ' found.</div>') + '</div>';
+      '<div style="border:1px solid var(--hair);border-radius:8px;max-height:320px;overflow:auto" id="subj-list">' + (rowsHtml || '<div class="muted" style="padding:20px;text-align:center">No products found.</div>') + '</div>';
     const ctrl = modal({
-      title: isProduct ? 'Select product' : 'Select vendor', width: 560, okText: 'Select',
+      title: 'Select product', width: 560, okText: 'Select',
       body,
       onOk: (m, close) => {
         const picked = m.querySelector('input[name="subj-pick"]:checked');
         if (!picked) { close(); return; }
         const it = items.find((x) => String(x.id) === picked.value);
-        if (it) {
-          if (isProduct) { r.productId = it.id; r.productName = it.name; r.productImage = it.image; }
-          else { r.vendorId = it.id; r.vendorName = it.name; r.vendorLogo = it.image; }
-        }
+        if (it) { r.productId = it.id; r.productName = it.name; r.productImage = it.image; }
         close(); paintDetail(isEdit); syncBar();
       },
     });

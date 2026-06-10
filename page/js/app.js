@@ -43,17 +43,7 @@
   function injectStyles() {
     if (document.getElementById('page-mod-styles')) return;
     var css =
-      // unsaved-changes dark bar (matches real components/UnSavedChanges.tsx -> .bar-tip)
-      '.page-unsaved-bar{position:sticky;top:0;left:0;right:0;z-index:40;background:#242833;color:#fff;' +
-      'display:flex;align-items:center;justify-content:space-between;padding:12px 20px;margin:0 0 20px;}' +
-      '.page-unsaved-bar .lhs{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;}' +
-      '.page-unsaved-bar .rhs{display:flex;align-items:center;gap:10px;}' +
-      '.page-unsaved-bar .btn-discard{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);' +
-      'height:32px;padding:0 14px;border-radius:6px;font-size:13px;cursor:pointer;}' +
-      '.page-unsaved-bar .btn-discard:hover{border-color:#fff;background:rgba(255,255,255,.08);}' +
-      '.page-unsaved-bar .btn-save{background:var(--brand);color:#fff;border:none;height:32px;padding:0 16px;' +
-      'border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;}' +
-      '.page-unsaved-bar .btn-save:hover{background:#0a5bd0;}' +
+      // (unsaved-changes bar is shared now: theme.css .unsaved-bar + UI.unsavedBar)
       // rich-text editor
       '.rt-wrap{border:1px solid var(--ctl);border-radius:8px;overflow:hidden;background:#fff;}' +
       '.rt-toolbar{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--hair);' +
@@ -373,11 +363,9 @@
     ORIGIN = formSnapshot();
   }
 
-  // show/hide the dark unsaved-changes bar based on current dirtiness
+  // show/hide the shared dark unsaved-changes bar based on current dirtiness
   function syncUnsavedBar() {
-    var bar = root.querySelector('#page-unsaved-bar');
-    if (!bar) return;
-    bar.style.display = isDirty() ? 'flex' : 'none';
+    window.UI.setUnsavedBar(root, isDirty());
   }
 
   function renderEdit(id) {
@@ -389,14 +377,8 @@
     root.innerHTML =
       // fixed 1200px centered container (mirrors the real admin edit page width)
       '<div class="detail-wrap">' +
-      // dark unsaved-changes bar (mirrors UnSavedChanges.tsx -> .bar-tip); hidden until dirty.
-      '<div class="page-unsaved-bar" id="page-unsaved-bar" style="display:none">' +
-        '<div class="lhs">' + IC.alert + '<span>Unsaved changes</span></div>' +
-        '<div class="rhs">' +
-          '<button class="btn-discard" data-act="discard">Discard</button>' +
-          '<button class="btn-save" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
-        '</div>' +
-      '</div>' +
+      // shared full-width "You have unsaved changes" bar (UI.unsavedBar); toggled by syncUnsavedBar().
+      window.UI.unsavedBar({ saveLabel: isNew ? 'Add' : 'Update', saveAct: 'save' }) +
       // header: back + title  (mirrors back-btn-square + h1 in pages/edit.tsx)
       '<div class="flex items-center justify-between mb-6">' +
         '<div class="flex items-center gap-3">' +

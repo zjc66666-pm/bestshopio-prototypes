@@ -80,15 +80,6 @@
     ] },
   ];
 
-  // ---- Vendors (settings.tsx vendor select; getVendorList) ----
-  const VENDORS = [
-    { value: 1, label: 'Silix Official' },
-    { value: 2, label: 'BumpBabe' },
-    { value: 3, label: 'Folast' },
-    { value: 4, label: 'Lovocross' },
-    { value: 5, label: 'Minilizm' },
-  ];
-
   // ---- Variant option name suggestions (Variants.tsx defaultOptions) ----
   const OPTION_NAMES = ['Color', 'Size', 'Material', 'Style'];
 
@@ -124,52 +115,52 @@
   const PRODUCTS = [
     { product_id: 50421, store_name: '3D Anti-Cellulite Compression Leggings', image: IMG.legging, cate_id: 12,
       price_min: 39.9, price_max: 49.9, on_sale_stock: 1280, variant_count: 12, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'Silix Official' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50420, store_name: 'High-Waist Pocket Sculpting Leggings', image: IMG.pocket, cate_id: 12,
       price_min: 42.0, price_max: 42.0, on_sale_stock: 64, variant_count: 9, inventory_status: 2,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'Silix Official' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50419, store_name: 'Graduated Compression Calf Sleeves', image: IMG.sleeve, cate_id: 11,
       price_min: 18.5, price_max: 18.5, on_sale_stock: 0, variant_count: 4, inventory_status: 1,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'Folast' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50418, store_name: 'Seamless Short Biker Leggings', image: IMG.short, cate_id: 12,
       price_min: 24.0, price_max: 29.0, on_sale_stock: 530, variant_count: 8, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'Silix Official' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50417, store_name: 'Butt-Lifting Capri Leggings', image: IMG.capri, cate_id: 12,
       price_min: 37.0, price_max: 37.0, on_sale_stock: 212, variant_count: 6, inventory_status: 0,
-      is_show: 0, is_del: 0, spec_type: 1, vendor: { name: 'Lovocross' } },
+      is_show: 0, is_del: 0, spec_type: 1 },
     { product_id: 50416, store_name: 'Seamless Sculpting Briefs (3-Pack)', image: IMG.brief, cate_id: 21,
       price_min: 15.9, price_max: 15.9, on_sale_stock: 980, variant_count: 5, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'BumpBabe' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50415, store_name: 'Lightweight Racerback Sports Bra', image: IMG.bra, cate_id: 13,
       price_min: 22.0, price_max: 26.0, on_sale_stock: 47, variant_count: 10, inventory_status: 2,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'Silix Official' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50414, store_name: 'Tummy-Control Shaping Bodysuit', image: IMG.bodysuit, cate_id: 22,
       price_min: 45.0, price_max: 52.0, on_sale_stock: 0, variant_count: 9, inventory_status: 1,
-      is_show: 0, is_del: 0, spec_type: 1, vendor: { name: 'Minilizm' } },
+      is_show: 0, is_del: 0, spec_type: 1 },
     { product_id: 50413, store_name: 'Cushioned No-Show Ankle Socks (6-Pack)', image: IMG.sock, cate_id: 32,
       price_min: 12.0, price_max: 12.0, on_sale_stock: 3400, variant_count: 0, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 0, vendor: { name: 'Folast' } },
+      is_show: 1, is_del: 0, spec_type: 0 },
     { product_id: 50412, store_name: 'Classic High-Waist Yoga Leggings', image: IMG.waist, cate_id: 12,
       price_min: 34.0, price_max: 34.0, on_sale_stock: 760, variant_count: 12, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'Silix Official' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50411, store_name: 'Seamless Ribbed Tank Top', image: IMG.tank, cate_id: 11,
       price_min: 19.0, price_max: 19.0, on_sale_stock: 88, variant_count: 7, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'BumpBabe' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50410, store_name: 'Cross-Waist Flare Yoga Pants', image: IMG.flare, cate_id: 12,
       price_min: 41.0, price_max: 46.0, on_sale_stock: 0, variant_count: 8, inventory_status: 1,
-      is_show: 0, is_del: 1, spec_type: 1, vendor: { name: 'Lovocross' } },
+      is_show: 0, is_del: 1, spec_type: 1 },
     { product_id: 50409, store_name: 'No-Show Seamless Thong (5-Pack)', image: IMG.thong, cate_id: 21,
       price_min: 17.0, price_max: 17.0, on_sale_stock: 1240, variant_count: 5, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'BumpBabe' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50408, store_name: 'Padded Longline Sports Bra', image: IMG.bra, cate_id: 13,
       price_min: 28.0, price_max: 32.0, on_sale_stock: 156, variant_count: 9, inventory_status: 2,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'Silix Official' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50407, store_name: 'Discontinued Mesh Panel Capris', image: IMG.capri, cate_id: 12,
       price_min: 33.0, price_max: 33.0, on_sale_stock: 0, variant_count: 6, inventory_status: 1,
-      is_show: 0, is_del: 1, spec_type: 1, vendor: { name: 'Minilizm' } },
+      is_show: 0, is_del: 1, spec_type: 1 },
     { product_id: 50406, store_name: 'Compression Postpartum Support Shorts', image: IMG.short, cate_id: 12,
       price_min: 36.0, price_max: 36.0, on_sale_stock: 420, variant_count: 8, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 1, vendor: { name: 'BumpBabe' } },
+      is_show: 1, is_del: 0, spec_type: 1 },
   ];
 
   // ---------- Metafield definitions (MetafieldGroup / settings/metafields const) ----------
@@ -265,7 +256,7 @@
       },
       // settings / right rail (ProductSettings) — NOTE: tags & collections are commented out in real admin
       settings: {
-        activated: true, status: 'activated', spu: 'SPU-LEG-3DAC', weight: 185, vendor_id: 1,
+        activated: true, status: 'activated', spu: 'SPU-LEG-3DAC', weight: 185,
         category: 12,
         metaTitle: '3D Anti-Cellulite Compression Leggings | Silix',
         metaDescription: 'Shop high-compression 3D anti-cellulite leggings. Squat-proof, breathable, with a hidden waistband pocket.',
@@ -316,7 +307,7 @@
         },
       },
       settings: {
-        activated: true, status: 'activated', spu: 'SPU-ACC-SOCK6', weight: 140, vendor_id: 3,
+        activated: true, status: 'activated', spu: 'SPU-ACC-SOCK6', weight: 140,
         category: 32,
         metaTitle: 'Cushioned No-Show Ankle Socks (6-Pack) | Silix',
         metaDescription: 'Breathable cushioned no-show ankle socks with a stay-put heel tab. 6 pairs per pack.',
@@ -358,7 +349,7 @@
         },
       },
       settings: {
-        activated: false, status: 'deactivated', spu: 'SPU-LEG-XFLARE', weight: 232, vendor_id: 4,
+        activated: false, status: 'deactivated', spu: 'SPU-LEG-XFLARE', weight: 232,
         category: 12, archived: true,
         metaTitle: 'Cross-Waist Flare Yoga Pants | Silix',
         metaDescription: 'Crossover-waist flared yoga pants with buttery-soft brushed fabric.',
@@ -384,7 +375,7 @@
   });
 
   window.DATA_PRODUCTS = {
-    TABS, SEARCH_FIELDS, CATEGORIES, CATEGORY_TREE, VENDORS, OPTION_NAMES, TEMPLATES,
+    TABS, SEARCH_FIELDS, CATEGORIES, CATEGORY_TREE, OPTION_NAMES, TEMPLATES,
     MEDIA_SUPPORT_TEXT, IMAGE_EXTS, VIDEO_EXTS,
     SHOP_PRODUCT_DEFS, GOOGLE_PRODUCT_DEFS, SHOP_VARIANT_DEFS, GOOGLE_VARIANT_DEFS,
     PRODUCTS, DETAILS,

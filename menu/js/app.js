@@ -34,27 +34,14 @@
 
   // ---- module-scoped styles (NOT in the shared theme.css) ----
   // Mirrors reference/bestvoy-admin .../views/admin/menu:
-  //   .mnu-savebar  -> components/UnSavedChanges.tsx (.bar-tip dark navy #242833)
+  //   (unsaved-changes bar is shared now: theme.css .unsaved-bar + UI.unsavedBar)
   //   compact search group -> list/search.tsx (Input.Group compact: Select 150 + Input 268)
   //   icon buttons / expand chevrons / child rows -> MenuItemsTable.tsx columns
   // Injected once; safe to call on every render.
   function injectStyles() {
     if (document.getElementById('menu-mod-styles')) return;
     const css =
-      // unsaved-changes dark bar (real UnSavedChanges.tsx -> .bar-tip background #242833)
-      '.mnu-savebar{position:sticky;top:0;left:0;right:0;z-index:40;background:#242833;color:#fff;' +
-      'display:flex;align-items:center;gap:8px;padding:12px 20px;margin:0 0 20px;border-radius:0;}' +
-      '.mnu-savebar .dotw{width:14px;height:14px;border-radius:50%;border:1.6px solid #fff;position:relative;flex:none;}' +
-      '.mnu-savebar .dotw::after{content:"";position:absolute;left:50%;top:3px;width:1.6px;height:5px;background:#fff;transform:translateX(-50%);border-radius:1px;}' +
-      '.mnu-savebar .dotw::before{content:"";position:absolute;left:50%;bottom:2.5px;width:1.8px;height:1.8px;background:#fff;border-radius:50%;transform:translateX(-50%);}' +
-      '.mnu-savebar .msg{font-size:14px;font-weight:500;}' +
-      '.mnu-savebar .spacer{flex:1;}' +
-      '.mnu-savebar .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);' +
-      'height:32px;padding:0 14px;border-radius:6px;font-size:13px;cursor:pointer;}' +
-      '.mnu-savebar .btn-ghost:hover{border-color:#fff;background:rgba(255,255,255,.08);}' +
-      '.mnu-savebar .btn-on{background:var(--brand);color:#fff;border:none;height:32px;padding:0 16px;' +
-      'border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;}' +
-      '.mnu-savebar .btn-on:hover{background:#0a5bd0;}' +
+      // (unsaved-changes bar is shared now: theme.css .unsaved-bar + UI.unsavedBar)
       // compact search group (Select + Input joined, shared border like antd Input.Group compact)
       '.mnu-group{display:flex;align-items:stretch;width:418px;max-width:100%;}' +
       '.mnu-group .filter-select{width:150px;border-radius:var(--radius) 0 0 var(--radius);}' +
@@ -406,13 +393,8 @@
     const slot = root.querySelector('#mnu-savebar-slot');
     if (!slot) return;
     if (!isDirty()) { slot.innerHTML = ''; return; }
-    slot.innerHTML =
-      '<div class="mnu-savebar">' +
-        '<span class="dotw"></span><span class="msg">Unsaved changes</span>' +
-        '<span class="spacer"></span>' +
-        '<button class="btn-ghost" data-act="discard">Discard</button>' +
-        '<button class="btn-on" data-act="save2">' + (CUR.id == null ? 'Add' : 'Update') + '</button>' +
-      '</div>';
+    // shared full-width "You have unsaved changes" bar (UI.unsavedBar) — only injected when dirty (show:true)
+    slot.innerHTML = window.UI.unsavedBar({ saveLabel: CUR.id == null ? 'Add' : 'Update', saveAct: 'save2', show: true });
     const dc = slot.querySelector('[data-act="discard"]'); if (dc) dc.onclick = onDiscard;
     const sv = slot.querySelector('[data-act="save2"]'); if (sv) sv.onclick = doSave;
   }

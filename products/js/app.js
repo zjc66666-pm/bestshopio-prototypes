@@ -144,7 +144,6 @@
     const pageRows = rows.slice(start, start + LST.size);
 
     const kwOpts = D.SEARCH_FIELDS.map((o) => '<option value="' + o.value + '"' + (o.value === LST.kwType ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
-    const cateOpts = D.CATEGORIES.map((o) => '<option value="' + o.value + '"' + (o.value === LST.cate ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
 
     const tabsHtml = D.TABS.map((t) =>
       '<div class="tab' + (t.key === LST.tab ? ' active' : '') + '" data-tab="' + t.key + '">' + esc(t.label) +
@@ -157,7 +156,7 @@
       tags.push('<span class="field-pill" data-clear="kw">' + esc(lbl) + ': ' + esc(LST.kwApplied) + ' <span class="x">&times;</span></span>');
     }
     if (LST.cate) {
-      const lbl = (D.CATEGORIES.find((o) => o.value === LST.cate) || {}).label || '';
+      const lbl = categoryLabel(LST.cate) || ((D.CATEGORIES.find((o) => o.value === LST.cate) || {}).label || '');
       tags.push('<span class="field-pill" data-clear="cate">Category: ' + esc(lbl) + ' <span class="x">&times;</span></span>');
     }
     if (LST.priceApplied) {
@@ -192,7 +191,10 @@
                 '<span style="position:absolute;right:10px;top:9px;color:var(--ink-muted)">' + I.search + '</span>' +
               '</div>' +
             '</div>' +
-            '<select class="filter-select" id="cate-sel" style="width:220px">' + cateOpts + '</select>' +
+            // Category — same cascading TreeCascadeSelect picker as the edit rail (drill-in tree), not a flat select
+            '<div class="sel-trigger" id="cate-trigger" style="width:220px">' +
+              '<span class="' + (LST.cate ? '' : 'muted') + '" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(LST.cate ? categoryLabel(LST.cate) : 'Category') + '</span>' + I.chevDown +
+            '</div>' +
             '<div class="sel-trigger" id="price-chip" style="width:220px">' +
               '<span class="' + (LST.priceApplied ? '' : 'muted') + '">' + esc(priceChipText) + '</span>' + I.chevDown +
             '</div>' +
@@ -279,8 +281,8 @@
       kwInput.onkeydown = (e) => { if (e.key === 'Enter') kwInput.blur(); };
       kwInput.onblur = commit;
     }
-    const cate = root.querySelector('#cate-sel');
-    if (cate) cate.onchange = () => { LST.cate = Number(cate.value); LST.page = 1; renderList(); };
+    const cateTrig = root.querySelector('#cate-trigger');
+    if (cateTrig) cateTrig.onclick = () => openCategoryCascade(cateTrig, (node) => { LST.cate = node.value; LST.page = 1; renderList(); });
     const chip = root.querySelector('#price-chip');
     if (chip) chip.onclick = () => openPricePopover(chip);
     // sortable column headers (price / stock) cycle: none -> asc -> desc -> none
@@ -399,7 +401,7 @@
       price: undefined, compareAtPrice: undefined, itemCost: undefined, sku: '', barcode: '', inventoryQuantity: undefined,
       params: [{ name: '', values: [], sort: 0, single: '' }],
       metafields: { custom: {}, google: {} },
-      settings: { activated: false, status: 'deactivated', spu: '', weight: 0, vendor_id: undefined, category: 0, metaTitle: '', metaDescription: '', urlHandle: '', seoKeywords: [], homeTemplate: 'default' },
+      settings: { activated: false, status: 'deactivated', spu: '', weight: 0, category: 0, metaTitle: '', metaDescription: '', urlHandle: '', seoKeywords: [], homeTemplate: 'default' },
     };
   }
 
@@ -541,11 +543,13 @@
   }
 
   // ---- card shell for edit sections (Ant Card + Card.Meta header) ----
-  // main-column sections get a grey fill (matches real admin); pass plain=true for the white right-rail cards
+  // White card with the title on white, then a grey .b-c box wrapping the body —
+  // the card padding is the white gap around the grey (mirrors real admin Add product:
+  // Card > Card.Meta + <div class="b-c p-4">). plain=true = white right-rail cards.
   function card(titleHtml, bodyHtml, right, plain) {
-    return '<div class="panel card-pad mb-4' + (plain ? '' : ' sec-grey') + '">' +
-      '<div class="flex items-center justify-between mb-3"><div class="card-title">' + titleHtml + '</div>' + (right || '') + '</div>' +
-      bodyHtml + '</div>';
+    const head = '<div class="flex items-center justify-between mb-3"><div class="card-title">' + titleHtml + '</div>' + (right || '') + '</div>';
+    const body = plain ? bodyHtml : '<div class="b-c" style="padding:16px">' + bodyHtml + '</div>';
+    return '<div class="panel card-pad mb-4">' + head + body + '</div>';
   }
   const lbl = (t, hint) => '<div class="ctrl-label" style="text-transform:none;letter-spacing:normal;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:0">' +
     '<span class="flex items-center gap-1">' + t + (hint ? '<span class="muted" title="' + esc(hint) + '" style="cursor:help;display:inline-flex">' + I.help + '</span>' : '') + '</span></div>';
@@ -628,7 +632,7 @@
         // RichTextEditor (editor.tsx — TinyMCE). Faithful mock: full toolbar (undo/redo, Paragraph,
         // font family, font size, B/I/U/S, color/highlight, link, image, video, table, align, lists)
         // over a contenteditable area that preserves the product's HTML body.
-        richTextEditor('f-detail', EDIT.detail || '', 'Add comprehensive details, user guides, and vendor for this product') +
+        richTextEditor('f-detail', EDIT.detail || '', 'Add comprehensive details and user guides for this product') +
       '</div>';
     return card('Product information', body, idHead);
   }
@@ -855,7 +859,6 @@
   // Right rail — Product Settings (settings.tsx). NOTE: Tags & Collections are commented out in real admin.
   function secSettings(isEdit) {
     const s = EDIT.settings || {};
-    const vendorOpts = '<option value="">Choose a vendor</option>' + D.VENDORS.map((v) => '<option value="' + v.value + '"' + (v.value === s.vendor_id ? ' selected' : '') + '>' + esc(v.label) + '</option>').join('');
     const catLabel = categoryLabel(s.category);
     const archived = !!s.archived;
     const v = (EDIT.attrValue && EDIT.attrValue[0]) || {};
@@ -876,7 +879,6 @@
       const w = (v.weight != null && v.weight !== '') ? v.weight : (s.weight == null ? '' : s.weight);
       body += '<div class="mb-3">' + lbl('Weight') + '<div class="flex" style="margin-top:4px"><input class="input" id="set-weight" type="number" min="0" step="0.1" value="' + (w === '' ? '' : w) + '" placeholder="0" style="border-top-right-radius:0;border-bottom-right-radius:0" /><span class="muted" style="display:inline-flex;align-items:center;padding:0 10px;border:1px solid var(--ctl);border-left:0;border-radius:0 8px 8px 0;background:var(--panel);font-size:13px">g</span></div></div>';
     }
-    body += '<div class="mb-3">' + lbl('Vendor') + '<select class="input" id="set-vendor" style="margin-top:4px">' + vendorOpts + '</select></div>';
     // Category — cascading picker (TreeCascadeSelect): readonly input trigger showing the selected
     // path; clicking opens a drill-in dropdown (top categories -> subcategories).
     body += '<div>' + lbl('Category') +
@@ -1026,8 +1028,7 @@
     const sa = q('#set-activate'); if (sa) sa.onclick = () => { EDIT.settings.activated = !EDIT.settings.activated; EDIT.settings.status = EDIT.settings.activated ? 'activated' : 'deactivated'; markDirty(); rerenderMain(isEdit); };
     bind('#set-spu', (v) => { EDIT.settings.spu = v; });
     bindNum('#set-weight', (v) => { EDIT.settings.weight = v == null ? 0 : v; if (EDIT.attrValue && EDIT.attrValue[0]) EDIT.attrValue[0].weight = v; });
-    const sv = q('#set-vendor'); if (sv) sv.onchange = () => { EDIT.settings.vendor_id = sv.value === '' ? undefined : Number(sv.value); markDirty(); };
-    const sc = q('#set-category'); if (sc) sc.onclick = () => openCategoryCascade(sc, isEdit);
+    const sc = q('#set-category'); if (sc) sc.onclick = () => openCategoryCascade(sc, (node) => { EDIT.settings.category = node.value; markDirty(); rerenderSide(isEdit); });
     const st = q('#set-template'); if (st) st.onchange = () => { EDIT.settings.homeTemplate = st.value; markDirty(); rerenderSide(isEdit); };
     const seo = q('[data-act="seo"]'); if (seo) seo.onclick = () => openSeoDrawer(isEdit);
     const design = q('[data-act="design"]'); if (design) design.onclick = () => toast('Visual template designer opens full-screen (roadmap)');
@@ -1401,7 +1402,7 @@
 
   // Category cascade popover (TreeCascadeSelect) — drill into top categories -> subcategories.
   // Parent rows show a child count + ">"; leaf rows select the value and close.
-  function openCategoryCascade(anchor, isEdit) {
+  function openCategoryCascade(anchor, onPick) {
     closePops();
     const layer = h('<div class="pop-layer"></div>');
     const pop = h('<div class="cascade-pop" style="position:fixed"></div>');
@@ -1426,7 +1427,7 @@
       pop.querySelectorAll('[data-pick]').forEach((row) => row.onclick = () => {
         const node = currentNodes()[Number(row.getAttribute('data-pick'))];
         if (node.children && node.children.length) { path.push(node); render(); return; } // drill on parent body click
-        EDIT.settings.category = node.value; markDirty(); closePops(); rerenderSide(isEdit);
+        closePops(); onPick(node); // leaf selected — caller decides what to do with it
       });
     };
     render();

@@ -306,17 +306,10 @@
     wireEdit(isNew);
   }
 
-  // Unsaved-changes bar — mirrors components/UnSavedChanges.tsx: dark bar, centered
-  // alert icon + "You have unsaved changes", Discard (ghost) + primary Update/Add.
+  // Unsaved-changes bar — shared full-width top bar (UI.unsavedBar). Rendered only
+  // when dirty (see paintEdit), so it renders visible (show:true).
   function unsavedBar(isNew) {
-    return '<div style="position:sticky;top:0;z-index:20;margin:-16px -30px 16px;background:#242833;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 24px;font-size:13.5px;gap:16px">' +
-      '<div style="flex:1"></div>' +
-      '<div class="flex items-center gap-2" style="white-space:nowrap"><span style="display:inline-flex;color:#fff">' + I.alert + '</span><span>You have unsaved changes</span></div>' +
-      '<div class="flex items-center justify-end gap-3" style="flex:1">' +
-        '<button class="btn btn-default" data-act="discard" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">Discard</button>' +
-        '<button class="btn btn-primary" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
-      '</div>' +
-    '</div>';
+    return window.UI.unsavedBar({ saveLabel: isNew ? 'Add' : 'Update', saveAct: 'save', show: true });
   }
 
   // ---- Collection details (name + rich description) ----

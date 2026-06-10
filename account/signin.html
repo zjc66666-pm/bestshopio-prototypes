@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in · BestShopio</title>
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <link rel="stylesheet" href="styles.css?v=20260609a" />
+</head>
+<body>
+  <div class="signin-page">
+    <section class="hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p class="hero-kicker">Welcome to</p>
+        <h1 class="hero-title">BestShopio</h1>
+      </div>
+    </section>
+
+    <section class="form-panel">
+      <div class="form-card">
+        <h2 class="form-title">Sign in to the shop</h2>
+
+        <form id="signin-form" autocomplete="off" novalidate>
+          <div class="fld">
+            <div class="fld-wrap">
+              <input id="email" class="fld-input" type="text" placeholder="Email" autocomplete="email" />
+            </div>
+            <div class="fld-error" data-err="email"></div>
+          </div>
+
+          <div class="fld">
+            <div class="fld-wrap">
+              <input id="password" class="fld-input has-suffix" type="password" placeholder="Password" autocomplete="current-password" />
+              <button type="button" class="fld-suffix" data-eye aria-label="Show password"></button>
+            </div>
+            <div class="fld-error" data-err="password"></div>
+          </div>
+
+          <button type="submit" class="btn btn-primary signin-submit">Sign in</button>
+        </form>
+
+        <div class="meta-links">
+          <a data-soon>Register</a>
+          <a data-soon>Forgot password</a>
+        </div>
+
+        <div class="divider"><span></span><em>or</em><span></span></div>
+
+        <div class="oauth-list">
+          <button type="button" class="oauth-btn" data-oauth="Google">
+            <img src="assets/google.svg" alt="" /> Sign in with Google
+          </button>
+          <button type="button" class="oauth-btn" data-oauth="Lark">
+            <img src="assets/lark.svg" alt="" /> Sign in with Lark
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast-host" id="toast-host"></div>
+
+  <script>
+    var EYE_OPEN = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.34M6.1 6.1A13.3 13.3 0 0 0 2 12s3.5 7 10 7a9 9 0 0 0 3.9-.86"/><path d="m1 1 22 22"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+    var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+    function toast(msg, kind) {
+      var host = document.getElementById('toast-host');
+      var t = document.createElement('div');
+      t.className = 'toast' + (kind === 'err' ? ' err' : '');
+      t.innerHTML = (kind === 'err' ? '' : CHECK) + '<span>' + msg + '</span>';
+      host.appendChild(t);
+      setTimeout(function () { t.remove(); }, 2200);
+    }
+
+    // password visibility
+    var eyeBtn = document.querySelector('[data-eye]');
+    var pw = document.getElementById('password');
+    eyeBtn.innerHTML = EYE_OFF;
+    eyeBtn.onclick = function () {
+      var show = pw.type === 'password';
+      pw.type = show ? 'text' : 'password';
+      eyeBtn.innerHTML = show ? EYE_OPEN : EYE_OFF;
+    };
+
+    function setErr(name, msg) {
+      var el = document.querySelector('[data-err="' + name + '"]');
+      var inp = document.getElementById(name);
+      el.textContent = msg || '';
+      if (inp) inp.classList.toggle('has-error', !!msg);
+    }
+
+    // sign in -> stores panel (prototype: any well-formed input signs in)
+    document.getElementById('signin-form').onsubmit = function (e) {
+      e.preventDefault();
+      var email = document.getElementById('email').value.trim();
+      var pass = pw.value;
+      var ok = true;
+      setErr('email', ''); setErr('password', '');
+      if (!email) { setErr('email', 'Please enter email'); ok = false; }
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setErr('email', 'The email you entered is invalid'); ok = false; }
+      if (!pass) { setErr('password', 'Please enter password'); ok = false; }
+      if (!ok) return;
+      toast('Signed in successfully');
+      setTimeout(function () { window.location.href = 'stores.html'; }, 560);
+    };
+
+    document.querySelectorAll('[data-oauth]').forEach(function (b) {
+      b.onclick = function () {
+        toast('Signed in with ' + b.getAttribute('data-oauth'));
+        setTimeout(function () { window.location.href = 'stores.html'; }, 620);
+      };
+    });
+
+    document.querySelectorAll('[data-soon]').forEach(function (a) {
+      a.onclick = function (e) { e.preventDefault(); toast('Register / Forgot password are part of a later build.', 'err'); };
+    });
+  </script>
+</body>
+</html>

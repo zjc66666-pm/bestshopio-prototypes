@@ -56,8 +56,8 @@
   const sectionTitle = (t, sub) =>
     '<div class="card-title">' + esc(t) + '</div>' + (sub ? '<div class="muted" style="font-size:12.5px;margin-top:2px">' + esc(sub) + '</div>' : '');
 
-  // a soft framed inner row block (mirrors the .b-c framed rows in the admin)
-  const block = (inner, bg) => '<div style="border:1px solid var(--hair);border-radius:10px;padding:14px 16px;background:' + (bg || 'var(--panel)') + '">' + inner + '</div>';
+  // a soft grey inner block (mirrors the borderless .b-c rows in the admin: #f7f8fb, no border)
+  const block = (inner, bg) => '<div class="b-c" style="padding:14px 16px' + (bg ? ';background:' + bg : '') + '">' + inner + '</div>';
 
   // an Ant-style Switch (visual)
   let sw = 0;
@@ -65,9 +65,6 @@
     const id = 'sw' + (++sw);
     return '<label class="set-switch' + (on ? ' on' : '') + '" data-toggle="' + id + '"' + (label ? ' aria-label="' + esc(label) + '"' : '') + '><span class="set-knob"></span></label>';
   };
-
-  // method chips for payment cards
-  const methodChips = (arr) => arr.map((m) => '<span class="pay-chip">' + esc(m) + '</span>').join('');
 
   // ===========================================================================
   // PAINT: shell renders the sidebar + "Settings" bar; we render ONLY the active
@@ -80,6 +77,19 @@
       (centered ? '<div class="set-narrow">' + bodyHtml + '</div>' : bodyHtml);
     // wire generic toggles (visual only)
     root.querySelectorAll('[data-toggle]').forEach((el) => el.onclick = () => el.classList.toggle('on'));
+    // image upload tiles → open the OS file chooser (Store logo/ico/no-data, Checkout logo)
+    root.querySelectorAll('.up-tile').forEach((el) => el.onclick = () => openFilePicker());
+  }
+
+  // open the native local-file chooser for image uploads (prototype: selection is visual only)
+  function openFilePicker() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/png,image/jpeg,image/svg+xml,.ico';
+    inp.style.display = 'none';
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) toast('Selected ' + f.name); inp.remove(); };
+    document.body.appendChild(inp);
+    inp.click();
   }
 
   // a Page-style header (title + optional description + optional right slot)
@@ -173,7 +183,6 @@
         '<div class="mt-4 flex flex-col gap-4">' +
           prodRow(b.product.reviews, 'Product Reviews') +
           prodRow(b.product.original, 'Original Price') +
-          prodRow(b.product.vendor, 'Product vendor') +
         '</div>' +
       '</div>';
 
@@ -242,14 +251,32 @@
     if (pfx) pfx.oninput = () => { const v = pfx.value || ''; const eg = root.querySelector('#ord-prefix-eg'); if (eg) eg.textContent = v + '1001, ' + v + '1002, ' + v + '1003...'; };
   }
 
+  // Add font — mirrors fontModel.tsx: "Font:" label + Ant Select(mode=multiple) of
+  // removable font tags, grey Cancel + orange (#db4015) OK.
   function openAddFontModal() {
-    const opts = D.base.store.fontOptions.map((f) => {
-      const on = D.base.store.fonts.includes(f);
-      return '<label class="edit-check" style="padding:7px 0"><input type="checkbox" ' + (on ? 'checked' : '') + ' /><span>' + esc(f) + '</span></label>';
-    }).join('');
-    modal({ title: 'Add font', width: 400, okText: 'OK',
-      body: '<div class="flex items-center gap-4" style="margin-bottom:8px"><span class="text-sm" style="font-weight:600;color:var(--ink);width:48px">Font:</span><div style="flex:1">' + opts + '</div></div>',
-      onOk: (m, close) => { close(); toast('Store fonts updated'); } });
+    const sel = D.base.store.fonts.slice();
+    const chips = () => sel.map((f) =>
+      '<span class="ms-tag">' + esc(f) + '<span class="ms-x" data-rm="' + esc(f) + '">&times;</span></span>').join('');
+    const ctrl = modal({
+      title: 'Add font', width: 400, okText: 'OK',
+      okStyle: 'background:#db4015;border-color:#db4015;color:#fff',
+      body:
+        '<div style="padding:8px 0 0">' +
+          '<div class="flex items-center gap-4" style="margin-bottom:24px">' +
+            '<span class="text-sm" style="font-weight:500;color:var(--ink);width:48px;flex:none">Font:</span>' +
+            '<div class="ms-box" id="ms-box" style="flex:1"></div>' +
+          '</div>' +
+        '</div>',
+      onOk: (m, close) => { close(); toast('Store fonts updated'); },
+    });
+    const box = ctrl.m.querySelector('#ms-box');
+    const paint = () => {
+      box.innerHTML = chips() + '<input class="ms-input" placeholder="' + (sel.length ? '' : 'Select') + '" />';
+      box.querySelectorAll('[data-rm]').forEach((x) => x.onclick = () => {
+        const f = x.getAttribute('data-rm'); const i = sel.indexOf(f); if (i > -1) sel.splice(i, 1); paint();
+      });
+    };
+    paint();
   }
   function openLoginModal(key) {
     const s = D.base.social.find((x) => x.key === key);
@@ -282,18 +309,30 @@
     const p = D.payments;
     const active = p.activeProcessor;
 
-    // a card-processor row: method chips + linked dot + Edit/Link button
-    const processorRow = (prov, extra) =>
-      '<div class="prov-card mb-4">' +
-        '<div class="flex items-center justify-between mb-3">' +
-          '<div class="flex items-center gap-2"><span class="card-title">' + esc(prov.name) + '</span>' + linkedPill(prov.linked) + '</div>' +
-          '<button class="btn btn-gray" data-prov="' + prov.kindKey + '">' + (prov.linked ? 'Edit' : 'Link') + '</button>' +
+    // payment-method brand icons are real SVG/PNG assets copied from the reference
+    // (web-antd src/assets/payments). Path is relative to the SPA document root.
+    const ASSET = 'settings/assets/payments/';
+    const payIco = (n) => '<img class="pay-ico" src="' + ASSET + n + '.svg" alt="' + n + '" />';
+    const BASE_METHODS = ['visa', 'mastercard', 'amex', 'diners', 'discover', 'unionpay', 'jcb', 'applepay', 'googlepay', 'afterpay', 'klarna'];
+
+    // a processor block (mirrors render.tsx renderPaymentItem): brand logo on top,
+    // then a soft .b-c box holding the method icons + Linked/Not-linked pill, with
+    // an Edit/Link button on the right.
+    const provBlock = (logo, logoH, iconsHtml, linked, kindKey) =>
+      '<div class="prov-block">' +
+        '<div class="prov-logo"><img src="' + ASSET + logo + '" alt="" style="height:' + logoH + 'px" /></div>' +
+        '<div class="pay-bc">' +
+          '<div>' +
+            '<div class="pay-icons">' + iconsHtml + '</div>' +
+            linkedPill(linked) +
+          '</div>' +
+          '<button class="btn btn-gray" data-prov="' + kindKey + '">' + (linked ? 'Edit' : 'Link') + '</button>' +
         '</div>' +
-        '<div class="mb-2">' + methodChips(p.cardMethods.concat(extra || [])) + '</div>' +
       '</div>';
 
-    const air = Object.assign({ kindKey: 'airwallex' }, p.providers.airwallex);
-    const stripe = Object.assign({ kindKey: 'stripe' }, p.providers.stripe);
+    const air = p.providers.airwallex;
+    const stripe = p.providers.stripe;
+    const pp = p.paypal;
 
     const procOpt = (key) => {
       const opt = p.processorOptions.find((o) => o.value === key);
@@ -305,26 +344,22 @@
     const cardCard =
       '<div class="panel card-pad mb-4">' + sectionTitle('Card Payments & Express Checkout') +
         '<div class="mt-4">' +
-          '<div class="set-note mb-4" style="background:#f7f8fa">' +
+          '<div class="set-note mb-6" style="background:#f7f8fa">' +
             '<div class="text-sm" style="font-weight:600;color:var(--ink);margin-bottom:8px">Payment Processor</div>' +
             '<div class="flex items-center">' + procOpt('airwallex') + procOpt('stripe') + '</div>' +
             '<div class="muted" style="font-size:12px;margin-top:8px;line-height:1.5">Choose which processor handles Card, Apple Pay, and Google Pay. Switching processors requires re-entering credentials. Switching processors requires Apple Pay domain re-verification. Please contact our support team to complete the switch.</div>' +
           '</div>' +
-          processorRow(air, []) +
-          processorRow(stripe, p.stripeExtraMethods) +
+          provBlock('airwallex.svg', 30, BASE_METHODS.map(payIco).join(''), air.linked, 'airwallex') +
+          provBlock('stripe.svg', 40, BASE_METHODS.concat(['link', 'amazonpay']).map(payIco).join(''), stripe.linked, 'stripe') +
         '</div>' +
       '</div>';
 
-    const pp = Object.assign({ kindKey: 'paypal' }, p.paypal);
+    const paypalMethods =
+      '<img class="pay-ico" style="height:35px" src="' + ASSET + 'paypal-buynow.png" alt="Buy Now" />' +
+      '<img class="pay-ico" style="height:35px" src="' + ASSET + 'paypal-later-2.png" alt="Pay Later" />';
     const paypalCard =
       '<div class="panel card-pad mb-4">' +
-        '<div class="prov-card">' +
-          '<div class="flex items-center justify-between mb-3">' +
-            '<div class="flex items-center gap-2"><span class="card-title">' + esc(pp.name) + '</span>' + linkedPill(pp.linked) + '</div>' +
-            '<button class="btn btn-gray" data-prov="paypal">' + (pp.linked ? 'Edit' : 'Link') + '</button>' +
-          '</div>' +
-          '<div class="muted" style="font-size:12.5px">Buy Now · Pay Later</div>' +
-        '</div>' +
+        provBlock('paypal-logo.svg', 30, paypalMethods, pp.linked, 'paypal') +
       '</div>';
 
     paint(
@@ -459,9 +494,14 @@
   // ===========================================================================
   function renderCheckout() {
     const c = D.checkout;
-    const radioGroup = (name, opts, sel) => opts.map((o) =>
-      '<label class="set-radio' + (o.value === sel ? ' on' : '') + '" data-radio="' + name + '" data-val="' + o.value + '" style="margin-right:16px;margin-bottom:6px">' +
-      '<span class="proc-radio">' + (o.value === sel ? '<span class="proc-dot"></span>' : '') + '</span>' + esc(o.label) + '</label>').join('');
+    // wrap radios in an aligned flex so they stay vertically centered with the row's
+    // left label (per-radio margin-bottom used to lift them ~5px above it)
+    const radioGroup = (name, opts, sel) =>
+      '<div style="display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 16px">' +
+        opts.map((o) =>
+          '<label class="set-radio' + (o.value === sel ? ' on' : '') + '" data-radio="' + name + '" data-val="' + o.value + '">' +
+          '<span class="proc-radio">' + (o.value === sel ? '<span class="proc-dot"></span>' : '') + '</span>' + esc(o.label) + '</label>').join('') +
+      '</div>';
 
     const logoCard =
       '<div class="panel card-pad mb-4">' + sectionTitle('Customize checkout') +
@@ -507,6 +547,7 @@
   //   sub-state: mfResource = null (picker) | 'products' | 'variants'
   // ===========================================================================
   let mfResource = null;
+  let mfAdding = false; // true = showing the inline "Add field definition" view (not a modal — mirrors form.tsx)
 
   function renderMetafields() {
     const m = D.metafields;
@@ -534,6 +575,7 @@
 
     const r = m.resources.find((x) => x.key === mfResource);
     const defs = m.definitions[mfResource] || [];
+    if (mfAdding) { paintAddDefinition(r); return; }
     const suffix = mfResource === 'variants' ? 'variants' : 'products';
     const title = mfResource === 'variants' ? 'Product variant metafields' : 'Product metafields';
     const rows = defs.map((d) =>
@@ -568,22 +610,38 @@
       true
     );
     const back = root.querySelector('[data-act="mf-back"]'); if (back) back.onclick = () => { mfResource = null; renderMetafields(); };
-    root.querySelectorAll('[data-act="mf-add"]').forEach((b2) => b2.onclick = () => openAddDefinition(r));
+    root.querySelectorAll('[data-act="mf-add"]').forEach((b2) => b2.onclick = () => { mfAdding = true; renderMetafields(); });
   }
 
-  function openAddDefinition(resource) {
+  // Add field definition — an inline VIEW with a back arrow (mirrors form.tsx), NOT a modal.
+  function paintAddDefinition(resource) {
     const m = D.metafields;
     const typeOpts = m.typeOptions.map((g) =>
       '<optgroup label="' + esc(g.group) + '">' + g.types.map((t) => '<option value="' + t.type + '">' + esc(t.label) + '</option>').join('') + '</optgroup>').join('');
     const title = resource.key === 'variants' ? 'Add variant metafield definition' : 'Add product metafield definition';
-    const body =
-      field('Name', '', 'Name') +
-      field('Namespace and key', '', 'namespace.key', { addonBefore: 'custom.' }) +
-      '<div style="margin-bottom:12px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Type <span style="color:var(--err)">*</span></div>' +
-        '<select class="input"><option value="" disabled selected>Select type</option>' + typeOpts + '</select></div>' +
-      '<div><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Description (Optional)</div>' +
-        '<textarea class="input" rows="3" placeholder="Please Enter" style="height:auto;padding:8px 12px;resize:vertical"></textarea></div>';
-    modal({ title: title, width: 560, okText: 'Add', body, onOk: (mm, close) => { close(); toast(resource.key + ' metafield definition created successfully'); } });
+    paint(
+      '<div class="flex items-center gap-3 mb-4">' +
+        '<button class="back-btn" data-act="def-back" title="Back">' + I.chevL + '</button>' +
+        '<div class="page-title" style="font-size:18px">' + esc(title) + '</div>' +
+      '</div>' +
+      '<div class="panel card-pad">' +
+        field('Name', '', 'Name') +
+        field('Namespace and key', '', 'namespace.key', { addonBefore: 'custom.' }) +
+        '<div style="margin-bottom:12px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Type <span style="color:var(--err)">*</span></div>' +
+          '<select class="input"><option value="" disabled selected>Select type</option>' + typeOpts + '</select></div>' +
+        '<div><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Description (Optional)</div>' +
+          '<textarea class="input" rows="3" placeholder="Please Enter" style="height:auto;padding:8px 12px;resize:vertical"></textarea></div>' +
+      '</div>' +
+      '<div class="flex justify-end gap-2 mt-4">' +
+        '<button class="btn btn-default" data-act="def-cancel">Cancel</button>' +
+        '<button class="btn btn-primary" data-act="def-add">Add</button>' +
+      '</div>',
+      true
+    );
+    const goBack = () => { mfAdding = false; renderMetafields(); };
+    const back = root.querySelector('[data-act="def-back"]'); if (back) back.onclick = goBack;
+    const cancel = root.querySelector('[data-act="def-cancel"]'); if (cancel) cancel.onclick = goBack;
+    const add = root.querySelector('[data-act="def-add"]'); if (add) add.onclick = () => { mfAdding = false; toast(resource.key + ' metafield definition created successfully'); renderMetafields(); };
   }
 
   // ===========================================================================
@@ -994,7 +1052,7 @@
   // ===========================================================================
   // MODAL (shared) — mirrors the orders prototype modal
   // ===========================================================================
-  function modal({ title, body, width, okText, onOk, extraLeft, onExtra, danger, hideCancel }) {
+  function modal({ title, body, width, okText, onOk, extraLeft, onExtra, danger, hideCancel, okStyle }) {
     const backdrop = h('<div class="modal-backdrop"></div>');
     const m = h('<div class="modal"></div>');
     if (width) m.style.width = width + 'px';
@@ -1005,7 +1063,7 @@
       '<div class="modal-foot" style="justify-content:' + (extraLeft ? 'space-between' : 'flex-end') + '">' +
         (extraLeft || '') +
         '<div class="flex gap-2">' + (hideCancel ? '' : '<button class="btn btn-default" data-cancel>Cancel</button>') +
-        '<button class="btn ' + (danger ? '' : 'btn-primary') + '" ' + (danger ? 'style="background:var(--err);color:#fff"' : '') + ' data-ok>' + (okText || 'Save') + '</button></div></div>';
+        '<button class="btn ' + (danger || okStyle ? '' : 'btn-primary') + '" ' + (danger ? 'style="background:var(--err);color:#fff"' : (okStyle ? 'style="' + okStyle + '"' : '')) + ' data-ok>' + (okText || 'Save') + '</button></div></div>';
     backdrop.appendChild(m); document.body.appendChild(backdrop);
     const close = () => backdrop.remove();
     m.querySelector('[data-x]').onclick = close;
@@ -1027,43 +1085,437 @@
   // sub-page ids: base | payments | currency | checkout | metafields |
   //   shippable-locations | shipping-rates. Deeper segments pre-seed drill state.
   // ===========================================================================
-  function renderRoles() {
-    const roles = [
-      { name: 'Store owner', desc: 'Full access to the store, billing and staff.', members: 1, system: true },
-      { name: 'Administrator', desc: 'Manage products, orders, customers, content and settings.', members: 2 },
-      { name: 'Staff', desc: 'Manage products and orders; no access to settings.', members: 3 },
-      { name: 'Fulfillment', desc: 'View and fulfill orders only.', members: 1 },
-    ];
-    root.innerHTML =
-      '<div class="set-narrow" style="width:980px">' +
-        '<div class="flex items-center justify-between" style="margin-bottom:16px">' +
-          '<div><div class="page-title">Roles</div><div class="muted" style="font-size:13px;margin-top:4px">Define what each role can access, then assign roles to staff.</div></div>' +
-          '<button class="btn btn-primary">Add role</button>' +
-        '</div>' +
-        '<div class="panel"><table class="tbl"><thead><tr><th>Role</th><th>Description</th><th class="num" style="width:120px">Members</th><th style="width:110px">Action</th></tr></thead><tbody>' +
-          roles.map((r) => '<tr><td style="font-weight:500;color:var(--ink)">' + r.name + (r.system ? ' <span class="pill pill-gray" style="padding:1px 8px;font-size:11px"><span class="dot"></span>System</span>' : '') + '</td><td class="muted">' + r.desc + '</td><td class="num">' + r.members + '</td><td>' + (r.system ? '<span class="muted">--</span>' : '<span class="lnk">Edit</span>') + '</td></tr>').join('') +
-        '</tbody></table></div>' +
-      '</div>';
+  // ===========================================================================
+  // V1.129 Staff and permissions — Roles + Staff (replaces the earlier stubs).
+  // SSO grants a store; inside the store admin you manage Roles (menu/permission
+  // tree) and Staff (5-state account lifecycle). Mock data is module-scoped so the
+  // CRUD flows mutate and re-render in place.
+  // ===========================================================================
+  const ROLE_NAMES = ['Administrator', 'Operations Specialist', 'Customer Service Representative', 'Order Specialist'];
+  const PERM_TREE = [
+    { title: 'Home', children: ['Dashboard'] },
+    { title: 'Orders', children: ['Order list', 'Order detail', 'Shipping', 'Edit shipping address', 'Refund', 'Note'] },
+    { title: 'Products', children: ['Product list', 'Add product', 'Edit product', 'Collections'] },
+    { title: 'Discounts', children: ['Discount list', 'Add discount', 'Edit discount'] },
+    { title: 'Customers', children: ['Customer list', 'Customer detail'] },
+    { title: 'Content', children: ['Blog', 'Page', 'Menu'] },
+    { title: 'Google', children: ['Google sync'] },
+    { title: 'Settings', children: ['Basic settings', 'Payments', 'Staff and permissions'] },
+  ];
+  const ALL_LEAVES = PERM_TREE.reduce((a, p) => a.concat(p.children), []);
+  let rolesData = [
+    { role: 'Administrator', desc: 'Full access to all features and settings', members: 5, perms: ALL_LEAVES.slice() },
+    { role: 'Operations Specialist', desc: 'Manages products, marketing, and orders', members: 4, perms: ['Product list', 'Add product', 'Edit product', 'Collections', 'Discount list', 'Add discount', 'Order list', 'Order detail'] },
+    { role: 'Customer Service Representative', desc: 'Manages customer inquiries, returns, and exchanges', members: 3, perms: ['Customer list', 'Customer detail', 'Order list', 'Order detail', 'Note', 'Refund'] },
+    { role: 'Order Specialist', desc: '', members: 0, perms: ['Order list', 'Order detail', 'Shipping', 'Edit shipping address'] },
+  ];
+  let staffData = [
+    { email: 'zhangsan@gmail.com', role: ['Administrator'], name: 'Zhang San', status: 'Active' },
+    { email: 'lisi@gmail.com', role: ['Operations Specialist'], name: 'Li Si', status: 'Inactive' },
+    { email: 'wangwu@gmail.com', role: ['Customer Service Representative'], name: 'Wang Wu', status: 'Invite pending' },
+    { email: 'liuma@gmail.com', role: ['Order Specialist'], name: '', status: 'Request pending' },
+    { email: 'chenliu@gmail.com', role: ['Administrator'], name: 'Chen Liu', status: 'Request rejected' },
+  ];
+  let accessCode = '0815';
+  const STAFF_PILL = { 'Active': 'pill-green', 'Inactive': 'pill-gray', 'Invite pending': 'pill-orange', 'Request pending': 'pill-blue', 'Request rejected': 'pill-red' };
+  const ALL_STATUSES = ['Active', 'Inactive', 'Invite pending', 'Request pending', 'Request rejected'];
+
+  // inline svgs scoped to these pages
+  const SP_X = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  const SP_CARET = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+  const SP_CHEVR = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+  const SP_REVIEW = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>';
+
+  const SP_STYLES = `
+  .sp-wrap { width: 1000px; max-width: 100%; margin: 0 auto; }
+  .sp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .sp-sub { color: var(--ink-muted); font-size: 13px; margin-top: 4px; }
+  .sp-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+  .sp-card { border: 1px solid var(--hair); border-radius: 12px; overflow: visible; background: #fff; }
+  .sp-filter { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--hair); }
+  .sp-search { display: flex; align-items: center; height: 36px; border: 1px solid var(--ctl); border-radius: 8px; overflow: hidden; background: #fff; }
+  .sp-search .lbl { display: flex; align-items: center; height: 100%; padding: 0 12px; font-size: 13px; font-weight: 600; color: var(--ink); background: var(--panel); border-right: 1px solid var(--hair); }
+  .sp-search input { height: 100%; min-width: 240px; padding: 0 12px; border: 0; outline: 0; font-size: 13px; color: var(--ink); background: transparent; }
+  .sp-search .ui-select { border: 0 !important; border-right: 1px solid var(--hair) !important; border-radius: 0 !important; height: 100%; background: var(--panel); min-width: 92px; }
+  .sp-field-sel { min-width: 92px; }
+  .sp-dd { position: relative; }
+  .sp-dd-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--ctl); border-radius: 8px; background: #fff; font-size: 13px; color: var(--ink); cursor: pointer; }
+  .sp-dd-btn svg { color: var(--ink-muted); }
+  .sp-dd-menu { position: absolute; top: 42px; left: 0; min-width: 200px; background: #fff; border: 1px solid var(--hair); border-radius: 8px; box-shadow: var(--float-shadow); padding: 6px; z-index: 50; }
+  .sp-dd-menu[hidden] { display: none; }
+  .sp-opt { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 6px; font-size: 13px; color: var(--ink-body); cursor: pointer; }
+  .sp-opt:hover { background: var(--panel); }
+  .sp-opt input { width: 15px; height: 15px; accent-color: var(--brand); }
+  .sp-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px; }
+  .sp-chips:not(:empty) { padding: 12px 16px 2px; }
+  .sp-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 6px; background: #eef2ff; color: #33415c; font-size: 12.5px; }
+  .sp-chip button { display: inline-flex; border: 0; background: none; color: #7587b0; cursor: pointer; padding: 0; }
+  .sp-ellip { display: inline-block; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+  .sp-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--hair); }
+  .sp-empty { padding: 56px 0; text-align: center; color: var(--ink-muted); font-size: 13px; }
+  .sp-icon-btn { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; border: 0; background: transparent; color: var(--ink-muted); cursor: pointer; }
+  .sp-icon-btn:hover { background: var(--panel); color: var(--ink); }
+  .sp-icon-btn.danger:hover { color: var(--err); }
+  /* modal form fields */
+  .sp-field { margin-bottom: 16px; }
+  .sp-label { display: block; margin-bottom: 7px; font-size: 13.5px; font-weight: 600; color: #2f3542; }
+  .sp-input-wrap { position: relative; }
+  .sp-input { width: 100%; height: 42px; padding: 0 54px 0 14px; border: 1px solid var(--ctl); border-radius: 6px; font-size: 14px; color: var(--ink); box-sizing: border-box; outline: none; }
+  .sp-input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px rgb(0 102 230 / 8%); }
+  .sp-input.err { border-color: var(--err); }
+  .sp-input[disabled] { background: var(--panel); color: var(--ink-muted); }
+  .sp-cnt { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--ink-muted); }
+  .sp-err { margin-top: 6px; color: var(--err); font-size: 13px; }
+  .sp-err:empty { display: none; }
+  /* permission tree */
+  .perm-tree { border: 1px solid var(--hair); border-radius: 8px; padding: 6px 6px; max-height: 280px; overflow: auto; }
+  .perm-row { display: flex; align-items: center; gap: 4px; padding: 3px 6px; }
+  .perm-caret { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; background: none; color: var(--ink-muted); cursor: pointer; transition: transform .12s; flex: none; }
+  .perm-caret.open { transform: rotate(90deg); }
+  .perm-children { padding-left: 30px; padding-bottom: 4px; display: flex; flex-direction: column; }
+  .perm-children[hidden] { display: none; }
+  .chk { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-body); cursor: pointer; padding: 4px 0; }
+  .chk input { width: 15px; height: 15px; accent-color: var(--brand); cursor: pointer; flex: none; }
+  /* role multi-select */
+  .sp-ms-box { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 42px; padding: 6px 12px; border: 1px solid var(--ctl); border-radius: 6px; cursor: pointer; }
+  .sp-ms-box.err { border-color: var(--err); }
+  .sp-ms-ph { color: var(--ink-muted); font-size: 14px; }
+  .sp-ms-val { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sp-ms-tag { background: #f0f1f3; border-radius: 4px; padding: 2px 8px; font-size: 13px; color: var(--ink); }
+  .sp-ms-list { margin-top: 6px; border: 1px solid var(--hair); border-radius: 8px; padding: 6px; }
+  .sp-ms-list[hidden] { display: none; }
+  /* radio (Active/Inactive) */
+  .sp-radio { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-body); cursor: pointer; margin-right: 28px; }
+  .sp-radio input { width: 15px; height: 15px; accent-color: var(--brand); }
+  `;
+
+  function spPager() {
+    return '<div class="pg"><button class="pg-item" disabled>&lsaquo;</button><button class="pg-item active">1</button><button class="pg-item" disabled>&rsaquo;</button><span class="muted" style="margin-left:8px;font-size:13px">20 / page</span></div>';
   }
 
-  function renderStaff() {
-    const staff = [
-      { name: 'Emma Whitfield', email: 'emma@minilizm.com', role: 'Store owner', status: 'Active', last: '2026-06-06 09:12' },
-      { name: 'Liam Carter', email: 'liam@minilizm.com', role: 'Administrator', status: 'Active', last: '2026-06-05 18:40' },
-      { name: 'Sophia Nguyen', email: 'sophia@minilizm.com', role: 'Staff', status: 'Active', last: '2026-06-04 11:05' },
-      { name: 'Noah Bennett', email: 'noah@minilizm.com', role: 'Fulfillment', status: 'Invited', last: '--' },
-    ];
-    const pillFor = (st) => st === 'Active' ? '<span class="pill pill-green"><span class="dot"></span>Active</span>' : '<span class="pill pill-orange"><span class="dot"></span>Invited</span>';
-    root.innerHTML =
-      '<div class="set-narrow" style="width:980px">' +
-        '<div class="flex items-center justify-between" style="margin-bottom:16px">' +
-          '<div><div class="page-title">Staff</div><div class="muted" style="font-size:13px;margin-top:4px">People who can log in and manage this store.</div></div>' +
-          '<button class="btn btn-primary">Add staff</button>' +
-        '</div>' +
-        '<div class="panel"><table class="tbl"><thead><tr><th>Name</th><th>Email</th><th style="width:150px">Role</th><th style="width:120px">Status</th><th style="width:170px">Last login</th></tr></thead><tbody>' +
-          staff.map((m) => '<tr><td style="font-weight:500;color:var(--ink)">' + m.name + '</td><td class="muted">' + m.email + '</td><td>' + m.role + '</td><td>' + pillFor(m.status) + '</td><td class="muted">' + m.last + '</td></tr>').join('') +
-        '</tbody></table></div>' +
+  // ---- permission tree (Add/Edit role) ----
+  function permTreeHtml(checked) {
+    checked = checked || [];
+    const cset = new Set(checked);
+    return '<div class="perm-tree">' + PERM_TREE.map((p, i) => {
+      const childCount = p.children.filter((c) => cset.has(c)).length;
+      const allOn = childCount === p.children.length;
+      const kids = p.children.map((c) =>
+        '<label class="chk"><input type="checkbox" data-leaf="' + esc(c) + '" data-parent="' + i + '"' + (cset.has(c) ? ' checked' : '') + '/><span>' + esc(c) + '</span></label>'
+      ).join('');
+      return '<div class="perm-node">' +
+        '<div class="perm-row"><button type="button" class="perm-caret" data-caret="' + i + '">' + SP_CHEVR + '</button>' +
+          '<label class="chk"><input type="checkbox" data-grp="' + i + '"' + (allOn ? ' checked' : '') + '/><span style="font-weight:600">' + esc(p.title) + '</span></label></div>' +
+        '<div class="perm-children" data-children="' + i + '" hidden>' + kids + '</div>' +
       '</div>';
+    }).join('') + '</div>';
+  }
+  function wirePermTree(m) {
+    m.querySelectorAll('[data-caret]').forEach((btn) => {
+      btn.onclick = () => {
+        const i = btn.getAttribute('data-caret');
+        const kids = m.querySelector('[data-children="' + i + '"]');
+        const open = kids.hasAttribute('hidden');
+        if (open) kids.removeAttribute('hidden'); else kids.setAttribute('hidden', '');
+        btn.classList.toggle('open', open);
+      };
+    });
+    const syncGroup = (i) => {
+      const grp = m.querySelector('[data-grp="' + i + '"]');
+      const kids = Array.from(m.querySelectorAll('[data-parent="' + i + '"]'));
+      const on = kids.filter((k) => k.checked).length;
+      grp.checked = on === kids.length && on > 0;
+      grp.indeterminate = on > 0 && on < kids.length;
+    };
+    m.querySelectorAll('[data-grp]').forEach((grp) => {
+      grp.onclick = () => {
+        const i = grp.getAttribute('data-grp');
+        m.querySelectorAll('[data-parent="' + i + '"]').forEach((k) => { k.checked = grp.checked; });
+        grp.indeterminate = false;
+      };
+    });
+    m.querySelectorAll('[data-leaf]').forEach((leaf) => {
+      leaf.addEventListener('change', () => syncGroup(leaf.getAttribute('data-parent')));
+    });
+    PERM_TREE.forEach((p, i) => syncGroup(i));
+  }
+  function collectPerms(m) {
+    return Array.from(m.querySelectorAll('[data-leaf]:checked')).map((c) => c.getAttribute('data-leaf'));
+  }
+  function wireCounter(m, id) {
+    const inp = m.querySelector('#' + id), cnt = m.querySelector('#' + id + '-cnt');
+    const upd = () => { if (cnt) cnt.textContent = inp.value.length + '/100'; };
+    inp.addEventListener('input', upd); upd();
+  }
+
+  // ---- role multi-select (Add/Edit/Review staff) ----
+  function roleSelectHtml(selected) {
+    selected = selected || [];
+    const box = selected.length
+      ? '<div class="sp-ms-val">' + selected.map((r) => '<span class="sp-ms-tag">' + esc(r) + '</span>').join('') + '</div>'
+      : '<span class="sp-ms-ph">Select role</span>';
+    const opts = ROLE_NAMES.map((r) => '<label class="chk"><input type="checkbox" data-role value="' + esc(r) + '"' + (selected.indexOf(r) >= 0 ? ' checked' : '') + '/><span>' + esc(r) + '</span></label>').join('');
+    return '<div class="sp-ms"><div class="sp-ms-box" data-ms-box>' + box + '<span style="color:var(--ink-muted);flex:none">' + SP_CARET + '</span></div>' +
+      '<div class="sp-ms-list" data-ms-list hidden>' + opts + '</div></div>';
+  }
+  function wireRoleSelect(m) {
+    const box = m.querySelector('[data-ms-box]'), list = m.querySelector('[data-ms-list]');
+    const toggle = () => { if (list.hasAttribute('hidden')) list.removeAttribute('hidden'); else list.setAttribute('hidden', ''); };
+    box.onclick = toggle;
+    const redraw = () => {
+      const sel = collectRoles(m);
+      box.innerHTML = (sel.length
+        ? '<div class="sp-ms-val">' + sel.map((r) => '<span class="sp-ms-tag">' + esc(r) + '</span>').join('') + '</div>'
+        : '<span class="sp-ms-ph">Select role</span>') + '<span style="color:var(--ink-muted);flex:none">' + SP_CARET + '</span>';
+      box.onclick = toggle;
+    };
+    m.querySelectorAll('[data-role]').forEach((c) => c.addEventListener('change', redraw));
+  }
+  function collectRoles(m) { return Array.from(m.querySelectorAll('[data-role]:checked')).map((c) => c.value); }
+  function setErr(m, key, msg) {
+    const el = m.querySelector('[data-err="' + key + '"]'); if (el) el.textContent = msg || '';
+  }
+
+  // ===================== ROLES =====================
+  let roleQuery = '';
+  function roleRowsHtml() {
+    const list = rolesData.filter((r) => !roleQuery || r.role.toLowerCase().indexOf(roleQuery.toLowerCase()) >= 0);
+    if (!list.length) return '<tr><td colspan="4"><div class="sp-empty">No data</div></td></tr>';
+    return list.map((r) => {
+      const desc = r.desc ? '<span class="sp-ellip" title="' + esc(r.desc) + '">' + esc(r.desc) + '</span>' : '<span class="muted">- -</span>';
+      return '<tr data-role="' + esc(r.role) + '">' +
+        '<td style="font-weight:500;color:var(--ink)">' + esc(r.role) + '</td>' +
+        '<td class="muted">' + desc + '</td>' +
+        '<td>' + r.members + '</td>' +
+        '<td><div class="flex" style="gap:2px"><button class="sp-icon-btn" data-edit title="Edit">' + I.pencil + '</button><button class="sp-icon-btn danger" data-del title="Delete">' + I.trash + '</button></div></td>' +
+      '</tr>';
+    }).join('');
+  }
+  function refreshRoles(scope) {
+    scope.querySelector('#sp-rbody').innerHTML = roleRowsHtml();
+    scope.querySelector('#sp-rchips').innerHTML = roleQuery
+      ? '<span class="sp-chip">Role: ' + esc(roleQuery) + ' <button data-clear>' + SP_X + '</button></span>' : '';
+    wireRoleRows(scope);
+  }
+  function wireRoleRows(scope) {
+    scope.querySelectorAll('#sp-rbody [data-edit]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); openRoleModal(b.closest('tr').getAttribute('data-role')); });
+    scope.querySelectorAll('#sp-rbody [data-del]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); deleteRole(b.closest('tr').getAttribute('data-role')); });
+    const clear = scope.querySelector('#sp-rchips [data-clear]');
+    if (clear) clear.onclick = () => { roleQuery = ''; scope.querySelector('#sp-role-q').value = ''; refreshRoles(scope); };
+  }
+  function renderRoles() {
+    root.innerHTML = '<style>' + SP_STYLES + '</style>' +
+      '<div class="sp-wrap">' +
+        '<div class="sp-head"><div><div class="page-title">Roles</div><div class="sp-sub">Manage staff roles and access permissions</div></div>' +
+          '<button class="btn btn-primary" data-add>Add role</button></div>' +
+        '<div class="sp-card">' +
+          '<div class="sp-filter"><div class="sp-search"><span class="lbl">Role</span><input id="sp-role-q" placeholder="Search" value="' + esc(roleQuery) + '"/></div></div>' +
+          '<div class="sp-chips" id="sp-rchips"></div>' +
+          '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Role</th><th>Description</th><th style="width:120px">Member</th><th style="width:120px">Action</th></tr></thead><tbody id="sp-rbody"></tbody></table></div>' +
+          '<div class="sp-foot"><span class="muted">Total ' + rolesData.length + ' records</span>' + spPager() + '</div>' +
+        '</div>' +
+      '</div>';
+    const scope = root;
+    refreshRoles(scope);
+    scope.querySelector('[data-add]').onclick = () => openRoleModal(null);
+    const q = scope.querySelector('#sp-role-q');
+    q.addEventListener('input', () => { roleQuery = q.value.trim(); refreshRoles(scope); q.focus(); });
+  }
+  function openRoleModal(roleName) {
+    const existing = roleName ? rolesData.find((r) => r.role === roleName) : null;
+    const body =
+      '<div class="sp-field"><label class="sp-label">Role</label><div class="sp-input-wrap"><input id="r-name" class="sp-input" maxlength="100" placeholder="Example: Order Specialist" value="' + esc(existing ? existing.role : '') + '"/><span class="sp-cnt" id="r-name-cnt">0/100</span></div><div class="sp-err" data-err="r-name"></div></div>' +
+      '<div class="sp-field"><label class="sp-label">Description</label><div class="sp-input-wrap"><input id="r-desc" class="sp-input" maxlength="100" placeholder="Example: Handles order fulfillment and shipping logistics" value="' + esc(existing ? existing.desc : '') + '"/><span class="sp-cnt" id="r-desc-cnt">0/100</span></div></div>' +
+      '<div class="sp-field"><label class="sp-label">Permission</label>' + permTreeHtml(existing ? existing.perms : []) + '<div class="sp-err" data-err="perm"></div></div>';
+    const ref = modal({
+      title: existing ? 'Edit role' : 'Add role', width: 560, okText: existing ? 'Update' : 'Add', body,
+      onOk: (m, close) => {
+        const name = m.querySelector('#r-name').value.trim();
+        const desc = m.querySelector('#r-desc').value.trim();
+        const perms = collectPerms(m);
+        setErr(m, 'r-name', ''); setErr(m, 'perm', ''); m.querySelector('#r-name').classList.remove('err');
+        let ok = true;
+        if (!name) { setErr(m, 'r-name', 'Please enter role'); m.querySelector('#r-name').classList.add('err'); ok = false; }
+        else if (rolesData.some((r) => r.role.toLowerCase() === name.toLowerCase() && (!existing || r.role !== existing.role))) { setErr(m, 'r-name', 'Role already exist'); m.querySelector('#r-name').classList.add('err'); ok = false; }
+        if (!perms.length) { setErr(m, 'perm', 'Please select permission'); ok = false; }
+        if (!ok) return;
+        if (existing) { existing.role = name; existing.desc = desc; existing.perms = perms; toast('Updated successfully'); }
+        else { rolesData.push({ role: name, desc, members: 0, perms }); toast('Added successfully'); }
+        close(); renderRoles();
+      },
+    });
+    wireCounter(ref.m, 'r-name'); wireCounter(ref.m, 'r-desc'); wirePermTree(ref.m);
+  }
+  function deleteRole(roleName) {
+    const r = rolesData.find((x) => x.role === roleName);
+    confirm({
+      title: 'Confirm to delete?', okText: 'Confirm', danger: true,
+      content: 'Once deleted, the data cannot be retrieved. Please confirm before proceeding!',
+      onOk: () => {
+        if (r && r.members > 0) { toast('Failed to delete. This role is currently in use'); return; }
+        rolesData = rolesData.filter((x) => x.role !== roleName);
+        toast('Deleted successfully'); renderRoles();
+      },
+    });
+  }
+
+  // ===================== STAFF =====================
+  let staffField = 'Email', staffQuery = '', staffStatuses = [];
+  function staffMatch(s) {
+    if (staffStatuses.length && staffStatuses.indexOf(s.status) < 0) return false;
+    if (!staffQuery) return true;
+    const q = staffQuery.toLowerCase();
+    const val = staffField === 'Email' ? s.email : staffField === 'Name' ? s.name : s.role.join(', ');
+    return String(val).toLowerCase().indexOf(q) >= 0;
+  }
+  function staffActions(s) {
+    const edit = '<button class="sp-icon-btn" data-edit title="Edit">' + I.pencil + '</button>';
+    const del = '<button class="sp-icon-btn danger" data-del title="Delete">' + I.trash + '</button>';
+    const review = '<button class="sp-icon-btn" data-review title="Review">' + SP_REVIEW + '</button>';
+    if (s.status === 'Active' || s.status === 'Inactive') return edit + del;
+    if (s.status === 'Invite pending') return del;
+    return review + del; // Request pending / Request rejected
+  }
+  function staffRowsHtml() {
+    const list = staffData.filter(staffMatch);
+    if (!list.length) return '<tr><td colspan="5"><div class="sp-empty">No data</div></td></tr>';
+    return list.map((s) => {
+      const roleTxt = s.role.length ? s.role.join(', ') : '- -';
+      const name = s.name ? esc(s.name) : '<span class="muted">- -</span>';
+      return '<tr data-email="' + esc(s.email) + '">' +
+        '<td>' + esc(s.email) + '</td>' +
+        '<td><span class="sp-ellip" title="' + esc(roleTxt) + '">' + esc(roleTxt) + '</span></td>' +
+        '<td>' + name + '</td>' +
+        '<td><span class="pill ' + STAFF_PILL[s.status] + '"><span class="dot"></span>' + s.status + '</span></td>' +
+        '<td><div class="flex" style="gap:2px">' + staffActions(s) + '</div></td>' +
+      '</tr>';
+    }).join('');
+  }
+  function staffChipsHtml() {
+    let chips = '';
+    if (staffQuery) chips += '<span class="sp-chip">' + staffField + ': ' + esc(staffQuery) + ' <button data-clear-q>' + SP_X + '</button></span>';
+    if (staffStatuses.length) chips += '<span class="sp-chip">Status: ' + staffStatuses.join(', ') + ' <button data-clear-s>' + SP_X + '</button></span>';
+    return chips;
+  }
+  function refreshStaff(scope) {
+    scope.querySelector('#sp-sbody').innerHTML = staffRowsHtml();
+    scope.querySelector('#sp-schips').innerHTML = staffChipsHtml();
+    wireStaffRows(scope);
+    const cq = scope.querySelector('#sp-schips [data-clear-q]'); if (cq) cq.onclick = () => { staffQuery = ''; scope.querySelector('#sp-staff-q').value = ''; refreshStaff(scope); };
+    const cs = scope.querySelector('#sp-schips [data-clear-s]'); if (cs) cs.onclick = () => { staffStatuses = []; if (scope.querySelector('#sp-status-menu')) scope.querySelectorAll('#sp-status-menu input').forEach((x) => { x.checked = false; }); refreshStaff(scope); };
+  }
+  function wireStaffRows(scope) {
+    scope.querySelectorAll('#sp-sbody [data-edit]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); openStaffModal('edit', b.closest('tr').getAttribute('data-email')); });
+    scope.querySelectorAll('#sp-sbody [data-review]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); openStaffModal('review', b.closest('tr').getAttribute('data-email')); });
+    scope.querySelectorAll('#sp-sbody [data-del]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); deleteStaff(b.closest('tr').getAttribute('data-email')); });
+  }
+  function renderStaff() {
+    root.innerHTML = '<style>' + SP_STYLES + '</style>' +
+      '<div class="sp-wrap">' +
+        '<div class="sp-head"><div><div class="page-title">Staff</div><div class="sp-sub">Manage team members and their account access.</div>' +
+          '<div class="sp-sub" style="margin-top:6px">Access code: <b id="sp-code" style="color:var(--ink)">' + accessCode + '</b></div></div>' +
+          '<div class="sp-actions"><button class="btn" data-gencode>Generate new code</button><button class="btn btn-primary" data-add>Add staff</button></div></div>' +
+        '<div class="sp-card">' +
+          '<div class="sp-filter">' +
+            '<div class="sp-search"><select id="sp-field" class="filter-select sp-field-sel"><option>Email</option><option>Role</option><option>Name</option></select><input id="sp-staff-q" placeholder="Search"/></div>' +
+            '<div class="sp-dd"><button class="sp-dd-btn" id="sp-status-btn">Status' + SP_CARET + '</button><div class="sp-dd-menu" id="sp-status-menu" hidden></div></div>' +
+          '</div>' +
+          '<div class="sp-chips" id="sp-schips"></div>' +
+          '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Email</th><th style="width:230px">Role</th><th style="width:130px">Name</th><th style="width:150px">Status</th><th style="width:110px">Action</th></tr></thead><tbody id="sp-sbody"></tbody></table></div>' +
+          '<div class="sp-foot"><span class="muted">Total ' + staffData.length + ' records</span>' + spPager() + '</div>' +
+        '</div>' +
+      '</div>';
+    const scope = root;
+    refreshStaff(scope);
+    scope.querySelector('[data-add]').onclick = () => openStaffModal('add');
+    scope.querySelector('[data-gencode]').onclick = () => {
+      accessCode = String(Math.floor(1000 + Math.random() * 9000));
+      scope.querySelector('#sp-code').textContent = accessCode;
+      toast('New access code generated');
+    };
+    const fsel = scope.querySelector('#sp-field');
+    fsel.addEventListener('change', () => { staffField = fsel.value; if (staffQuery) refreshStaff(scope); });
+    const q = scope.querySelector('#sp-staff-q');
+    q.value = staffQuery;
+    q.addEventListener('input', () => { staffQuery = q.value.trim(); refreshStaff(scope); q.focus(); });
+    const sbtn = scope.querySelector('#sp-status-btn'), smenu = scope.querySelector('#sp-status-menu');
+    smenu.innerHTML = ALL_STATUSES.map((st) => '<label class="sp-opt"><input type="checkbox" value="' + st + '"' + (staffStatuses.indexOf(st) >= 0 ? ' checked' : '') + '/><span>' + st + '</span></label>').join('');
+    sbtn.onclick = (e) => { e.stopPropagation(); smenu.hidden = !smenu.hidden; };
+    smenu.querySelectorAll('input').forEach((c) => c.addEventListener('change', () => {
+      staffStatuses = Array.from(smenu.querySelectorAll('input:checked')).map((x) => x.value);
+      refreshStaff(scope);
+    }));
+    if (!root.__spMenuClose) {
+      root.__spMenuClose = true;
+      document.addEventListener('mousedown', (e) => {
+        const dd = root.querySelector('.sp-dd');
+        const menu = root.querySelector('#sp-status-menu');
+        if (menu && dd && !dd.contains(e.target)) menu.hidden = true;
+      });
+    }
+  }
+  function openStaffModal(mode, email) {
+    const s = email ? staffData.find((x) => x.email === email) : null;
+    const isAdd = mode === 'add', isReview = mode === 'review';
+    const title = isAdd ? 'Add staff' : isReview ? 'Review staff' : 'Edit staff';
+    const emailField = isAdd
+      ? '<div class="sp-field"><label class="sp-label">Email</label><div class="sp-input-wrap"><input id="s-email" class="sp-input" maxlength="100" placeholder="Example: name@example.com"/><span class="sp-cnt" id="s-email-cnt">0/100</span></div><div class="sp-err" data-err="s-email"></div></div>'
+      : '<div class="sp-field"><label class="sp-label">Email</label><input class="sp-input" disabled value="' + esc(s.email) + '"/></div>';
+    const selectedRoles = (isReview || isAdd) ? [] : s.role.slice();
+    const roleField = '<div class="sp-field"><label class="sp-label">Role</label>' + roleSelectHtml(selectedRoles) + '<div class="sp-err" data-err="s-role"></div></div>';
+    const nameField = '<div class="sp-field"><label class="sp-label">Name</label><div class="sp-input-wrap"><input id="s-name" class="sp-input" maxlength="100" placeholder="Please enter full name. Example: John Smith" value="' + esc(s && !isReview ? s.name : '') + '"/><span class="sp-cnt" id="s-name-cnt">0/100</span></div></div>';
+    const statusField = (mode === 'edit')
+      ? '<div class="sp-field"><label class="sp-label">Status</label><div style="display:flex;align-items:center"><label class="sp-radio"><input type="radio" name="s-status" value="Active"' + (s.status === 'Active' ? ' checked' : '') + '/> Active</label><label class="sp-radio"><input type="radio" name="s-status" value="Inactive"' + (s.status !== 'Active' ? ' checked' : '') + '/> Inactive</label></div></div>'
+      : '';
+    const body = emailField + roleField + nameField + statusField;
+    const okText = isAdd ? 'Add' : isReview ? 'Approve' : 'Update';
+    const ref = modal({
+      title, width: 560, okText, hideCancel: isReview, body,
+      onOk: (m, close) => {
+        const roles = collectRoles(m);
+        setErr(m, 's-role', ''); setErr(m, 's-email', '');
+        let ok = true;
+        let emailVal = s ? s.email : '';
+        if (isAdd) {
+          emailVal = m.querySelector('#s-email').value.trim();
+          if (!emailVal) { setErr(m, 's-email', 'Please enter email'); ok = false; }
+          else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) { setErr(m, 's-email', 'The email you entered is invalid'); ok = false; }
+          else if (staffData.some((x) => x.email.toLowerCase() === emailVal.toLowerCase())) { setErr(m, 's-email', 'Email already exist'); ok = false; }
+        }
+        if (!roles.length) { setErr(m, 's-role', 'Please select role'); ok = false; }
+        if (!ok) return;
+        const name = m.querySelector('#s-name') ? m.querySelector('#s-name').value.trim() : (s ? s.name : '');
+        if (isAdd) {
+          staffData.unshift({ email: emailVal, role: roles, name, status: 'Invite pending' });
+          toast('Add staff successfully');
+        } else if (isReview) {
+          s.role = roles; s.name = name; s.status = 'Active';
+          toast('Staff access approved successfully');
+        } else {
+          s.role = roles; s.name = name;
+          const st = m.querySelector('input[name="s-status"]:checked');
+          if (st) s.status = st.value;
+          toast('Update staff successfully');
+        }
+        close(); renderStaff();
+      },
+    });
+    wireRoleSelect(ref.m);
+    if (ref.m.querySelector('#s-email-cnt')) wireCounter(ref.m, 's-email');
+    if (ref.m.querySelector('#s-name-cnt')) wireCounter(ref.m, 's-name');
+    if (isReview) {
+      const foot = ref.m.querySelector('.modal-foot .flex');
+      const rej = document.createElement('button'); rej.className = 'btn btn-default'; rej.textContent = 'Reject';
+      foot.insertBefore(rej, foot.firstChild);
+      rej.onclick = () => { s.status = 'Request rejected'; ref.close(); toast('Staff request has been rejected'); renderStaff(); };
+    }
+  }
+  function deleteStaff(email) {
+    confirm({
+      title: 'Confirm to delete?', okText: 'Confirm', danger: true,
+      content: 'Once deleted, the data cannot be retrieved. Please confirm before proceeding!',
+      onOk: () => { staffData = staffData.filter((x) => x.email !== email); toast('Deleted successfully'); renderStaff(); },
+    });
   }
 
   const ROUTES = {
@@ -1100,6 +1552,7 @@
     const sub = parts[1];
     // reset / seed drill-down sub-states for the active sub-page
     mfResource = (key === 'metafields' && sub) ? decodeURIComponent(sub) : null;
+    mfAdding = false;
     rateProfile = (key === 'shipping-rates' && sub != null && sub !== '')
       ? (sub === 'new' ? 'new' : Number(decodeURIComponent(sub))) : null;
     ROUTES[key]();
@@ -1139,12 +1592,25 @@
 
   .set-range { flex: 1; accent-color: var(--brand); height: 4px; }
 
-  /* note / banner box */
-  .set-note { background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; padding: 14px 16px; }
+  /* note / banner box — borderless grey (mirrors reference rounded-md bg-[#f7f8fa]) */
+  .set-note { background: #f7f8fb; border-radius: 8px; padding: 16px; }
 
-  /* payments */
-  .pay-chip { display: inline-flex; align-items: center; padding: 2px 8px; margin: 0 4px 4px 0; border: 1px solid var(--hair); border-radius: 6px; font-size: 11px; color: var(--ink-body); background: #fff; }
-  .prov-card { border: 1px solid var(--hair); border-radius: 10px; padding: 14px 16px; }
+  /* multi-select tag box (Add font modal — Ant Select mode=multiple look) */
+  .ms-box { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 36px; padding: 4px 8px; border: 1px solid var(--ctl); border-radius: 8px; background: #fff; cursor: text; }
+  .ms-box:focus-within { border-color: var(--brand); }
+  .ms-tag { display: inline-flex; align-items: center; gap: 6px; background: #f0f1f3; border-radius: 4px; padding: 2px 6px 2px 8px; font-size: 13px; color: var(--ink); }
+  .ms-x { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink-muted); font-size: 14px; line-height: 1; }
+  .ms-x:hover { color: var(--ink); }
+  .ms-input { flex: 1; min-width: 60px; border: none; outline: none; background: transparent; font-size: 13px; height: 26px; color: var(--ink); }
+
+  /* payments — processor logo + soft icon box (mirrors render.tsx + global .b-c) */
+  .prov-block { margin-bottom: 24px; }
+  .prov-block:last-child { margin-bottom: 0; }
+  .prov-logo { display: flex; align-items: center; margin-bottom: 16px; }
+  .prov-logo img { display: block; width: auto; object-fit: contain; }
+  .pay-bc { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f7f8fb; border-radius: 8px 8px 0 0; padding: 16px; }
+  .pay-icons { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+  .pay-ico { height: 24px; width: auto; object-fit: contain; display: block; }
   .proc-radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ctl); display: inline-grid; place-items: center; flex: none; }
   .set-radio.on .proc-radio, .set-radio2.on .proc-radio { border-color: var(--brand); }
   .proc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }

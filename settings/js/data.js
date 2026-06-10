@@ -28,10 +28,9 @@ window.DATA_SETTINGS = {
       fontOptions: ['Inter', 'Playfair Display', 'Roboto', 'Lato', 'Merriweather', 'Source Sans 3'],
     },
     product: {
-      // sys_reply_status / show_ot_price / show_vendor_switch  ('1' on / '0' off)
+      // sys_reply_status / show_ot_price  ('1' on / '0' off)
       reviews:  { on: true,  desc: 'When enabled, product review information will be displayed on the homepage, product listing, and product detail pages.' },
       original: { on: true,  desc: 'When enabled, the original price and "off" discount label will be displayed for the product.' },
-      vendor:   { on: false, desc: 'When enabled, product vendor information will be displayed on the homepage, product listing, and product detail page.' },
     },
     order: {
       // order_id_prefix / auto_close_order_timer (minutes, default 360) /

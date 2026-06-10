@@ -314,19 +314,26 @@
 
   function loadForm(id) {
     isNew = (id === '0' || id === 0);
-    if (isNew) { F = blankForm(); return; }
-    const src = D.DETAILS[id] || D.DETAILS[Number(id)];
-    if (src) { F = JSON.parse(JSON.stringify(src)); }
-    else {
-      // a list row without a fleshed-out detail record — synthesize from the row
-      const p = D.POSTS.find((x) => String(x.article_id) === String(id));
-      F = Object.assign(blankForm(), p ? {
-        article_id: p.article_id, cid: p.cid, title: p.title, author: p.author,
-        image_input: p.image_input, status: p.status, is_recommend: p.is_recommend || 0,
-        sort: p.sort, article_seo_title: slug(p.title),
-        content: { content: '<p>' + esc(p.title) + '</p>' },
-      } : {});
+    if (isNew) {
+      F = blankForm();
+    } else {
+      const src = D.DETAILS[id] || D.DETAILS[Number(id)];
+      if (src) { F = JSON.parse(JSON.stringify(src)); }
+      else {
+        // a list row without a fleshed-out detail record — synthesize from the row
+        const p = D.POSTS.find((x) => String(x.article_id) === String(id));
+        F = Object.assign(blankForm(), p ? {
+          article_id: p.article_id, cid: p.cid, title: p.title, author: p.author,
+          image_input: p.image_input, status: p.status, is_recommend: p.is_recommend || 0,
+          sort: p.sort, article_seo_title: slug(p.title),
+          content: { content: '<p>' + esc(p.title) + '</p>' },
+        } : {});
+      }
     }
+    // Snapshot the pristine form as the dirty baseline — for NEW blogs too.
+    // Previously the isNew branch returned early and left ORIG stale/null, so
+    // isDirty() was always true and the dark "Unsaved changes" bar showed the
+    // instant you opened "Add blog" without touching anything.
     F.seo_keywords = F.seo_keywords || [];
     ORIG = snap(F);
     saved = false;
@@ -354,15 +361,9 @@
       // fixed 1200px centered container (matches real admin detail width; the
       // dark unsaved bar lives inside it, exactly like the real blogEdit.vue)
       '<div class="detail-wrap">' +
-        // dark "Unsaved changes" bar — sticky at top, shown only when dirty
-        // (mirrors UnSavedChanges in pages/edit.tsx: confirmText = isEdit ? 'Update' : 'Add')
-        '<div class="bl-unsaved-bar" id="bl-unsaved"' + (isDirty() ? '' : ' style="display:none"') + '>' +
-          '<div class="lhs">Unsaved changes</div>' +
-          '<div class="rhs">' +
-            '<button class="bl-discard" data-act="discard">Discard</button>' +
-            '<button class="bl-save" data-act="save">' + (isNew ? 'Add' : 'Update') + '</button>' +
-          '</div>' +
-        '</div>' +
+        // shared full-width "You have unsaved changes" bar (UI.unsavedBar) — toggled by syncUnsaved().
+        // blog keeps its single data-act="save" wiring (binds footer + bar together).
+        window.UI.unsavedBar({ saveLabel: isNew ? 'Add' : 'Update', saveAct: 'save' }) +
         // header
         '<div class="flex items-center gap-2 mb-5">' +
           '<button class="back-btn" data-act="back" title="Back to blog">' + I.arrowLeft + '</button>' +
@@ -391,32 +392,20 @@
       '</div>';
 
     wireEdit();
+    syncUnsaved(); // shared bar renders hidden; apply the current dirty state (e.g. dirty repaint after category change)
   }
 
   // toggle the dark unsaved bar based on current dirty state (call after any field edit)
   function syncUnsaved() {
-    const bar = root.querySelector('#bl-unsaved');
-    if (bar) bar.style.display = isDirty() ? '' : 'none';
+    window.UI.setUnsavedBar(root, isDirty());
   }
 
   // module-scoped styles injected once (mirrors the convention used by the page module):
-  // rich-text, status radios, SEO keyword input, image card/picker, unsaved bar, row-selection
-  // — none of these classes exist in theme.css.
+  // rich-text, status radios, SEO keyword input, image card/picker, row-selection
+  // — none of these classes exist in theme.css. (The unsaved bar is shared: UI.unsavedBar.)
   function ensureBlogStyles() {
     if (document.getElementById('bl-mod-styles')) return;
     const css =
-      // dark unsaved bar (mirrors components/UnSavedChanges.tsx). Negative top margin pulls it
-      // over the detail-wrap top padding so it pins flush to the scroll-area top when sticky.
-      '.bl-unsaved-bar{position:sticky;top:0;z-index:40;background:#242833;color:#fff;display:flex;' +
-        'align-items:center;justify-content:space-between;padding:12px 20px;margin:0 0 20px;}' +
-      '.bl-unsaved-bar .lhs{font-size:14px;font-weight:500;}' +
-      '.bl-unsaved-bar .rhs{display:flex;align-items:center;gap:10px;}' +
-      '.bl-discard{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);height:32px;' +
-        'padding:0 14px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;}' +
-      '.bl-discard:hover{border-color:#fff;background:rgba(255,255,255,.08);}' +
-      '.bl-save{background:var(--brand);color:#fff;border:none;height:32px;padding:0 16px;border-radius:6px;' +
-        'font-size:13px;font-weight:500;cursor:pointer;}' +
-      '.bl-save:hover{background:#0a5bd0;}' +
       // status radios (Visible / Hidden) — mirror Ant Radio.Group
       '.rt-radio{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-body);cursor:pointer;}' +
       '.rt-dot{width:16px;height:16px;border-radius:50%;border:1px solid var(--ctl);flex:none;transition:border-color .15s;}' +

@@ -184,8 +184,8 @@
   ];
 
   // ---- Full detail records (keyed by order_id), shaped after ApiOrderDetail ----
-  // items[] is a flat product list (ProductsCard.tsx renders a flat ant List — no
-  // vendor grouping). product_price = after-discount line price; line_total =
+  // items[] is a flat product list (ProductsCard.tsx renders a flat ant List).
+  // product_price = after-discount line price; line_total =
   // pre-discount line price (shown struck-through when discounts exist).
   const IMG = (bg, fg, t) =>
     'data:image/svg+xml;utf8,' + encodeURIComponent(

@@ -442,18 +442,10 @@
     wireEdit(e);
   }
 
-  // ---- Unsaved-changes bar (mirrors components/UnSavedChanges.tsx; dark #242833) ----
-  // Real layout: left zone (title — empty for discounts), centered CircleAlert +
-  // "You have unsaved changes", right zone Discard (ghost) + primary Update/Add.
+  // ---- Unsaved-changes bar — shared full-width top bar (UI.unsavedBar) ----
+  // Rendered only when dirty (conditional render + markDirtyLive), so show:true.
   function unsavedBar(isEdit) {
-    return '<div class="dsc-unsaved" style="position:sticky;top:0;z-index:30;margin:-20px -24px 16px;background:#242833;color:#fff;display:flex;align-items:center;padding:11px 24px;border-top-left-radius:0;border-top-right-radius:0">' +
-      '<div style="flex:1"></div>' +
-      '<div class="flex items-center gap-2" style="white-space:nowrap"><span style="display:inline-flex;color:#fff">' + I.alert + '</span><span style="font-size:13.5px">You have unsaved changes</span></div>' +
-      '<div class="flex items-center justify-end gap-2" style="flex:1">' +
-        '<button class="btn btn-default" data-act="discard" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.4)">Discard</button>' +
-        '<button class="btn btn-primary" data-act="save">' + (isEdit ? 'Update' : 'Add') + '</button>' +
-      '</div>' +
-    '</div>';
+    return window.UI.unsavedBar({ saveLabel: isEdit ? 'Update' : 'Add', saveAct: 'save', show: true });
   }
 
   function sectionCard(title, body, rightHtml) {
@@ -833,7 +825,7 @@
   function markDirtyLive(isEdit) {
     if (!ED || ED.dirty) return;
     ED.dirty = true;
-    if (root.querySelector('.dsc-unsaved')) return;
+    if (root.querySelector('#unsaved-bar')) return;
     const bar = h(unsavedBar(isEdit));
     root.insertBefore(bar, root.firstChild);
     bar.querySelectorAll('[data-act="save"]').forEach((s) => s.onclick = () => doSave(ED, isEdit));
