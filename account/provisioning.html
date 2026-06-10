@@ -112,7 +112,7 @@
     var qs = new URLSearchParams(location.search);
     var storeName = qs.get('store') || 'Your store';
     var slug = storeName.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'yourstore';
-    var domain = slug + '.bestshopio.store';
+    var domain = slug + '.stores.bestshopio.com';
     document.getElementById('title').textContent = 'Setting up ' + storeName;
     document.getElementById('store-domain').textContent = domain;
     document.getElementById('store-link').href = 'https://' + domain;

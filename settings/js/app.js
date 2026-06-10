@@ -1093,6 +1093,14 @@
     const cancelBtn = m.querySelector('[data-cancel]'); if (cancelBtn) cancelBtn.onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
     m.querySelector('[data-ok]').onclick = () => onOk(m, close);
+    // submit on Enter from a text input (textarea / Shift+Enter keep newline behavior)
+    m.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && e.target && e.target.tagName === 'INPUT') {
+        e.preventDefault();
+        const okBtn = m.querySelector('[data-ok]');
+        if (okBtn) okBtn.click();
+      }
+    });
     const disc = m.querySelector('[data-disc]'); if (disc && onExtra) disc.onclick = () => onExtra(m, close);
     // generic radio/checkbox visual toggles inside modal (skip ones wired by caller)
     m.querySelectorAll('.set-radio:not([data-radio]), .set-radio2').forEach((el) => el.onclick = () => {
@@ -1554,7 +1562,7 @@
     { domain: 'nutrofuels.com',             type: 'custom', primary: false, status: 'connected',            redirectTo: 'www.nutrofuels.com' },
     { domain: 'shop.nutrofuels.io',         type: 'custom', primary: false, status: 'pending_verification', redirectTo: null },
     { domain: 'go.nutrofuels.io',           type: 'custom', primary: false, status: 'dns_error',            redirectTo: null },
-    { domain: 'nutrofuels.bestshopio.store', type: 'system', primary: false, status: 'connected',           redirectTo: null },
+    { domain: 'nutrofuels.stores.bestshopio.com', type: 'system', primary: false, status: 'connected',      redirectTo: null },
   ];
   let domainStep = null;   // null = list · 'add' = configure DNS · 'bound' = success (set by show())
   let pendingDomain = '';  // domain being added through the wizard
@@ -1700,7 +1708,7 @@
       if (!domainVerifyFailed) { domainVerifyFailed = true; renderAddDomainDNS(); }    // first check: DNS not propagated yet → show failure state
       else { domainVerifyFailed = false; location.hash = '#/settings/domains/bound'; } // retry: records detected → bound
     };
-    root.querySelector('[data-guide-faq]').onclick = () => toast('Opening setup guide…');
+    root.querySelector('[data-guide-faq]').onclick = () => openDomainGuide();
   }
   function renderAddDomainBound() {
     const dom = pendingDomain || 'yourdomain.com';
@@ -1778,6 +1786,27 @@
     const d = domainsData.find((x) => x.domain === dom);
     if (d) { d.status = 'connected'; }
     toast('Domain connected · SSL active'); renderDomainList();
+  }
+  // "Having issues? View the setup guide" — DNS records recap + troubleshooting.
+  function openDomainGuide() {
+    modal({
+      title: 'Connecting your domain', width: 580, okText: 'Got it', hideCancel: true,
+      body:
+        '<div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.6">At your domain provider (GoDaddy, Namecheap, Alibaba Cloud, …), add these two records. We detect them automatically and issue SSL for you.</div>' +
+        '<div class="dns-tbl" style="margin-bottom:16px">' +
+          '<div class="dns-tr dns-th" style="grid-template-columns:96px 90px 1fr"><div class="dns-cell">Type</div><div class="dns-cell">Name</div><div class="dns-cell">Value</div></div>' +
+          '<div class="dns-tr" style="grid-template-columns:96px 90px 1fr"><div class="dns-cell dns-mono">A</div><div class="dns-cell dns-mono">@</div><div class="dns-cell dns-mono">' + PLATFORM_IP + '</div></div>' +
+          '<div class="dns-tr" style="grid-template-columns:96px 90px 1fr"><div class="dns-cell dns-mono">CNAME</div><div class="dns-cell dns-mono">www</div><div class="dns-cell dns-mono">' + PLATFORM_CNAME + '</div></div>' +
+        '</div>' +
+        '<div style="font-weight:600;font-size:13.5px;color:var(--ink);margin-bottom:8px">If it isn\'t verifying</div>' +
+        '<ul style="margin:0;padding-left:18px;color:var(--ink-body);font-size:13px;line-height:1.75">' +
+          '<li>DNS changes can take up to 30 minutes — sometimes a few hours — to take effect. Wait, then verify again.</li>' +
+          '<li>Remove any old A or CNAME record on <b>@</b> or <b>www</b> that points elsewhere.</li>' +
+          '<li>If your domain is proxied (e.g. Cloudflare), set the records to <b>DNS only</b>, not proxied.</li>' +
+          '<li>Copy the values exactly — a typo or trailing dot will fail.</li>' +
+        '</ul>',
+      onOk: (m, close) => close(),
+    });
   }
 
   // ===========================================================================
