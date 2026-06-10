@@ -231,10 +231,10 @@ input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 /* Modal */
 .modal-backdrop { position: fixed; inset: 0; background: rgb(15 23 42 / 35%); display: grid; place-items: center; z-index: 70; }
 .modal { background: #fff; border-radius: 12px; width: 420px; box-shadow: var(--float-shadow); overflow: hidden; }
-.modal-head { padding: 16px 18px; border-bottom: 1px solid var(--hair); font-size: 15px; font-weight: 600; }
+.modal-head { padding: 18px 18px 4px; font-size: 15px; font-weight: 600; }
 .modal-warn { color: #f59e0b; display: inline-flex; align-items: center; }
 .modal-body { padding: 18px; }
-.modal-foot { padding: 14px 18px; border-top: 1px solid var(--hair); display: flex; justify-content: flex-end; gap: 8px; }
+.modal-foot { padding: 4px 18px 18px; display: flex; justify-content: flex-end; gap: 8px; }
 .input { width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--ctl); border-radius: var(--radius); font-size: 14px; background: #fff; }
 .input:focus { outline: none; border-color: var(--brand); }
 

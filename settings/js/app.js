@@ -1553,10 +1553,12 @@
     { domain: 'www.nutrofuels.com',         type: 'custom', primary: true,  status: 'connected',            redirectTo: null },
     { domain: 'nutrofuels.com',             type: 'custom', primary: false, status: 'connected',            redirectTo: 'www.nutrofuels.com' },
     { domain: 'shop.nutrofuels.io',         type: 'custom', primary: false, status: 'pending_verification', redirectTo: null },
+    { domain: 'go.nutrofuels.io',           type: 'custom', primary: false, status: 'dns_error',            redirectTo: null },
     { domain: 'nutrofuels.bestshopio.store', type: 'system', primary: false, status: 'connected',           redirectTo: null },
   ];
   let domainStep = null;   // null = list · 'add' = configure DNS · 'bound' = success (set by show())
   let pendingDomain = '';  // domain being added through the wizard
+  let domainVerifyFailed = false; // wizard: first "Verify now" shows the DNS-not-detected state, retry succeeds
 
   const DOMAIN_BADGE = {
     connected:            { cls: 'pill-green',  label: 'Connected' },
@@ -1600,6 +1602,8 @@
   .ssl-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-muted); margin-top: 16px; }
   .ssl-spin { width: 13px; height: 13px; border: 2px solid var(--brand); border-top-color: transparent; border-radius: 50%; animation: dsp .7s linear infinite; }
   @keyframes dsp { to { transform: rotate(360deg); } }
+  .dns-fail { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; padding: 12px 14px; border-radius: 8px; background: #fdecea; color: #b3261e; font-size: 13px; line-height: 1.5; }
+  .dns-fail svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
   .dbound { text-align: center; padding: 30px 20px 12px; }
   .dbound .ck { width: 60px; height: 60px; border-radius: 50%; background: #e7f7ee; color: #2bb673; display: grid; place-items: center; margin: 0 auto 16px; }
   /* modal form fields (Connect domain) — same look as the Roles/Staff modal inputs */
@@ -1634,7 +1638,8 @@
   function domainRowHtml(d) {
     const badge = DOMAIN_BADGE[d.status] || { cls: 'pill-gray', label: d.status };
     const sslSuffix = (d.primary && d.status === 'connected') ? ' · SSL active' : '';
-    const del = d.type === 'system' ? '' : '<button class="dom-link danger" data-del="' + esc(d.domain) + '">Delete</button>';
+    // Primary + system domains are not deletable — you must set another domain as primary first (PRD §6.3).
+    const del = (d.type === 'system' || d.primary) ? '' : '<button class="dom-link danger" data-del="' + esc(d.domain) + '">Delete</button>';
     return '<div class="dom-row">' +
         '<div class="dom-ico">' + I.globe + '</div>' +
         '<div class="dom-info"><div class="dom-name">' + esc(d.domain) + '</div>' +
@@ -1657,8 +1662,8 @@
     root.querySelectorAll('[data-del]').forEach((b) => b.onclick = () => deleteDomain(b.getAttribute('data-del')));
     root.querySelectorAll('[data-primary]').forEach((b) => b.onclick = () => setPrimaryDomain(b.getAttribute('data-primary')));
     root.querySelectorAll('[data-verify]').forEach((b) => b.onclick = () => verifyDomain(b.getAttribute('data-verify')));
-    root.querySelectorAll('[data-guide]').forEach((b) => b.onclick = () => { pendingDomain = b.getAttribute('data-guide'); location.hash = '#/settings/domains/add'; });
-    root.querySelectorAll('[data-redirect]').forEach((b) => b.onclick = () => toast('Redirect saved'));
+    root.querySelectorAll('[data-guide]').forEach((b) => b.onclick = () => { pendingDomain = b.getAttribute('data-guide'); domainVerifyFailed = false; location.hash = '#/settings/domains/add'; });
+    root.querySelectorAll('[data-redirect]').forEach((b) => b.onclick = () => redirectDomain(b.getAttribute('data-redirect')));
   }
   function renderAddDomainDNS() {
     const dom = pendingDomain || 'yourdomain.com';
@@ -1678,10 +1683,12 @@
             '<div class="dns-tr"><div class="dns-cell dns-mono">A</div><div class="dns-cell dns-mono">@</div><div class="dns-cell dns-mono">' + PLATFORM_IP + '</div><div class="dns-cell"><button class="dns-copy" data-copy="' + PLATFORM_IP + '">Copy</button></div></div>' +
             '<div class="dns-tr"><div class="dns-cell dns-mono">CNAME</div><div class="dns-cell dns-mono">www</div><div class="dns-cell dns-mono">' + PLATFORM_CNAME + '</div><div class="dns-cell"><button class="dns-copy" data-copy="' + PLATFORM_CNAME + '">Copy</button></div></div>' +
           '</div>' +
-          '<div class="ssl-pill"><span class="ssl-spin"></span>Waiting for DNS to propagate, then SSL is issued automatically (usually within 30 minutes).</div>' +
+          (domainVerifyFailed
+            ? '<div class="dns-fail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div><b>We couldn\'t detect your DNS records yet.</b> DNS changes can take up to 30 minutes to take effect. Double-check the records above match exactly, then verify again.</div></div>'
+            : '<div class="ssl-pill"><span class="ssl-spin"></span>Waiting for DNS to propagate, then SSL is issued automatically (usually within 30 minutes).</div>') +
           '<div class="flex items-center justify-between" style="margin-top:22px">' +
             '<a class="lnk" data-guide-faq style="font-size:13px;cursor:pointer">Having issues? View the setup guide</a>' +
-            '<div class="flex" style="gap:10px"><button class="btn btn-gray" data-verify-later>Verify later</button><button class="btn btn-primary" data-verify-now>Verify now</button></div>' +
+            '<div class="flex" style="gap:10px"><button class="btn btn-gray" data-verify-later>Verify later</button><button class="btn btn-primary" data-verify-now>' + (domainVerifyFailed ? 'Verify again' : 'Verify now') + '</button></div>' +
           '</div>' +
         '</div>' +
       '</div>',
@@ -1689,7 +1696,10 @@
     );
     root.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => { try { navigator.clipboard.writeText(b.getAttribute('data-copy')); } catch (e) {} toast('Copied'); });
     root.querySelector('[data-verify-later]').onclick = () => { location.hash = '#/settings/domains'; };
-    root.querySelector('[data-verify-now]').onclick = () => { location.hash = '#/settings/domains/bound'; };
+    root.querySelector('[data-verify-now]').onclick = () => {
+      if (!domainVerifyFailed) { domainVerifyFailed = true; renderAddDomainDNS(); }    // first check: DNS not propagated yet → show failure state
+      else { domainVerifyFailed = false; location.hash = '#/settings/domains/bound'; } // retry: records detected → bound
+    };
     root.querySelector('[data-guide-faq]').onclick = () => toast('Opening setup guide…');
   }
   function renderAddDomainBound() {
@@ -1741,7 +1751,7 @@
         if (!v) { setErr(m, 'add-dom', 'Please enter a domain'); m.querySelector('#add-dom').classList.add('err'); return; }
         if (!validDomain(v)) { setErr(m, 'add-dom', 'Enter a valid domain without www or https://'); m.querySelector('#add-dom').classList.add('err'); return; }
         if (domainsData.some((d) => d.domain === v || d.domain === 'www.' + v)) { setErr(m, 'add-dom', 'This domain is already added'); m.querySelector('#add-dom').classList.add('err'); return; }
-        pendingDomain = v; close(); location.hash = '#/settings/domains/add';
+        pendingDomain = v; domainVerifyFailed = false; close(); location.hash = '#/settings/domains/add';
       },
     });
   }
@@ -1755,6 +1765,14 @@
   function setPrimaryDomain(dom) {
     domainsData.forEach((d) => { d.primary = (d.domain === dom); if (d.domain === dom) d.redirectTo = null; });
     toast('Primary domain updated'); renderDomainList();
+  }
+  // "Redirect" = send this domain's visitors (301) to the primary domain, so every
+  // address resolves to one canonical store URL (good for SEO + branding).
+  function redirectDomain(dom) {
+    const primary = domainsData.find((d) => d.primary);
+    if (!primary) { toast('Set a primary domain first'); return; }
+    const d = domainsData.find((x) => x.domain === dom);
+    if (d) { d.redirectTo = primary.domain; toast('Now redirecting to ' + primary.domain); renderDomainList(); }
   }
   function verifyDomain(dom) {
     const d = domainsData.find((x) => x.domain === dom);
@@ -1775,7 +1793,7 @@
   // sample order data the preview renders against (resolves {{merge.tags}})
   const NF_SAMPLE = {
     'customer.first_name': 'Emma', 'customer.name': 'Emma Johnson',
-    'order.number': '1042', 'order.detail_url': '#', 'order.currency': 'US$',
+    'order.number': '1042', 'order.detail_url': '#', 'order.currency': 'US$', 'order.date': 'June 10, 2026',
     'order.subtotal': 'US$ 88.00', 'order.shipping': 'US$ 8.00', 'order.total': 'US$ 96.00',
     'order.shipping_address': 'Emma Johnson, 2261 Market St, San Francisco, CA 94114, US',
     'order.payment_method': 'Visa ···· 4242',
@@ -1788,7 +1806,7 @@
   const NF_CLS = { Transactional: '<span class="nf-cls t">Transactional</span>', Marketing: '<span class="nf-cls m">Marketing</span>', Internal: '<span class="nf-cls i">Internal</span>' };
   const nfStatusPill = (c) => c.enabled
     ? '<span class="pill pill-green"><span class="dot"></span>On</span>'
-    : (c.status === 'draft' ? '<span class="pill pill-gray"><span class="dot"></span>Draft</span>' : '<span class="pill pill-gray"><span class="dot"></span>Off</span>');
+    : '<span class="pill pill-gray"><span class="dot"></span>Off</span>';
 
   function nfFindEvent(code) {
     for (const g of D.notifications.groups) { const e = (g.events || []).find((x) => x.code === code); if (e) return { ev: e, group: g }; }
@@ -1807,30 +1825,36 @@
   // expand a dynamic block tag to safe HTML (the merchant never hand-codes loops)
   function nfBlock(tag, b) {
     const color = b.primaryColor || '#0066e6';
-    const itemsRows = (items) => '<table role="presentation" width="100%" cellspacing="0" cellpadding="0">' + items.map((it) =>
-      '<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;vertical-align:top">' +
-        '<div style="font-size:14px;font-weight:600;color:#444">' + esc(it.name) + ' &times; ' + it.qty + '</div>' +
-        '<div style="font-size:12.5px;color:#999">' + esc(it.variant) + '</div>' +
-      '</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap;font-size:14px;font-weight:600;color:#444">' + esc(it.price) + '</td></tr>').join('') + '</table>';
-    const totals =
-      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px">' +
-        '<tr><td style="padding:3px 0;color:#888;font-size:13.5px">Subtotal</td><td style="padding:3px 0;text-align:right;color:#555;font-size:13.5px">' + NF_SAMPLE['order.subtotal'] + '</td></tr>' +
-        '<tr><td style="padding:3px 0;color:#888;font-size:13.5px">Shipping</td><td style="padding:3px 0;text-align:right;color:#555;font-size:13.5px">' + NF_SAMPLE['order.shipping'] + '</td></tr>' +
-        '<tr><td style="padding:10px 0 0;border-top:1px solid #eee;color:#222;font-size:15px;font-weight:700">Total</td><td style="padding:10px 0 0;border-top:1px solid #eee;text-align:right;color:#222;font-size:15px;font-weight:700">' + NF_SAMPLE['order.total'] + '</td></tr>' +
-      '</table>';
+    const panel = (label, inner) =>
+      '<div style="background:#f7f8fa;border-radius:12px;padding:20px 22px;margin:0 0 16px">' +
+        (label ? '<div style="font-size:12px;font-weight:600;letter-spacing:.04em;color:#9aa3b2;margin-bottom:14px">' + label + '</div>' : '') + inner + '</div>';
+    const itemsRows = (items) => items.map((it) => {
+      const initial = esc(String(it.name || '·').trim().charAt(0));
+      return '<div style="display:flex;align-items:center;gap:14px;padding:9px 0">' +
+        '<div style="width:50px;height:50px;border-radius:10px;background:#eef2fb;color:' + color + ';font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;flex:none">' + initial + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:600;color:#2a2f3a">' + esc(it.name) + '</div>' +
+          '<div style="font-size:12.5px;color:#9aa3b2;margin-top:2px">' + esc(it.variant) + ' · Qty ' + it.qty + '</div></div>' +
+        '<div style="font-size:14px;font-weight:600;color:#2a2f3a;white-space:nowrap">' + esc(it.price) + '</div>' +
+      '</div>';
+    }).join('');
+    const totalRow = (label, val) => '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13.5px;color:#6b7480"><span>' + label + '</span><span>' + val + '</span></div>';
     if (tag === 'block.cta_button')
-      return '<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 8px"><tr>' +
-        '<td style="border-radius:6px;background:' + color + '"><a href="#" style="display:inline-block;padding:12px 22px;color:#fff;font-size:14px;font-weight:600;text-decoration:none">View your order</a></td>' +
-        '<td style="padding-left:14px"><a href="#" style="color:' + color + ';font-size:14px;text-decoration:none">Visit our store</a></td>' +
-        '</tr></table>';
+      return '<div style="margin:0 0 22px">' +
+        '<a href="#" style="display:inline-block;background:' + color + ';color:#fff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:8px">View your order</a>' +
+        '<a href="#" style="display:inline-block;color:' + color + ';font-size:14px;text-decoration:none;margin-left:18px">Visit our store</a></div>';
     if (tag === 'block.tracking')
-      return '<div style="border:1px solid #eee;border-radius:8px;padding:14px 16px;margin:0 0 14px">' +
-        '<div style="font-size:13px;color:#888;margin-bottom:4px">Tracking number (' + NF_SAMPLE['shipment.carrier'] + ')</div>' +
-        '<div style="font-size:16px;font-weight:600;color:#222;margin-bottom:12px">' + NF_SAMPLE['shipment.tracking_number'] + '</div>' +
-        '<a href="#" style="display:inline-block;padding:10px 18px;border-radius:6px;background:' + color + ';color:#fff;font-size:13px;font-weight:600;text-decoration:none">Track package</a></div>';
-    if (tag === 'block.order_summary') return itemsRows(NF_ITEMS) + totals;
+      return panel('Tracking number · ' + NF_SAMPLE['shipment.carrier'],
+        '<div style="font-size:18px;font-weight:700;color:#1f2430;letter-spacing:.02em;margin-bottom:16px">' + NF_SAMPLE['shipment.tracking_number'] + '</div>' +
+        '<a href="#" style="display:inline-block;background:' + color + ';color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:11px 22px;border-radius:8px">Track package</a>');
+    if (tag === 'block.order_summary')
+      return panel('Order summary', itemsRows(NF_ITEMS) +
+        '<div style="border-top:1px solid #e7eaef;margin-top:10px;padding-top:14px">' + totalRow('Subtotal', NF_SAMPLE['order.subtotal']) + totalRow('Shipping', NF_SAMPLE['order.shipping']) + '</div>' +
+        '<div style="border-top:1px solid #e7eaef;margin-top:12px;padding-top:14px;display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-size:15px;font-weight:700;color:#1f2430">Total</span><span style="font-size:18px;font-weight:700;color:#1f2430">' + NF_SAMPLE['order.total'] + '</span></div>');
+    if (tag === 'block.shipping_address')
+      return panel('Shipping address', '<div style="font-size:14px;color:#5a6473;line-height:1.7">' + esc(NF_SAMPLE['order.shipping_address']) + '</div>');
     if (tag === 'block.line_items') return itemsRows(NF_ITEMS);
-    if (tag === 'block.shipment_items') return itemsRows(NF_ITEMS);
+    if (tag === 'block.shipment_items') return panel('Items in this shipment', itemsRows(NF_ITEMS));
     return '';
   }
   // expand a body string (blocks first, then scalar tags) -> preview HTML
@@ -1847,17 +1871,18 @@
   // the rendered email card (device = 'desktop' | 'mobile')
   function nfCardHtml(b, st) {
     const color = b.primaryColor || '#0066e6';
-    const width = st.device === 'mobile' ? 320 : 520;
+    const mobile = st.device === 'mobile';
+    const width = mobile ? 360 : 600;
+    const px = mobile ? 24 : 40;
     return '<div class="email-card" style="width:' + width + 'px">' +
-      '<div style="padding:22px 26px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:12px">' +
-        '<div style="font-size:18px;font-weight:700;color:#111;letter-spacing:-.01em">' + esc(b.storeName || 'Your store') + '</div>' +
-        '<div style="font-size:11px;color:#aaa;letter-spacing:.04em;text-transform:uppercase">Order #' + NF_SAMPLE['order.number'] + '</div>' +
-      '</div>' +
-      '<div style="padding:26px">' + nfExpand(st.body, b) + '</div>' +
-      '<div style="padding:20px 26px;border-top:1px solid #eee;text-align:center">' +
-        '<div style="font-size:13px;color:#999;line-height:1.6">Questions? Email <a href="#" style="color:' + color + ';text-decoration:none">' + esc(b.contactEmail || '') + '</a></div>' +
-        (b.footerText ? '<div style="font-size:11px;color:#bbb;margin-top:10px">' + esc(b.footerText) + '</div>' : '') +
-        (b.address ? '<div style="font-size:11px;color:#ccc;margin-top:4px">' + esc(b.address) + '</div>' : '') +
+      '<div style="height:4px;background:' + color + '"></div>' +
+      '<div style="padding:28px ' + px + 'px 22px;text-align:center;border-bottom:1px solid #eef0f4">' +
+        '<span style="font-size:20px;font-weight:700;letter-spacing:-.01em;color:#1f2430">' + esc(b.storeName || 'Your store') + '</span></div>' +
+      '<div style="padding:32px ' + px + 'px 8px">' + nfExpand(st.body, b) + '</div>' +
+      '<div style="padding:22px ' + px + 'px 28px;background:#fafbfc;border-top:1px solid #eef0f4;text-align:center">' +
+        '<div style="font-size:13px;color:#9aa3b2;line-height:1.7">Questions? Reply to this email or contact <a href="#" style="color:' + color + ';text-decoration:none">' + esc(b.contactEmail || '') + '</a></div>' +
+        (b.footerText ? '<div style="font-size:12px;color:#b8c0cd;margin-top:10px">' + esc(b.footerText) + '</div>' : '') +
+        (b.address ? '<div style="font-size:12px;color:#c7cdd8;margin-top:3px">' + esc(b.address) + '</div>' : '') +
       '</div>' +
     '</div>';
   }
@@ -1903,7 +1928,6 @@
   }
 
   function renderNotifications() {
-    if (notifSub === 'brand') return renderNotifBrand();
     if (notifSub) { const f = nfFindEvent(notifSub); if (f && !f.group.locked) return renderNotifEditor(f.ev); notifSub = null; }
     return renderNotifList();
   }
@@ -1923,7 +1947,7 @@
           '<span class="nf-ico">' + I.globe + '</span>' +
           '<div class="nf-main"><div class="nf-name">' + esc(ev.name) + ' ' + (NF_CLS[ev.cls] || '') + '</div>' +
             '<div class="nf-desc">' + esc(ev.desc) + '</div></div>' +
-          '<div class="nf-meta">Email · ' + esc(c.locale.toUpperCase()) + (c.updatedAt ? ' · edited ' + esc(c.updatedAt) : ' · not configured') + '</div>' +
+          '<div class="nf-meta">Email' + (c.updatedAt ? ' · edited ' + esc(c.updatedAt) : ' · not set up') + '</div>' +
           '<div class="nf-right">' + nfStatusPill(c) + nfSwitch(c.enabled, ev.code) + '<span class="nf-chev">' + I.chevR + '</span></div>' +
         '</div>';
       }).join('');
@@ -1935,10 +1959,9 @@
 
     paint(
       '<style>' + NOTIF_STYLES + '</style>' +
-      pageHead('Notifications', 'Email your customers when key order events happen. These settings belong to this store only.',
-        '<button class="btn btn-default" data-brand>Brand settings</button>') +
+      pageHead('Notifications', 'Email your customers when key order events happen. These settings belong to this store only.') +
       '<div class="set-note mb-4" style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--brand);flex:none;display:inline-flex">' + I.info + '</span>' +
-        '<div class="muted" style="font-size:12.5px;line-height:1.5">Turn a notification on to start sending it. Edit the sender, subject and content — the live preview shows exactly what your customer receives. New stores start from a ready-made template, so you never face a blank email.</div></div>' +
+        '<div class="muted" style="font-size:12.5px;line-height:1.5">Turn a notification on to start sending it. Edit the sender, subject and content — the live preview shows exactly what your customer receives. The logo, brand color and store name come from your <a class="lnk" href="#/settings/base">store settings</a>.</div></div>' +
       groupsHtml,
       false
     );
@@ -1946,17 +1969,15 @@
     root.querySelectorAll('[data-nf-toggle]').forEach((el) => el.onclick = (e) => {
       e.stopPropagation();
       const f = nfFindEvent(el.getAttribute('data-nf-toggle')); if (!f) return;
-      const c = f.ev.config; c.enabled = !c.enabled; if (c.enabled) c.status = 'active';
+      const c = f.ev.config; c.enabled = !c.enabled;
       toast(c.enabled ? f.ev.name + ' turned on' : f.ev.name + ' turned off');
       renderNotifList();
     });
     root.querySelectorAll('[data-edit]').forEach((el) => el.onclick = () => { notifSub = el.getAttribute('data-edit'); renderNotifications(); });
-    const bb = root.querySelector('[data-brand]'); if (bb) bb.onclick = () => { notifSub = 'brand'; renderNotifications(); };
   }
 
   function renderNotifEditor(ev) {
     const n = D.notifications, c = ev.config, b = n.brand;
-    const localeOpts = n.locales.map((l) => '<option value="' + l.code + '"' + (l.code === c.locale ? ' selected' : '') + '>' + esc(l.label) + '</option>').join('');
     const tags = (n.mergeTags.common || []).concat(n.mergeTags[ev.code] || []);
     const varOpts = '<option value="">Insert variable</option>' + tags.map((t) => '<option value="' + t + '">{{' + t + '}}</option>').join('');
     const blockList = n.blocks[ev.code] || [];
@@ -1973,7 +1994,6 @@
           '<div><div class="nf-label" style="margin:0">Status</div><div class="nf-hint">' + (c.enabled ? 'This notification is being sent.' : 'Turn on to start sending.') + '</div></div>' +
           nfSwitch(c.enabled, '__editor') +
         '</div>' +
-        '<div style="margin-bottom:14px"><label class="nf-label">Language</label><select class="input" id="nf-locale" style="width:200px">' + localeOpts + '</select></div>' +
         fld('From name', 'nf-fromname', c.fromName, '', 'Sender name') +
         fld('From email', 'nf-fromemail', c.fromEmail, 'Must be an address on your verified sending domain (' + n.sendingDomain + '). Custom domains are on the roadmap.', 'orders@' + n.sendingDomain) +
         fld('Reply-to', 'nf-replyto', c.replyTo, 'Customer replies go here.', 'service@example.com') +
@@ -2012,8 +2032,7 @@
         '</div>' +
         '<div class="flex items-center gap-2">' +
           '<button class="btn btn-default" data-test>Send test email</button>' +
-          '<button class="btn btn-default" data-save-draft>Save draft</button>' +
-          '<button class="btn btn-primary" data-activate>' + (c.enabled ? 'Save changes' : 'Activate') + '</button>' +
+          '<button class="btn btn-primary" data-save>Save</button>' +
         '</div>' +
       '</div>' +
       '<div class="nf-editor">' + form + preview + '</div>',
@@ -2036,7 +2055,6 @@
     });
     // live preview on edits
     ['nf-fromname', 'nf-fromemail', 'nf-subject', 'nf-body'].forEach((id) => { const el = root.querySelector('#' + id); if (el) el.addEventListener('input', () => nfUpdatePreview(ev)); });
-    const loc = root.querySelector('#nf-locale'); if (loc) loc.addEventListener('change', () => { c.locale = loc.value; });
     // variable / block inserters
     const insVar = root.querySelector('#nf-ins-var');
     if (insVar) insVar.onchange = () => { if (insVar.value) { insertAtCursor(root.querySelector('#nf-body'), '{{' + insVar.value + '}}'); insVar.selectedIndex = 0; nfUpdatePreview(ev); } };
@@ -2046,11 +2064,10 @@
     const tpl = root.querySelector('[data-tpl]'); if (tpl) tpl.onclick = () => openNotifTemplateModal(ev);
     // test send
     root.querySelector('[data-test]').onclick = () => openNotifTestModal(ev);
-    // save / activate
-    root.querySelector('[data-save-draft]').onclick = () => { nfSaveFromForm(ev); ev.config.status = ev.config.enabled ? 'active' : 'draft'; toast('Draft saved'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false); };
-    root.querySelector('[data-activate]').onclick = () => {
-      nfSaveFromForm(ev); const was = c.enabled; c.enabled = true; c.status = 'active';
-      toast(was ? 'Changes saved' : ev.name + ' activated'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
+    // save — the Status toggle controls sending; Save persists everything
+    root.querySelector('[data-save]').onclick = () => {
+      nfSaveFromForm(ev); toast('Saved');
+      if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
       notifSub = null; renderNotifications();
     };
   }
@@ -2061,7 +2078,6 @@
     const c = ev.config;
     ['fromName|nf-fromname', 'fromEmail|nf-fromemail', 'replyTo|nf-replyto', 'subject|nf-subject', 'preheader|nf-preheader'].forEach((p) => { const [k, id] = p.split('|'); const v = g(id); if (v !== undefined) c[k] = v; });
     const body = root.querySelector('#nf-body'); if (body) c.body = body.value;
-    const loc = root.querySelector('#nf-locale'); if (loc) c.locale = loc.value;
     c.updatedAt = '2026-06-10';
   }
 
@@ -2093,42 +2109,6 @@
         field('Send to', window.SITE && window.SITE.email ? window.SITE.email : '', 'you@example.com'),
       onOk: (m, close) => { const inp = m.querySelector('input'); const to = inp ? inp.value : ''; close(); toast(to ? 'Test email sent to ' + to : 'Test email sent'); },
     });
-  }
-
-  function renderNotifBrand() {
-    const b = D.notifications.brand;
-    const logoTile = b.logo.set
-      ? '<div class="up-tile filled"><span class="up-ico">' + I.image + '</span><span class="up-name">' + esc(b.logo.name) + '</span><button class="up-x" title="Remove">' + I.x + '</button></div>'
-      : '<div class="up-tile"><span class="up-plus">' + I.plus + '</span><span class="up-add">Add logo</span></div>';
-    paint(
-      '<style>' + NOTIF_STYLES + '</style>' +
-      '<div class="flex items-center gap-3 mb-4">' +
-        '<button class="back-btn" data-back title="Back">' + I.chevL + '</button>' +
-        '<div><div class="page-title" style="font-size:18px">Brand settings</div>' +
-          '<div class="muted" style="font-size:12.5px;margin-top:2px">Logo, color and footer apply to every notification.</div></div>' +
-      '</div>' +
-      '<div class="panel card-pad">' +
-        '<div style="margin-bottom:16px"><label class="nf-label">Store name</label><input class="input" id="nf-b-name" value="' + esc(b.storeName) + '" style="width:100%;max-width:420px" /></div>' +
-        '<div style="margin-bottom:16px"><label class="nf-label">Email logo</label>' + logoTile + '<div class="nf-hint">Shown at the top of every email. PNG or SVG recommended.</div></div>' +
-        '<div style="margin-bottom:16px"><label class="nf-label">Brand color</label>' +
-          '<div class="flex items-center gap-2"><input type="color" id="nf-b-color" value="' + esc(b.primaryColor) + '" class="nf-color" />' +
-          '<input class="input" id="nf-b-hex" value="' + esc(b.primaryColor) + '" style="width:130px" /></div>' +
-          '<div class="nf-hint">Used for buttons and links in emails.</div></div>' +
-        '<div style="margin-bottom:16px"><label class="nf-label">Contact email</label><input class="input" id="nf-b-contact" value="' + esc(b.contactEmail) + '" style="width:100%;max-width:420px" /><div class="nf-hint">Shown in the footer so customers can reach you.</div></div>' +
-        '<div style="margin-bottom:16px"><label class="nf-label">Footer text</label><input class="input" id="nf-b-footer" value="' + esc(b.footerText) + '" style="width:100%" /></div>' +
-        '<div><label class="nf-label">Business address</label><input class="input" id="nf-b-address" value="' + esc(b.address) + '" style="width:100%" /><div class="nf-hint">Recommended for compliance footers.</div></div>' +
-      '</div>' +
-      '<div class="flex justify-end mt-4"><button class="btn btn-primary" data-save-brand>Save brand settings</button></div>',
-      true
-    );
-    root.querySelector('[data-back]').onclick = () => { notifSub = null; renderNotifications(); };
-    const col = root.querySelector('#nf-b-color'), hex = root.querySelector('#nf-b-hex');
-    if (col && hex) { col.oninput = () => { hex.value = col.value; }; hex.oninput = () => { if (/^#[0-9a-f]{6}$/i.test(hex.value)) col.value = hex.value; }; }
-    root.querySelector('[data-save-brand]').onclick = () => {
-      const g = (id) => { const el = root.querySelector('#' + id); return el ? el.value : undefined; };
-      b.storeName = g('nf-b-name'); b.primaryColor = g('nf-b-hex'); b.contactEmail = g('nf-b-contact'); b.footerText = g('nf-b-footer'); b.address = g('nf-b-address');
-      toast('Brand settings saved'); if (window.SettingsChrome) window.SettingsChrome.setDirty(false);
-    };
   }
 
   const NOTIF_STYLES = `
@@ -2175,11 +2155,11 @@
   .nf-inbox { border: 1px solid var(--hair); border-bottom: none; border-radius: 10px 10px 0 0; background: #fff; padding: 10px 14px; font-size: 12.5px; }
   .nf-inbox .l { color: var(--ink-muted); } .nf-inbox .v { color: var(--ink); font-weight: 500; }
   .nf-stage { border: 1px solid var(--hair); border-radius: 0 0 10px 10px; background: #eef1f5; padding: 18px 12px; overflow: hidden; }
-  .email-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgb(0 0 0 / 8%); overflow: hidden; margin: 0 auto; font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-  .email-card .nf-lead { margin: 0 0 16px; font-size: 15px; color: #555; line-height: 1.6; }
-  .email-card .nf-fine { margin: 16px 0 0; font-size: 13px; color: #999; line-height: 1.6; }
+  .email-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgb(16 24 40 / 8%); overflow: hidden; margin: 0 auto; font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .email-card .nf-h { margin: 0 0 10px; font-size: 22px; font-weight: 700; color: #1f2430; letter-spacing: -.01em; }
+  .email-card .nf-lead { margin: 0 0 22px; font-size: 15px; color: #5a6473; line-height: 1.7; }
+  .email-card .nf-fine { margin: 18px 0 0; font-size: 13px; color: #9aa3b2; line-height: 1.7; }
   .nf-unktag { background: #fff4d6; color: #92660a; border-radius: 4px; padding: 0 4px; font-size: .92em; }
-  .nf-color { width: 40px; height: 34px; padding: 2px; border: 1px solid var(--ctl); border-radius: 8px; background: #fff; cursor: pointer; }
 
   /* template picker */
   .nf-tpl-list { display: flex; flex-direction: column; gap: 10px; }
