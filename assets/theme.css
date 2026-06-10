@@ -164,25 +164,6 @@ input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 /* horizontal scroll when columns overflow (e.g. after adding many via Edit) */
 #table-area, #ptable, .tbl-wrap { overflow-x: auto; }
 
-/* ---------- Custom report builder ---------- */
-.bld { display: flex; flex-direction: column; min-height: calc(100vh - 52px); }
-.bld-topbar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--hair); background: #fff; position: sticky; top: 0; z-index: 20; }
-.bld-unsaved { font-size: 13px; color: var(--ink-muted); display: inline-flex; align-items: center; gap: 6px; }
-.bld-body { display: flex; flex: 1; min-height: 0; align-items: stretch; }
-.bld-canvas { flex: 1; padding: 18px 20px; min-width: 0; }
-.bld-side { width: 320px; flex: none; border-left: 1px solid var(--hair); background: #fff; display: flex; flex-direction: column; }
-.bld-side-head { font-weight: 600; font-size: 14px; padding: 14px 14px 6px; }
-.bld-sec-label { font-size: 12px; font-weight: 600; color: var(--ink-muted); background: var(--panel); padding: 7px 14px; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
-.bld-list { padding: 4px 0; max-height: 42vh; overflow-y: auto; }
-.bld-check { display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
-.bld-check:hover { background: var(--panel); }
-.bld-drag { color: #c7ccd6; cursor: grab; font-size: 13px; line-height: 1; }
-.bld-charts { display: flex; gap: 6px; padding: 12px 14px; flex-wrap: nowrap; }
-.bld-chart-btn { width: 42px; height: 36px; border: 1px solid var(--ctl); border-radius: var(--radius); background: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-body); }
-.bld-chart-btn:hover { border-color: var(--brand); color: var(--brand); }
-.bld-chart-btn.active { border-color: var(--brand); color: var(--brand); background: #f0f6ff; }
-.bld-empty { display: flex; align-items: center; justify-content: center; min-height: 420px; }
-
 /* ---------- Misc ---------- */
 .divider { height: 1px; background: var(--hair); }
 .chart { width: 100%; height: 280px; }

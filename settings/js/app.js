@@ -157,9 +157,30 @@
     const fontTags = b.store.fonts.map((f) =>
       '<span class="field-pill">' + esc(f) + ' <span class="x" data-font="' + esc(f) + '">&times;</span></span>').join('');
 
+    // V1.129 §7.4 Store: editable Store name (0/30) + read-only url / currency / time zone
+    const sd = b.store.details || { name: 'Lovocross', url: 'm.lovocross.com', currency: 'USD $', timezone: 'GMT-04:00' };
+    const detailRow = (label, value) =>
+      '<div class="flex items-center gap-3"><span class="text-sm" style="font-weight:600;color:var(--ink);min-width:140px">' + esc(label) + '</span>' +
+      '<span class="muted" style="font-size:13px">' + esc(value) + '</span></div>';
+    const storeDetailsBlock = block(
+      '<div class="flex flex-col gap-4">' +
+        '<div>' +
+          '<div class="flex items-center justify-between" style="margin-bottom:6px">' +
+            '<span class="text-sm" style="font-weight:600;color:var(--ink)">Store name</span>' +
+            '<span class="muted" id="sd-name-cnt" style="font-size:12px">' + (sd.name || '').length + '/30</span></div>' +
+          '<input class="input" style="width:100%" maxlength="30" placeholder="Please enter" value="' + esc(sd.name) + '"' +
+            ' oninput="var e=document.getElementById(\'sd-name-cnt\');if(e)e.textContent=this.value.length+\'/30\'">' +
+        '</div>' +
+        detailRow('Store url', sd.url) +
+        detailRow('Default currency', sd.currency) +
+        detailRow('Default time zone', sd.timezone) +
+      '</div>'
+    );
+
     const storeCard =
       '<div class="panel card-pad mb-4">' + sectionTitle('Store information') +
         '<div class="mt-4 flex flex-col gap-4">' +
+          storeDetailsBlock +
           uploadCard(b.store.logo, 'Store logo', 'This logo is displayed on the store.', 'Display Position of Store logo') +
           uploadCard(b.store.ico, 'Store ico', 'The icon displayed in the browser window.', 'Display Position of Store ico') +
           uploadCard(b.store.noData, 'No data icon', 'This logo is displayed on the store.', 'Display Position of No data icon') +

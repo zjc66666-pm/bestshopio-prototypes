@@ -312,7 +312,7 @@ window.DATA = (function () {
 
   const REPORT_CATEGORIES = ['Sales', 'Orders', 'Customers', 'Behavior', 'Finances', 'Products', 'Marketing'];
 
-  // Semantic-layer catalog (for the query builder Metric/Dimension pickers + BestQL词库)
+  // Semantic-layer catalog — drives the Edit drawer + Manage filters pickers (per source; fixed-template reports only)
   const CATALOG = {
     Commerce: {
       metrics: ['total_sales', 'gross_sales', 'net_sales', 'discounts', 'returns', 'taxes', 'orders', 'aov', 'units_sold', 'gross_profit', 'refunds', 'customers', 'new_customers', 'total_spent', 'inventory', 'sell_through_rate', 'avg_rating'],

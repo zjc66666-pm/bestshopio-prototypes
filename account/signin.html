@@ -41,8 +41,8 @@
         </form>
 
         <div class="meta-links">
-          <a data-soon>Register</a>
-          <a data-soon>Forgot password</a>
+          <a href="register.html">Register</a>
+          <a href="forgot-password.html">Forgot password</a>
         </div>
 
         <div class="divider"><span></span><em>or</em><span></span></div>
@@ -114,9 +114,6 @@
       };
     });
 
-    document.querySelectorAll('[data-soon]').forEach(function (a) {
-      a.onclick = function (e) { e.preventDefault(); toast('Register / Forgot password are part of a later build.', 'err'); };
-    });
   </script>
 </body>
 </html>

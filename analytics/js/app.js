@@ -457,136 +457,17 @@
         ? `<div class="rep-card"><div class="rep-card-title">${ICON.star || '★'} My favorites</div><div class="rep-card-sub" style="margin-top:8px">Report</div>${favIds.map((id) => `<div class="rep-link" data-open="${id}">${REPORTS.find((r) => r.id === id).name}</div>`).join('')}</div>`
         : `<div class="rep-card"><div class="rep-card-title">${ICON.star || '★'} My favorites</div><div class="muted" style="font-size:13px;padding:6px 0 2px">You haven't favorited any reports yet.</div></div>`;
       view.innerHTML = `<div class="view-wrap">
-        <div class="flex items-center justify-between mb-3"><h1 class="page-title">Reports</h1><button class="btn btn-primary" data-act="create">Create custom report</button></div>
+        <div class="flex items-center justify-between mb-3"><h1 class="page-title">Reports</h1></div>
         <div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap"><span class="muted" style="font-size:13px">Recently viewed</span>${recent.map((r) => `<span class="chip" data-open="${r.id}" style="height:28px;font-size:12.5px">${r.name}</span>`).join('')}</div>
         <div style="position:relative;margin-bottom:18px"><span style="position:absolute;left:12px;top:10px;color:var(--ink-muted)">${ICON.search}</span><input id="rsearch" class="filter-input" placeholder="Title" value="${state.q}" style="width:100%" /></div>
         <div class="rep-grid">${fav}${REPORT_CATEGORIES.map(cardFor).join('')}</div>
         <div class="muted" style="font-size:13px;text-align:center;margin-top:24px">Learn more about Reports</div>
       </div>`;
       view.querySelectorAll('[data-open]').forEach((e) => (e.onclick = () => (location.hash = '#/analytics/reports/' + e.getAttribute('data-open'))));
-      view.querySelector('[data-act="create"]').onclick = () => createReportModal();
       const si = document.getElementById('rsearch');
       if (si) si.oninput = (e) => { state.q = e.target.value.toLowerCase(); const pos = e.target.selectionStart; render(); const n = document.getElementById('rsearch'); n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) {} };
     }
     render();
-  }
-
-  // ============ Create custom report — SHOPLINE-style builder (dataset modal → editor) ============
-  const DATASETS = [
-    { id: 'sales', label: 'Sales performance', source: 'Commerce', dim: 'Order No.', metrics: ['Total sales', 'Discounts', 'Net sales', 'Orders'] },
-    { id: 'orders', label: 'Order details', source: 'Commerce', dim: 'Order No.', metrics: ['Orders', 'Total sales'] },
-    { id: 'products', label: 'Product performance', source: 'Commerce', dim: 'Product name', metrics: ['Sales quantity', 'Total sales', 'Gross profit'] },
-    { id: 'customers', label: 'Customer analysis', source: 'Commerce', dim: 'Customer name', metrics: ['Orders', 'Total sales'] },
-    { id: 'traffic', label: 'Traffic & actions', source: 'Behavior', dim: 'Referrer source', metrics: ['Sessions', 'Reached checkout', 'Conversion rate'] },
-    { id: 'marketing', label: 'Marketing attribution', source: 'Behavior', dim: 'UTM source', metrics: ['Sessions', 'Completed checkout'] },
-  ];
-  let PENDING_REPORT = null;
-  const BUILDER_EXTRA = { 'Order No.': ['SILIX1042', 'SILIX1041', 'SILIX1040', 'SILIX1039', 'SILIX1038', 'SILIX1037'], 'Customer name': ['Emma W.', 'Liam S.', 'Olivia M.', 'Noah T.', 'Ava R.', 'Mia K.'] };
-  // lazy lookup — COMMERCE_DIM_LABELS / BEHAVIOR_LABELS are declared later in the module, so resolve at call time (avoid TDZ)
-  const BUILDER_LABELS = (dim) => BUILDER_EXTRA[dim] || COMMERCE_DIM_LABELS[dim] || BEHAVIOR_LABELS[dim];
-  const isMoneyL = (l) => /sales|amount|profit|value|subtotal|fee|tip|payment|cost|refund|discount|shipping|tax/i.test(l);
-  const isRateL = (l) => /rate|margin| per transaction/i.test(l);
-  const DIM_KEY = { 'Order No.': 'order_no', 'Product name': 'product_title', 'Customer name': 'customer_name', 'Country/Region': 'billing_country', 'Referrer source': 'referrer', 'UTM source': 'utm_campaign', 'Channel': 'channel', 'Payment method': 'payment_method', 'Discount code': 'discount_code', 'Variant': 'variant', 'Customer type': 'customer_type', 'City': 'city', 'Device type': 'device' };
-  const _ci = (p) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
-  const CHART_ICON = { table: _ci('<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M3 15h18M9 3v18"/>'), card: _ci('<rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/>'), line: _ci('<path d="M3 17l5-6 4 3 6-8"/>'), bar: _ci('<rect x="4" y="10" width="3" height="10"/><rect x="10.5" y="5" width="3" height="15"/><rect x="17" y="13" width="3" height="7"/>'), barH: _ci('<rect x="4" y="5" width="12" height="3"/><rect x="4" y="11" width="16" height="3"/><rect x="4" y="17" width="8" height="3"/>'), donut: _ci('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/>') };
-  const CHART_TYPES = [['table', 'Table'], ['card', 'Card'], ['line', 'Line'], ['bar', 'Column'], ['barH', 'Bar'], ['donut', 'Donut']];
-
-  function createReportModal() {
-    const back = document.createElement('div'); back.className = 'modal-backdrop';
-    const close = () => back.remove();
-    const sel = { title: '', ds: '' };
-    back.innerHTML = `<div class="modal" style="width:460px"><div class="modal-head">Create custom report</div><div class="modal-body">
-      <input class="input" id="cr-title" placeholder="Enter a custom title" style="margin-bottom:12px;width:100%" />
-      <div style="position:relative"><div class="sel-trigger" id="cr-trig"><span class="muted">Please select a dataset</span>${ICON.chevDown}</div><div class="menu-pop sel-pop" id="cr-pop" style="display:none;position:absolute;left:0;right:0;top:42px;z-index:5">${DATASETS.map((d) => `<div class="opt" data-ds="${d.id}">${d.label}</div>`).join('')}</div></div>
-      </div><div class="modal-foot"><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-next>Next</button></div></div>`;
-    document.body.appendChild(back);
-    const trig = back.querySelector('#cr-trig'), pop = back.querySelector('#cr-pop'), nextB = back.querySelector('[data-next]');
-    const refresh = () => (nextB.style.opacity = sel.title && sel.ds ? '1' : '.5');
-    refresh();
-    back.querySelector('#cr-title').oninput = (e) => { sel.title = e.target.value.trim(); refresh(); };
-    trig.onclick = (e) => { e.stopPropagation(); pop.style.display = pop.style.display === 'block' ? 'none' : 'block'; };
-    back.querySelectorAll('[data-ds]').forEach((o) => (o.onclick = () => { sel.ds = o.getAttribute('data-ds'); trig.innerHTML = `${DATASETS.find((d) => d.id === sel.ds).label}${ICON.chevDown}`; pop.style.display = 'none'; refresh(); }));
-    back.addEventListener('click', (e) => { if (e.target === back) close(); else if (!e.target.closest('#cr-trig') && !e.target.closest('#cr-pop')) pop.style.display = 'none'; });
-    back.querySelector('[data-x]').onclick = close;
-    nextB.onclick = () => { if (!sel.title || !sel.ds) return toast('Enter a title and pick a dataset'); PENDING_REPORT = { title: sel.title, dataset: DATASETS.find((d) => d.id === sel.ds) }; close(); location.hash = '#/analytics/builder'; };
-    setTimeout(() => back.querySelector('#cr-title').focus(), 30);
-  }
-
-  function builderRows(dim, metrics) {
-    const labels = BUILDER_LABELS(dim) || ['Group A', 'Group B', 'Group C', 'Group D', 'Group E'];
-    return labels.map((lab) => { const vals = {}; metrics.forEach((m) => { const rr = { s: seedOf(dim + '|' + lab + '|' + m) }; vals[m] = isMoneyL(m) ? Math.round(60000 * (0.35 + rand(rr) * 0.65)) : isRateL(m) ? +(1.5 + rand(rr) * 4).toFixed(1) : Math.round(900 * (0.35 + rand(rr) * 0.65)); }); return { label: lab, vals }; });
-  }
-
-  function viewCustomReportBuilder(view) {
-    const ds = (PENDING_REPORT && PENDING_REPORT.dataset) || DATASETS[0];
-    const st = { title: (PENDING_REPORT && PENDING_REPORT.title) || 'Untitled report', source: ds.source, dims: [ds.dim], metrics: ds.metrics.slice(), chart: 'table', q: '' };
-    const cat = CATALOG_FOR(st.source);
-    const flat = (groups) => groups.reduce((a, g) => a.concat(g[1].map((it) => [g[0], it])), []);
-    onChipChange = () => renderPreview();
-    function fmtVal(m, v) { const cur = CUR[CHIP_STATE.currency] || { sym: '$', rate: 1 }; return isMoneyL(m) ? cur.sym + Math.round(v * cur.rate).toLocaleString() : isRateL(m) ? v + '%' : (v || 0).toLocaleString(); }
-    function renderPreview() {
-      const area = view.querySelector('#bld-preview'); if (!area) return;
-      disposeCharts();
-      if (!st.metrics.length || !st.dims.length) { area.innerHTML = `<div class="bld-empty"><div class="muted" style="font-size:13px">Select at least one metric and one dimension to preview</div></div>`; return; }
-      const dim = st.dims[0];
-      const rows = builderRows(dim, st.metrics);
-      if (st.chart === 'table' || st.chart === 'card') {
-        const cols = [...st.dims, ...st.metrics];
-        area.innerHTML = `<div style="overflow-x:auto"><table class="tbl"><thead><tr>${cols.map((c, i) => `<th class="${i >= st.dims.length ? 'num' : ''}">${c}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${st.dims.map((d, di) => `<td>${di === 0 ? r.label : (BUILDER_LABELS(d) ? BUILDER_LABELS(d)[0] : '—')}</td>`).join('')}${st.metrics.map((m) => `<td class="num">${fmtVal(m, r.vals[m])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-      } else {
-        area.innerHTML = `<div id="bld-chart" style="height:360px;padding:12px"></div>`;
-        const m0 = st.metrics[0], data = rows.map((r) => ({ name: r.label, value: r.vals[m0] }));
-        const color = st.source === 'Behavior' ? '#5ab1ef' : '#0066e6', node = view.querySelector('#bld-chart');
-        if (st.chart === 'donut') mkChart(node, donutOpt(data.slice(0, 6), '', ['#0066e6', '#5ab1ef', '#a5c8ff', '#cfe1ff', '#e6f0ff', '#dbeafe']));
-        else if (st.chart === 'bar') mkChart(node, barOptV(data, color));
-        else if (st.chart === 'barH') mkChart(node, barOptH(data, color));
-        else mkChart(node, mkLineOpt(data.map((d) => d.name), data.map((d) => d.value), color, null));
-      }
-    }
-    function renderPanel() {
-      const mfilt = flat(cat.metrics).filter(([, it]) => !st.q || it.toLowerCase().includes(st.q));
-      const dfilt = flat(cat.dimensions).filter(([g, it]) => g !== 'Time' && (!st.q || it.toLowerCase().includes(st.q)));
-      const row = (kind, it, on) => `<label class="bld-check"><span class="bld-drag">${ICON.drag || '⠿'}</span><input type="checkbox" data-bk="${kind}" data-bv="${it}"${on ? ' checked' : ''}/><span>${it}</span></label>`;
-      view.querySelector('#bld-metrics').innerHTML = mfilt.map(([, it]) => row('met', it, st.metrics.includes(it))).join('') || '<div class="muted" style="padding:8px 14px;font-size:13px">No match</div>';
-      view.querySelector('#bld-dims').innerHTML = dfilt.map(([, it]) => row('dim', it, st.dims.includes(it))).join('') || '<div class="muted" style="padding:8px 14px;font-size:13px">No match</div>';
-      view.querySelectorAll('[data-bk]').forEach((c) => (c.onchange = () => { const kind = c.getAttribute('data-bk'), v = c.getAttribute('data-bv'), arr = kind === 'met' ? st.metrics : st.dims, i = arr.indexOf(v); if (c.checked && i < 0) arr.push(v); else if (!c.checked && i >= 0) arr.splice(i, 1); renderPreview(); }));
-    }
-    function render() {
-      view.innerHTML = `<div class="bld">
-        ${window.UI ? UI.unsavedBar({ saveLabel: 'Save', saveAct: 'save', discardAct: 'cancel' }) : ''}
-        <div class="bld-body">
-          <div class="bld-canvas">
-            <div class="flex items-center gap-2 mb-3"><button class="back-btn" data-act="cancel">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:17px">${st.title}</h1><span class="muted" data-act="rename" style="cursor:pointer" title="Rename">${ICON.edit || '✎'}</span></div>
-            ${chipBar({})}
-            <div class="panel" style="padding:0;min-height:440px"><div id="bld-preview"></div></div>
-          </div>
-          <div class="bld-side">
-            <div class="bld-side-head">${st.title} · Settings</div>
-            <div style="position:relative;padding:6px 12px 10px"><span style="position:absolute;left:22px;top:15px;color:var(--ink-muted)">${ICON.search}</span><input class="filter-input" id="bld-q" placeholder="Search name" value="${st.q}" style="width:100%;padding-left:30px" /></div>
-            <div class="bld-sec-label">Metrics</div><div id="bld-metrics" class="bld-list"></div>
-            <div class="bld-sec-label">Dimensions</div><div id="bld-dims" class="bld-list"></div>
-            <div class="bld-sec-label">Chart</div><div class="bld-charts">${CHART_TYPES.map(([k, lbl]) => `<button class="bld-chart-btn${st.chart === k ? ' active' : ''}" data-ct="${k}" title="${lbl}">${CHART_ICON[k]}</button>`).join('')}</div>
-          </div>
-        </div>
-      </div>`;
-      renderPanel(); renderPreview();
-      view.querySelectorAll('[data-act="cancel"]').forEach((b) => (b.onclick = () => (location.hash = '#/analytics/reports')));
-      if (window.UI) UI.setUnsavedBar(view, true);
-      view.querySelector('[data-act="save"]').onclick = () => saveCustom(st);
-      view.querySelector('[data-act="rename"]').onclick = () => { const n = prompt('Report name', st.title); if (n && n.trim()) { st.title = n.trim(); render(); } };
-      view.querySelectorAll('[data-ct]').forEach((b) => (b.onclick = () => { st.chart = b.getAttribute('data-ct'); render(); }));
-      const q = view.querySelector('#bld-q'); if (q) q.oninput = (e) => { st.q = e.target.value.toLowerCase(); const p = e.target.selectionStart; renderPanel(); const n = view.querySelector('#bld-q'); n.focus(); try { n.setSelectionRange(p, p); } catch (x) {} };
-    }
-    render();
-  }
-
-  function saveCustom(st) {
-    const id = 'custom_' + Date.now().toString(36);
-    REPORTS.unshift({ id, name: st.title, cat: 'Custom reports', source: st.source, by: 'You', viewed: '2026-06-09', viz: ['line', 'bar', 'barH', 'donut'].includes(st.chart) ? st.chart : 'table', metrics: st.metrics.slice(), dims: [DIM_KEY[st.dims[0]] || 'product_title'] });
-    if (!REPORT_CATEGORIES.includes('Custom reports')) REPORT_CATEGORIES.unshift('Custom reports');
-    PENDING_REPORT = null;
-    toast('Report saved to your library');
-    location.hash = '#/analytics/reports';
   }
 
   const getReport = (id) => REPORTS.find((r) => r.id === id);
@@ -779,7 +660,8 @@
     'Referrer name': ['Facebook', 'Google', 'Instagram', 'TikTok', 'YouTube', 'Pinterest'],
   };
   // resolve at call time — COMMERCE_DIM_LABELS is declared later in the module (avoid TDZ)
-  const filterEnumsFor = (dim) => BEHAVIOR_LABELS[dim] || COMMERCE_DIM_LABELS[dim] || BUILDER_EXTRA[dim] || FILTER_EXTRA[dim] || null;
+  const DIM_SAMPLE_VALUES = { 'Order No.': ['SILIX1042', 'SILIX1041', 'SILIX1040', 'SILIX1039', 'SILIX1038', 'SILIX1037'], 'Customer name': ['Emma W.', 'Liam S.', 'Olivia M.', 'Noah T.', 'Ava R.', 'Mia K.'] };
+  const filterEnumsFor = (dim) => BEHAVIOR_LABELS[dim] || COMMERCE_DIM_LABELS[dim] || DIM_SAMPLE_VALUES[dim] || FILTER_EXTRA[dim] || null;
 
   function manageFiltersModal(filters, onApply, dims) {
     const draft = filters.map((f) => ({ dim: f.dim, op: f.op, value: f.value }));
@@ -1658,7 +1540,7 @@
 
     const parts = String(rest || '').split('/').filter(Boolean);
     const seg = parts[0] || 'overview';
-    if (seg === 'explore') { location.hash = '#/analytics/reports'; return; }
+    if (seg === 'explore' || seg === 'builder') { location.hash = '#/analytics/reports'; return; } // legacy routes → fixed-template Reports (no self-serve builder, PRD §3.3)
 
     // top-level sub-views show the secondary tab bar; report detail does not
     const isDetail = seg === 'reports' && parts[1];
@@ -1667,7 +1549,6 @@
     const v = root.querySelector('#an-content');
 
     if (isDetail) viewReportDetail(v, parts[1]);
-    else if (seg === 'builder') viewCustomReportBuilder(v);
     else if (seg === 'reports') viewReports(v);
     else if (seg === 'live') viewLive(v);
     else viewOverview(v);
