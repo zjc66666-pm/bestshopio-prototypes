@@ -57,8 +57,16 @@
   let charts = [];
 
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
-  const disposeCharts = () => { charts.forEach((c) => c.dispose()); charts = []; if (window.__liveTimer) { clearInterval(window.__liveTimer); window.__liveTimer = null; } };
-  const mkChart = (node, opt) => { const c = echarts.init(node); c.setOption(opt); charts.push(c); return c; };
+  const disposeCharts = () => { charts.forEach((c) => { if (c.__ro) c.__ro.disconnect(); c.dispose(); }); charts = []; if (window.__liveTimer) { clearInterval(window.__liveTimer); window.__liveTimer = null; } };
+  const mkChart = (node, opt) => {
+    const c = echarts.init(node); c.setOption(opt); charts.push(c);
+    // Charts often init before the card grid has its final width, leaving the canvas wider
+    // than its container (overflow until the window is resized). Resize once the container
+    // has laid out, and on every later size change (scrollbar / sidebar / column reflow).
+    requestAnimationFrame(() => c.resize());
+    if (window.ResizeObserver) { const ro = new ResizeObserver(() => c.resize()); ro.observe(node); c.__ro = ro; }
+    return c;
+  };
   window.addEventListener('resize', () => charts.forEach((c) => c.resize()));
 
   // ---------------- Secondary nav (analytics' own sub-views) ----------------
@@ -361,13 +369,16 @@
       series: [{ type: 'pie', radius: ['55%', '78%'], center: ['50%', '42%'], avoidLabelOverlap: true, label: { show: true, position: 'center', formatter: centerText || '', fontSize: 16, fontWeight: 600, color: '#242833' }, labelLine: { show: false }, data }],
     };
   }
-  function barOptH(data, color) {
+  function barOptH(data, color, comp) {
+    const series = [{ type: 'bar', name: 'Current', data: data.map((d) => d.value).reverse(), itemStyle: { color: color || '#0066e6', borderRadius: [0, 4, 4, 0] }, barMaxWidth: comp ? 10 : 22 }];
+    if (comp) series.push({ type: 'bar', name: 'Comparison', data: [...comp].reverse(), itemStyle: { color: '#cbd5e1', borderRadius: [0, 4, 4, 0] }, barMaxWidth: 10 });
     return {
-      grid: { left: 8, right: 40, top: 8, bottom: 8, containLabel: true },
+      grid: { left: 8, right: 40, top: comp ? 28 : 8, bottom: 8, containLabel: true },
+      legend: comp ? { top: 0, right: 0, icon: 'roundRect', itemHeight: 8, textStyle: { color: '#62708d', fontSize: 11 } } : undefined,
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       xAxis: { type: 'value', splitNumber: 3, splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11, formatter: (v) => v >= 1e6 ? +(v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? +(v / 1e3).toFixed(0) + 'K' : v } },
       yAxis: { type: 'category', data: data.map((d) => d.name).reverse(), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#62708d', fontSize: 11, width: 150, overflow: 'truncate' } },
-      series: [{ type: 'bar', data: data.map((d) => d.value).reverse(), itemStyle: { color: color || '#0066e6', borderRadius: [0, 4, 4, 0] }, barMaxWidth: 22 }],
+      series,
     };
   }
   function heatmapOpt(c) {
@@ -421,11 +432,15 @@
   const rand = (r) => { r.s = (Math.imul(r.s, 1664525) + 1013904223) >>> 0; return r.s / 4294967296; };
   const genSeries = (seed, base) => { const r = { s: seed }; return SALES_TREND.dates.map(() => Math.round(base * (0.6 + rand(r) * 0.8))); };
   const genCats = (seed, dim, base) => { const r = { s: seed }; return (DIM_LABELS[dim] || ['A', 'B', 'C', 'D', 'E']).map((n, i) => ({ name: n, value: Math.round(base * (1 - i * 0.14) * (0.7 + rand(r) * 0.5)) })); };
-  function barOptV(data, color) {
-    return { grid: { left: 8, right: 8, top: 16, bottom: 24, containLabel: true }, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  function barOptV(data, color, comp) {
+    const series = [{ type: 'bar', name: 'Current', data: data.map((d) => d.value), itemStyle: { color: color || '#0066e6', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 36 }];
+    if (comp) series.push({ type: 'bar', name: 'Comparison', data: comp, itemStyle: { color: '#cbd5e1', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 36 });
+    return { grid: { left: 8, right: 8, top: comp ? 28 : 16, bottom: 24, containLabel: true },
+      legend: comp ? { top: 0, right: 0, icon: 'roundRect', itemHeight: 8, textStyle: { color: '#62708d', fontSize: 11 } } : undefined,
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       xAxis: { type: 'category', data: data.map((d) => d.name), axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#62708d', fontSize: 11 } },
       yAxis: { type: 'value', splitNumber: 3, splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
-      series: [{ type: 'bar', data: data.map((d) => d.value), itemStyle: { color: color || '#0066e6', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 36 }] };
+      series };
   }
   const KNOWN_VIZ = {
     sales_over_time: { viz: 'line', fn: () => lineOpt(SALES_TREND.dates, SALES_TREND.values, '#0066e6') },
@@ -1437,10 +1452,11 @@
           const vz = state.viz;
           const color = r.source === 'Behavior' ? '#5ab1ef' : '#0066e6';
           const data = rows.map((x) => ({ name: x.label, value: Math.round((x.vals[mk[0]] || 0) * (isMoney(mk[0]) ? cur.rate : 1)) }));
+          const comp = CHIP_STATE.comparison !== 'No comparison' ? data.map((d) => Math.round(d.value * 0.88)) : null;
           if (vz === 'donut') { mkChart(node, donutOpt(data.slice(0, 8), '', ['#0066e6', '#5ab1ef', '#a5c8ff', '#cfe1ff', '#e6f0ff', '#dbeafe', '#bfdbfe', '#eff6ff'])); }
-          else if (vz === 'bar') { mkChart(node, barOptV(data, color)); }
-          else if (vz === 'barH') { mkChart(node, barOptH(data, color)); }
-          else { const comp = CHIP_STATE.comparison !== 'No comparison' ? data.map((d) => Math.round(d.value * 0.88)) : null; mkChart(node, mkLineOpt(data.map((d) => d.name), data.map((d) => d.value), color, comp)); }
+          else if (vz === 'bar') { mkChart(node, barOptV(data, color, comp)); }
+          else if (vz === 'barH') { mkChart(node, barOptH(data, color, comp)); }
+          else { mkChart(node, mkLineOpt(data.map((d) => d.name), data.map((d) => d.value), color, comp)); }
         }
       }
       if (showTable) {
@@ -1464,7 +1480,7 @@
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
       const ctBtn = view.querySelector('[data-chart-type]');
       if (ctBtn) ctBtn.onclick = () => openPopover(ctBtn, VIZ_SHAPES.map(([k, lbl]) => `<div class="opt" data-v="${k}">${lbl}${state.viz === k ? ' ✓' : ''}</div>`).join(''), (pop, close) => pop.querySelectorAll('[data-v]').forEach((o) => (o.onclick = () => { state.viz = o.getAttribute('data-v'); close(); render(); })));
-      view.querySelector('[data-act="saveas"]').onclick = () => saveModal(r);
+      view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(id); bindFav(view);
     }
     render();
   }
