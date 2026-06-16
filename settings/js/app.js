@@ -1555,13 +1555,19 @@
   //   Custom domains: 3-step Add wizard (input → configure DNS → bound) with
   //   automatic DNS detection + automatic SSL (issue & auto-renew). State machine
   //   per PRD §6.2: pending_verification → ssl_pending → connected (dns_error /
-  //   ssl_failed are the failure branches). Mock data is module-scoped.
+  //   ssl_failed are the failure branches). Mock data is module-scoped and now
+  //   carries one domain in EVERY status (connected / redirecting / redirectable /
+  //   pending_verification / dns_error / ssl_pending / ssl_failed / system) so a dev
+  //   can see each state → available-action mapping at a glance (PRD §6.3).
   // ===========================================================================
   let domainsData = [
     { domain: 'www.nutrofuels.com',         type: 'custom', primary: true,  status: 'connected',            redirectTo: null },
     { domain: 'nutrofuels.com',             type: 'custom', primary: false, status: 'connected',            redirectTo: 'www.nutrofuels.com' },
+    { domain: 'nutrofuels.shop',            type: 'custom', primary: false, status: 'connected',            redirectTo: null },
     { domain: 'shop.nutrofuels.io',         type: 'custom', primary: false, status: 'pending_verification', redirectTo: null },
     { domain: 'go.nutrofuels.io',           type: 'custom', primary: false, status: 'dns_error',            redirectTo: null },
+    { domain: 'checkout.nutrofuels.io',     type: 'custom', primary: false, status: 'ssl_pending',          redirectTo: null },
+    { domain: 'promo.nutrofuels.io',        type: 'custom', primary: false, status: 'ssl_failed',           redirectTo: null },
     { domain: 'nutrofuels.stores.bestshopio.com', type: 'system', primary: false, status: 'connected',      redirectTo: null },
   ];
   let domainStep = null;   // null = list · 'add' = configure DNS · 'bound' = success (set by show())

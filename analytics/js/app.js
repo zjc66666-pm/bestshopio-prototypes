@@ -21,6 +21,39 @@
     sync();
     b.onclick = () => { const on = FAV.toggle(CURRENT_REPORT); sync(); toast(on ? 'Added to favorites' : 'Removed from favorites'); };
   }
+  // ---- Custom reports (Save as products, localStorage-backed) ----
+  const CUSTOM_KEY = 'bestvoy_custom_reports';
+  const CUSTOM = {
+    list() { try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); } catch (e) { return []; } },
+    add(rep) { const l = CUSTOM.list(); l.push(rep); localStorage.setItem(CUSTOM_KEY, JSON.stringify(l)); },
+    remove(id) { localStorage.setItem(CUSTOM_KEY, JSON.stringify(CUSTOM.list().filter((r) => r.id !== id))); },
+  };
+  function saveAsModal(baseId) {
+    const base = (window.DATA.REPORTS.find((r) => r.id === baseId) || {});
+    const back = document.createElement('div'); back.className = 'modal-backdrop';
+    const close = () => back.remove();
+    back.innerHTML = `<div class="modal" style="width:420px"><div class="modal-head">Save as new report</div><div class="modal-body"><label class="fld-label" style="margin-top:0">Report name</label><input class="filter-input" id="sa-name" value="${(base.name || 'My report')} (copy)" placeholder="${(base.name || 'My report')} (copy)" style="width:100%" /><p id="sa-err" style="font-size:12px;color:var(--err);display:none;margin-top:6px"></p></div><div class="modal-foot"><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-save>Save</button></div></div>`;
+    document.body.appendChild(back);
+    back.addEventListener('mousedown', (e) => { if (e.target === back) close(); });
+    back.querySelector('[data-x]').onclick = close;
+    const inp = back.querySelector('#sa-name'); inp.focus(); inp.select();
+    back.querySelector('[data-save]').onclick = () => {
+      const name = inp.value.trim(); const err = back.querySelector('#sa-err');
+      if (!name) { err.textContent = 'Please enter a report name'; err.style.display = 'block'; return; }
+      if (CUSTOM.list().some((r) => r.name === name)) { err.textContent = 'A report with this name already exists'; err.style.display = 'block'; return; }
+      CUSTOM.add({ id: 'custom_' + Date.now(), name, baseId: baseId || null });
+      close(); toast('Report saved');
+    };
+  }
+  function deleteCustomModal(id, name, after) {
+    const back = document.createElement('div'); back.className = 'modal-backdrop';
+    const close = () => back.remove();
+    back.innerHTML = `<div class="modal" style="width:420px"><div class="modal-head">Delete report?</div><div class="modal-body"><p style="font-size:13.5px;color:var(--ink-body);line-height:1.55;margin:0">Delete <b>${name}</b>? This can't be undone.</p></div><div class="modal-foot"><button class="btn btn-default" data-x>Cancel</button><button class="btn" style="background:var(--err);color:#fff;border-color:var(--err)" data-del>Delete</button></div></div>`;
+    document.body.appendChild(back);
+    back.addEventListener('mousedown', (e) => { if (e.target === back) close(); });
+    back.querySelector('[data-x]').onclick = close;
+    back.querySelector('[data-del]').onclick = () => { CUSTOM.remove(id); close(); toast('Report deleted'); if (after) after(); };
+  }
   let charts = [];
 
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
@@ -56,9 +89,6 @@
       <div class="flex items-baseline gap-3">
         <h1 class="page-title">${title}</h1>
         ${refreshed ? `<span class="muted" style="font-size:13px">Last refreshed: ${refreshed}</span>` : ''}
-      </div>
-      <div class="flex items-center gap-2">
-        <button class="btn btn-default">${ICON.money}<span>Create target</span></button>
       </div>
     </div>`;
 
@@ -359,7 +389,8 @@
   const isRate = (m) => /rate|through/i.test(m);
   const fmtMetric = (m, v) => isMoney(m) ? '$' + v.toLocaleString() : isRate(m) ? v + '%' : v.toLocaleString();
   const srcTag = (s) => `<span class="src-tag src-${s}"><span class="dot"></span>${s}</span>`;
-  const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:80;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1800); };
+  // Top-center success toast (Ant Design message parity) — mirrors store admin, not a bottom bar (C78).
+  const toast = (msg) => { const t = document.createElement('div'); t.innerHTML = '<span style="color:#1f8f4e;display:inline-flex;font-weight:700">✓</span><span>' + msg + '</span>'; t.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1f2433;border:1px solid #e6e8ee;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:200;box-shadow:0 6px 20px rgba(20,30,55,.14)'; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
 
   const DIM_LABELS = {
     product_title: ['3D Anti-Cellulite Leggings', 'Pocket Sculpting Leggings', 'Compression Sleeves', 'Short Leggings', 'Butt-Lifting Capris', 'Seamless Briefs'],
@@ -456,14 +487,17 @@
       const fav = favIds.length
         ? `<div class="rep-card"><div class="rep-card-title">${ICON.star || '★'} My favorites</div><div class="rep-card-sub" style="margin-top:8px">Report</div>${favIds.map((id) => `<div class="rep-link" data-open="${id}">${REPORTS.find((r) => r.id === id).name}</div>`).join('')}</div>`
         : `<div class="rep-card"><div class="rep-card-title">${ICON.star || '★'} My favorites</div><div class="muted" style="font-size:13px;padding:6px 0 2px">You haven't favorited any reports yet.</div></div>`;
+      const customs = CUSTOM.list();
+      const customCard = `<div class="rep-card"><div class="rep-card-title">${ICON.star || '★'} Custom reports</div>${customs.length ? `<div class="rep-card-sub" style="margin-top:8px">Report</div>${customs.map((c) => `<div class="rep-link" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span data-open="${c.baseId || 'sales_over_time'}" style="flex:1;cursor:pointer">${c.name}</span><span data-delcustom="${c.id}" data-cname="${c.name}" title="Delete" style="cursor:pointer;color:var(--ink-muted)">×</span></div>`).join('')}` : `<div class="muted" style="font-size:13px;padding:6px 0 2px">No custom reports yet. Open a report and click Save as.</div>`}</div>`;
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3"><h1 class="page-title">Reports</h1></div>
         <div class="flex items-center gap-2 mb-3" style="flex-wrap:wrap"><span class="muted" style="font-size:13px">Recently viewed</span>${recent.map((r) => `<span class="chip" data-open="${r.id}" style="height:28px;font-size:12.5px">${r.name}</span>`).join('')}</div>
         <div style="position:relative;margin-bottom:18px"><span style="position:absolute;left:12px;top:10px;color:var(--ink-muted)">${ICON.search}</span><input id="rsearch" class="filter-input" placeholder="Title" value="${state.q}" style="width:100%" /></div>
-        <div class="rep-grid">${fav}${REPORT_CATEGORIES.map(cardFor).join('')}</div>
+        <div class="rep-grid">${fav}${customCard}${REPORT_CATEGORIES.map(cardFor).join('')}</div>
         <div class="muted" style="font-size:13px;text-align:center;margin-top:24px">Learn more about Reports</div>
       </div>`;
       view.querySelectorAll('[data-open]').forEach((e) => (e.onclick = () => (location.hash = '#/analytics/reports/' + e.getAttribute('data-open'))));
+      view.querySelectorAll('[data-delcustom]').forEach((e) => (e.onclick = (ev) => { ev.stopPropagation(); deleteCustomModal(e.getAttribute('data-delcustom'), e.getAttribute('data-cname'), render); }));
       const si = document.getElementById('rsearch');
       if (si) si.oninput = (e) => { state.q = e.target.value.toLowerCase(); const pos = e.target.selectionStart; render(); const n = document.getElementById('rsearch'); n.focus(); try { n.setSelectionRange(pos, pos); } catch (x) {} };
     }
@@ -565,7 +599,7 @@
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">Product data details</h1></div>
-          <button class="btn btn-default" data-act="export">Export data</button>
+          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
         </div>
         ${chipBar({ currency: true })}
         <div class="tabs mb-3"><div class="tab ${isProd ? 'active' : ''}" data-dim="product">Product dimension</div><div class="tab ${!isProd ? 'active' : ''}" data-dim="variant">Sub-variant dimension</div></div>
@@ -588,7 +622,7 @@
         </div>
       </div>`;
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
-      view.querySelector('[data-act="export"]').onclick = () => toast('Exporting product data…');
+      view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
       view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, [['Product', ['SKU', 'Product name']]]);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer({ dimensions: [], metrics: [[isProd ? 'Product metrics' : 'Sub-variant metrics', METRICS[state.dim].map((m) => m.l)]] }, { dims: new Set(), metrics: new Set(state.metricsByDim[state.dim]) }, (res) => { if (res.metrics && res.metrics.length) { state.metricsByDim[state.dim] = res.metrics; state.sortCol = null; render(); } });
       view.querySelectorAll('[data-dim]').forEach((e) => (e.onclick = () => { state.dim = e.getAttribute('data-dim'); state.page = 1; state.sortCol = null; render(); }));
@@ -620,7 +654,7 @@
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-back>${ICON.arrowLeft}</button><div><h1 class="page-title" style="font-size:18px">${label}</h1><div class="muted" style="font-size:12px">Product trend · funnel (behavior — 神策待建)</div></div></div>
-          <button class="btn btn-default" data-act="export">Export data</button>
+          
         </div>
         ${chipBar({ currency: true })}
         <div class="grid grid-cols-5 gap-3 mb-4">${kpis.map(([k, v], i) => `<div class="panel card-pad"${i === 0 ? ' style="border:1px solid var(--brand)"' : ''}><div class="muted" style="font-size:13px">${k}</div><div class="stat-value mt-1" style="font-size:22px">${v}</div></div>`).join('')}</div>
@@ -628,7 +662,6 @@
       </div>`;
       document.getElementById('pfunnel').innerHTML = f.map((s, i) => `<div><div class="muted" style="font-size:12px">${s.stage}</div><div style="font-size:20px;font-weight:600;margin:2px 0">${s.value.toLocaleString()}</div><div style="height:96px;display:flex;align-items:flex-end"><div style="width:100%;background:var(--brand);opacity:${1 - i * 0.18};height:${[100, 60, 46, 32][i]}%;border-radius:6px 6px 0 0"></div></div>${i < 3 ? `<div class="muted" style="font-size:11px;margin-top:4px">${(f[i + 1].value / s.value * 100).toFixed(1)}% →</div>` : ''}</div>`).join('');
       view.querySelector('[data-back]').onclick = () => { state.trend = null; render(); };
-      view.querySelector('[data-act="export"]').onclick = () => toast('Exporting trend…');
     }
     render();
   }
@@ -810,7 +843,7 @@
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${cfg.title}</h1></div>
-          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="export">Export data</button><button class="btn btn-default" data-act="saveas">Save as</button></div>
+          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
         </div>
         ${chipBar({ timeunit: !!cfg.chart })}
         <div class="panel">
@@ -831,8 +864,7 @@
         </div>
       </div>`;
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
-      view.querySelector('[data-act="export"]').onclick = () => toast('Exporting…');
-      view.querySelector('[data-act="saveas"]').onclick = () => toast('Saved as new report');
+      view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer(BEHAVIOR_CAT, { dims: new Set([state.dim]), metrics: new Set(state.metrics) }, (res) => { if (res.dims.length) state.dim = res.dims[0]; if (res.metrics.length) state.metrics = res.metrics; state.sortCol = 0; state.page = 1; render(); });
       view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); });
       view.querySelectorAll('[data-rmf]').forEach((b) => (b.onclick = () => { state.filters.splice(+b.getAttribute('data-rmf'), 1); render(); }));
@@ -956,7 +988,7 @@
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${cfg.title}</h1></div>
-          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="export">Export data</button><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
         </div>
         ${chipBar({ currency: !isB, timeunit: true })}
         ${state.banner ? `<div class="info-banner"><span>We will be phasing out the Payment amount and Refund amount metrics in the Sales report soon — you can view them in the Finances report instead.</span><span class="x" data-bx>✕</span></div>` : ''}
@@ -988,8 +1020,7 @@
       const chartSeries = state.chartMetrics.map((m) => { const isR = isB ? RATE_METRICS.includes(m) : (C_RATE.has(m) || C_RATIO.has(m)); const v = aggSeries(seriesOf(m), CHIP_STATE.timeunit, isR); return { name: m, vals: v, comp: comp ? v.map((x) => Math.round(x * 0.88 * 100) / 100) : null }; });
       mkChart(document.getElementById('dr-chart'), drChartOpt(rows.map((r) => r.label), chartSeries, isB));
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
-      view.querySelector('[data-act="export"]').onclick = () => toast('Exporting…');
-      view.querySelector('[data-act="saveas"]').onclick = () => toast('Saved as new report');
+      view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
       bindFav(view);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer(CATALOG_FOR(cfg.source), { dims: new Set(), metrics: new Set(state.metrics) }, (res) => { if (res.metrics.length) state.metrics = res.metrics; state.page = 1; render(); });
       view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, CATALOG_FOR(cfg.source).dimensions);
@@ -1076,7 +1107,7 @@
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${cfg.title}</h1></div>
-          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="export">Export data</button><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
         </div>
         ${chipBar({ currency: true })}
         <div class="panel">
@@ -1097,8 +1128,7 @@
         </div>
       </div>`;
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
-      view.querySelector('[data-act="export"]').onclick = () => toast('Exporting…');
-      view.querySelector('[data-act="saveas"]').onclick = () => toast('Saved as new report');
+      view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
       bindFav(view);
       view.querySelector('[data-act="edit"]').onclick = () => editDrawer(COMMERCE_CAT, { dims: new Set([state.dim]), metrics: new Set(state.metrics) }, (res) => { if (res.dims.length) state.dim = res.dims[0]; if (res.metrics.length) state.metrics = res.metrics; state.sortCol = 0; state.page = 1; state.expanded.clear(); render(); });
       view.querySelector('[data-act="filters"]').onclick = () => manageFiltersModal(state.filters, () => { state.page = 1; render(); }, COMMERCE_CAT.dimensions);
@@ -1125,7 +1155,7 @@
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">Orders: Payment success rate</h1></div>
-          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="export">Export data</button><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+          <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
         </div>
         ${chipBar({ timeunit: true })}
         <div class="panel card-pad mb-4">
@@ -1147,8 +1177,7 @@
       const cs = state.chartMetrics.map((m) => { const v = psSeries(m); return { name: m, vals: v, comp: comp ? v.map((x) => Math.round(x * 0.9 * 10) / 10) : null }; });
       mkChart(document.getElementById('ps-chart'), drChartOpt(SALES_TREND.dates, cs, false));
       view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
-      view.querySelector('[data-act="export"]').onclick = () => toast('Exporting…');
-      view.querySelector('[data-act="saveas"]').onclick = () => toast('Saved as new report');
+      view.querySelector('[data-act="saveas"]').onclick = () => saveAsModal(CURRENT_REPORT); bindFav(view);
       bindFav(view);
       view.querySelectorAll('[data-view]').forEach((b) => (b.onclick = () => toast('Payment channel · ' + b.getAttribute('data-view'))));
       const pickMetric = (slot, el) => openPopover(el, OPTS.filter((o) => !state.chartMetrics.includes(o) || state.chartMetrics[slot] === o).map((o) => `<div class="opt" data-v="${o}">${o}${state.chartMetrics[slot] === o ? ' ✓' : ''}</div>`).join(''), (pop, close) => pop.querySelectorAll('[data-v]').forEach((o) => (o.onclick = () => { state.chartMetrics[slot] = o.getAttribute('data-v'); close(); render(); })));
@@ -1163,13 +1192,12 @@
   function t4Header(title) {
     return `<div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${title}</h1></div>
-      <div class="flex items-center gap-2"><button class="btn btn-default" data-act="export">Export data</button><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
+      <div class="flex items-center gap-2"><button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
     </div>`;
   }
   function t4Bind(view) {
     view.querySelectorAll('[data-route]').forEach((e) => (e.onclick = () => (location.hash = e.getAttribute('data-route'))));
-    const m = { export: 'Exporting…', saveas: 'Saved as new report' };
-    Object.keys(m).forEach((a) => { const b = view.querySelector(`[data-act="${a}"]`); if (b) b.onclick = () => toast(m[a]); });
+    const sb = view.querySelector('[data-act="saveas"]'); if (sb) sb.onclick = () => saveAsModal(CURRENT_REPORT);
     bindFav(view);
   }
   function viewConversionFunnel(view) {
@@ -1377,7 +1405,7 @@
       view.innerHTML = `<div class="view-wrap">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2"><button class="back-btn" data-route="#/analytics/reports">${ICON.arrowLeft}</button><h1 class="page-title" style="font-size:18px">${r.name}</h1></div>
-          <div class="flex items-center gap-2">${showSwitcher ? `<span class="chip" data-chart-type><span class="muted" style="margin-right:4px">Chart:</span><span data-chart-label>${(VIZ_SHAPES.find(([k]) => k === state.viz) || ['', ''])[1]}</span>${ICON.chevDown}</span>` : ''}<button class="btn btn-default" data-act="export">Export data</button><button class="btn btn-default" data-act="saveas">Save as</button></div>
+          <div class="flex items-center gap-2">${showSwitcher ? `<span class="chip" data-chart-type><span class="muted" style="margin-right:4px">Chart:</span><span data-chart-label>${(VIZ_SHAPES.find(([k]) => k === state.viz) || ['', ''])[1]}</span>${ICON.chevDown}</span>` : ''}<button class="btn btn-default" data-act="saveas">Save as</button><button class="btn btn-default" data-act="fav">Favorites</button></div>
         </div>
         ${chipBar({ currency: true, timeunit: isTime })}
         ${isSingle ? `<div class="panel card-pad" style="padding:28px"><div class="muted" style="font-size:13px">${prettify(mk[0] || r.name)}</div><div class="stat-value" style="font-size:40px;margin-top:6px">${fmtV(mk[0] || '', (model.rows || []).reduce((a, b) => a + (b.vals[mk[0]] || 0), 0) || 4127)}</div></div>` : ''}
@@ -1437,7 +1465,6 @@
       const ctBtn = view.querySelector('[data-chart-type]');
       if (ctBtn) ctBtn.onclick = () => openPopover(ctBtn, VIZ_SHAPES.map(([k, lbl]) => `<div class="opt" data-v="${k}">${lbl}${state.viz === k ? ' ✓' : ''}</div>`).join(''), (pop, close) => pop.querySelectorAll('[data-v]').forEach((o) => (o.onclick = () => { state.viz = o.getAttribute('data-v'); close(); render(); })));
       view.querySelector('[data-act="saveas"]').onclick = () => saveModal(r);
-      view.querySelector('[data-act="export"]').onclick = () => toast('Exporting report data…');
     }
     render();
   }

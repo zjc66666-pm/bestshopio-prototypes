@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260610h'; // cache-bust for lazy-loaded module scripts
+  var V = '20260616b'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -180,7 +180,8 @@
     '.sg-cta{height:32px;padding:0 14px;font-size:13px}';
   function setupGuideHtml() {
     var tasks = [
-      { done: true,  title: 'Choose a theme',          desc: 'A starter theme is ready. Customize it anytime.',        route: '#/online-store',     cta: 'Customize' },
+      // 'Choose a theme' removed in V1.139 review (theme selection deferred — see PRD §10 follow-up).
+      // A default starter theme is still auto-applied at provisioning; merchants customize it via Online store › Theme.
       { done: true,  title: 'Add your first product',  desc: 'List a product so customers have something to buy.',     route: '#/products',         cta: 'Add' },
       { done: false, title: 'Set up payments',         desc: 'Connect Airwallex, Stripe or PayPal to get paid.',       route: '#/settings/payments', cta: 'Start' },
       { done: false, title: 'Connect your domain',     desc: 'Use your own domain instead of the free one.',           route: '#/settings/domains', cta: 'Start', opt: true },

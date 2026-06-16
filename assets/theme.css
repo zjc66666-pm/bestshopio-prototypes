@@ -199,7 +199,7 @@ input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 .builder-side { width: 300px; flex: 0 0 300px; }
 .ctrl-sec { padding: 14px 16px; border-bottom: 1px solid var(--hair); }
 .ctrl-sec:last-child { border-bottom: none; }
-.ctrl-label { font-size: 12px; font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+.ctrl-label { font-size: 12px; font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 8px; }
 .field-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 10px; border-radius: 6px; background: var(--panel); border: 1px solid var(--hair); font-size: 12.5px; color: var(--ink); margin: 0 6px 6px 0; }
 .field-pill .x { cursor: pointer; color: var(--ink-muted); font-size: 14px; line-height: 1; }
 .field-pill .x:hover { color: var(--err); }

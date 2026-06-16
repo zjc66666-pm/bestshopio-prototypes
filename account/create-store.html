@@ -46,6 +46,20 @@
     .code-row { display: flex; gap: 10px; margin-top: 10px; }
     .code-row .ipt { flex: 1; }
     .btn-code { flex: 0 0 auto; height: 44px; padding: 0 16px; white-space: nowrap; }
+    /* contact-email verification (only when the email differs from the login email) */
+    .email-verify { margin-top: 12px; }
+    .ev-note { display: flex; align-items: flex-start; gap: 7px; color: #8a5a00; background: #fff7e6; border: 1px solid #ffe1a6; border-radius: 8px; padding: 8px 11px; font-size: 12.5px; line-height: 1.5; }
+    .ev-note svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; color: #d98a00; }
+    .ev-btn { height: 44px; padding: 0 16px; white-space: nowrap; background: #fff; color: var(--blue); border: 1px solid var(--blue); border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s; }
+    .ev-btn:hover { background: #eef2ff; }
+    .ev-send { margin-top: 10px; }
+    .ev-code-row { display: flex; gap: 10px; margin-top: 10px; }
+    .ev-code-row .ipt { flex: 1; max-width: 220px; }
+    .ev-ok { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: #2bb673; font-weight: 600; font-size: 13.5px; }
+    .email-verify .ev-link { color: var(--blue); font-weight: 600; text-decoration: none; }
+    .email-verify .ev-link:hover { text-decoration: underline; }
+    .email-verify .ev-demo { color: #9098a8; }
+    .ev-btn:disabled { opacity: .55; cursor: default; border-color: #c9d3ec; color: #8aa0e6; background: #fff; }
     .create-actions { display: flex; justify-content: flex-end; margin-top: 20px; }
     .create-actions .btn-primary { min-width: 132px; height: 44px; font-size: 14.5px; font-weight: 600; }
 
@@ -111,16 +125,24 @@
             <div class="fblk-lab"><b>Where's your store located?</b><p>Set your store's default location so we can host it in the nearest region and optimize speed for your customers.</p></div>
           </div>
           <div class="fblk-fld">
+            <!-- location is a full country list on production (ISO 3166); this is a sample subset.
+                 data-region = derived hosting region by the "nearest enabled region" rule
+                 (UK→London; other EU/ME/Africa→Frankfurt; Americas + APAC→US). See PRD §4.4. -->
             <select id="location" class="ipt">
               <option value="US" data-region="us">United States</option>
               <option value="CA" data-region="us">Canada</option>
               <option value="MX" data-region="us">Mexico</option>
-              <option value="GB" data-region="us">United Kingdom</option>
+              <option value="BR" data-region="us">Brazil</option>
+              <option value="GB" data-region="lon">United Kingdom</option>
               <option value="DE" data-region="fra">Germany</option>
               <option value="ES" data-region="fra">Spain</option>
+              <option value="FR" data-region="fra">France</option>
+              <option value="IT" data-region="fra">Italy</option>
+              <option value="NL" data-region="fra">Netherlands</option>
               <option value="SG" data-region="us">Singapore</option>
               <option value="HK" data-region="us">Hong Kong, China</option>
               <option value="AU" data-region="us">Australia</option>
+              <option value="JP" data-region="us">Japan</option>
             </select>
             <div class="region-hint" id="region-hint">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18"/></svg>
@@ -156,6 +178,24 @@
           <div class="fblk-fld">
             <input id="email" class="ipt" placeholder="you@example.com" />
             <div class="ipt-err" data-err="email"></div>
+            <!-- C2: prefilled with the signed-in account email (already verified) → submit straight
+                 through. Only a CHANGE to a different address requires a 6-digit code before Create. -->
+            <div class="email-verify" id="email-verify" hidden>
+              <div class="ev-note">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <span>This is different from your account email. We'll email a 6-digit code to confirm you own it. <a class="ev-link" id="ev-preview" href="email-verify.html" target="_blank" rel="noopener">Preview the email</a> <span class="ev-demo">(demo code: 288866)</span></span>
+              </div>
+              <button type="button" class="ev-btn ev-send" id="ev-send">Send code</button>
+              <div class="ev-code-row" id="ev-code-row" hidden>
+                <input id="ev-code" class="ipt" placeholder="Enter the 6-digit code" maxlength="6" inputmode="numeric" />
+                <button type="button" class="ev-btn" id="ev-verify">Verify</button>
+              </div>
+              <div class="ipt-err" data-err="evcode"></div>
+              <div class="ev-ok" id="ev-ok" hidden>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Email verified
+              </div>
+            </div>
           </div>
         </div>
 
@@ -192,8 +232,8 @@
     document.getElementById('avatar').onclick = function (e) { e.stopPropagation(); pop.hidden = !pop.hidden; };
     document.addEventListener('click', function (e) { if (!e.target.closest('.acct-user')) pop.hidden = true; });
 
-    // location -> hosting region hint (per V1.139 region map: EU stores -> Frankfurt, rest -> US)
-    var REGION = { us: 'United States', fra: 'Frankfurt (EU)' };
+    // location -> hosting region hint (per V1.139 region map: UK -> London, EU -> Frankfurt, rest -> US)
+    var REGION = { us: 'United States', fra: 'Frankfurt (EU)', lon: 'London (UK)' };
     var locSel = document.getElementById('location');
     function syncRegion() {
       var r = locSel.options[locSel.selectedIndex].getAttribute('data-region');
@@ -201,14 +241,64 @@
     }
     locSel.onchange = syncRegion; syncRegion();
 
+    // ----- Contact email (C2): prefill the signed-in account email (pre-verified).
+    // Changing it to a DIFFERENT address requires a 6-digit code before Create. -----
+    var LOGIN_EMAIL = 'zhengjican@bestfulfill.com';
+    var emailInput = document.getElementById('email');
+    var evBox = document.getElementById('email-verify');
+    var evCodeRow = document.getElementById('ev-code-row');
+    var evSend = document.getElementById('ev-send');
+    var evVerify = document.getElementById('ev-verify');
+    var evOk = document.getElementById('ev-ok');
+    var evCode = document.getElementById('ev-code');
+    var emailVerified = true;          // login email starts verified
+    var cdTimer = null;                // resend countdown handle
+    emailInput.value = LOGIN_EMAIL;
+    function isLoginEmail() { return emailInput.value.trim().toLowerCase() === LOGIN_EMAIL.toLowerCase(); }
+    function codeErr(msg) { evCode.classList.toggle('has-error', !!msg); var e = document.querySelector('[data-err="evcode"]'); if (e) e.textContent = msg || ''; }
+    function resetVerifyUI() {
+      clearInterval(cdTimer);
+      evCodeRow.hidden = true; evOk.hidden = true;
+      evSend.hidden = false; evSend.disabled = false; evSend.textContent = 'Send code';
+      evCode.value = ''; codeErr('');
+    }
+    function syncEmailVerify() {
+      Auth.clearErrs(['email']);
+      if (isLoginEmail()) { emailVerified = true; evBox.hidden = true; resetVerifyUI(); return; }
+      emailVerified = false;                                   // a different address is unverified
+      if (Auth.validEmail(emailInput.value.trim())) { evBox.hidden = false; resetVerifyUI(); }
+      else { evBox.hidden = true; }
+    }
+    emailInput.addEventListener('input', syncEmailVerify);
+    // Send -> "Resend (59)" countdown; code valid 5 min (mirrors V1.129 register/reset)
+    evSend.onclick = function () {
+      evCodeRow.hidden = false; evCode.focus();
+      try { Auth.toast('Verification code sent'); } catch (e) {}
+      var n = 59; evSend.disabled = true; evSend.textContent = 'Resend (' + n + ')';
+      clearInterval(cdTimer);
+      cdTimer = setInterval(function () {
+        n -= 1;
+        if (n <= 0) { clearInterval(cdTimer); evSend.disabled = false; evSend.textContent = 'Resend'; }
+        else { evSend.textContent = 'Resend (' + n + ')'; }
+      }, 1000);
+    };
+    evVerify.onclick = function () {
+      var code = (evCode.value || '').trim();
+      if (!code) { codeErr('Please enter verification code'); return; }
+      if (code !== '288866') { codeErr('Incorrect verification code'); return; }   // demo code, see email-verify.html
+      emailVerified = true; clearInterval(cdTimer);
+      evCodeRow.hidden = true; evSend.hidden = true; evOk.hidden = false; codeErr('');
+    };
+
     // submit -> validate -> go to provisioning (store name carried in the query)
     document.getElementById('create-btn').onclick = function () {
       var name = document.getElementById('name').value.trim();
-      var email = document.getElementById('email').value.trim();
+      var email = emailInput.value.trim();
       var ok = true;
       Auth.clearErrs(['name', 'email', 'phone']);
       if (name.length < 2 || name.length > 50) { Auth.setErr('name', 'Please enter a store name (2–50 characters)'); ok = false; }
       if (!Auth.validEmail(email)) { Auth.setErr('email', 'Please enter a valid email'); ok = false; }
+      else if (!emailVerified) { Auth.setErr('email', 'Please verify this email before continuing'); ok = false; }
       if (!ok) return;
       location.href = 'provisioning.html?store=' + encodeURIComponent(name);
     };
