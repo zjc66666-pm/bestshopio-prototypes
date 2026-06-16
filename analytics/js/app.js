@@ -32,7 +32,7 @@
     const base = (window.DATA.REPORTS.find((r) => r.id === baseId) || {});
     const back = document.createElement('div'); back.className = 'modal-backdrop';
     const close = () => back.remove();
-    back.innerHTML = `<div class="modal" style="width:420px"><div class="modal-head">Save as new report</div><div class="modal-body"><label class="fld-label" style="margin-top:0">Report name</label><input class="filter-input" id="sa-name" value="${(base.name || 'My report')} (copy)" placeholder="${(base.name || 'My report')} (copy)" style="width:100%" /><p id="sa-err" style="font-size:12px;color:var(--err);display:none;margin-top:6px"></p></div><div class="modal-foot"><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-save>Save</button></div></div>`;
+    back.innerHTML = `<div class="modal" style="width:420px"><div class="modal-head">Save as new report</div><div class="modal-body"><label class="fld-label" style="margin-top:0">Report name</label><input class="filter-input" id="sa-name" value="${(base.name || 'My report')} (copy)" placeholder="${(base.name || 'My report')} (copy)" style="width:100%;padding-left:12px" /><p id="sa-err" style="font-size:12px;color:var(--err);display:none;margin-top:6px"></p></div><div class="modal-foot"><button class="btn btn-default" data-x>Cancel</button><button class="btn btn-primary" data-save>Save</button></div></div>`;
     document.body.appendChild(back);
     back.addEventListener('mousedown', (e) => { if (e.target === back) close(); });
     back.querySelector('[data-x]').onclick = close;
@@ -305,38 +305,46 @@
         <div class="muted" style="font-size:12px;margin-top:4px">${f.value}</div>
       </div>`).join('');
 
-    // charts
-    KPIS.forEach((k, i) => mkChart(document.getElementById('spark-' + i), sparkOpt(SALES_TREND.values.map((v) => v * (0.6 + i * 0.1)), k.up)));
-    mkChart(document.getElementById('c-sessions'), lineOpt(SESSIONS_TREND.dates, SESSIONS_TREND.values, '#5ab1ef'));
-    mkChart(document.getElementById('c-pageviews'), lineOpt(PAGEVIEWS_TREND.dates, PAGEVIEWS_TREND.values, '#5ab1ef'));
-    mkChart(document.getElementById('c-fulfilled'), lineOpt(ORDERS_FULFILLED_TREND.dates, ORDERS_FULFILLED_TREND.values, '#0066e6'));
-    mkChart(document.getElementById('c-paid'), lineOpt(PAID_AMOUNT_TREND.dates, PAID_AMOUNT_TREND.values, '#0066e6'));
-    mkChart(document.getElementById('c-refund'), lineOpt(REFUND_TREND.dates, REFUND_TREND.values, '#D33612'));
-    mkChart(document.getElementById('c-marketing'), lineOpt(MARKETING_SALES_TREND.dates, MARKETING_SALES_TREND.values, '#019680'));
-    mkChart(document.getElementById('c-product'), barOptH(SALES_BY_PRODUCT, '#0066e6'));
-    mkChart(document.getElementById('c-device'), donutOpt(SESSIONS_BY_DEVICE, '1.32M', ['#0066e6', '#5ab1ef', '#a5c8ff', '#cfe1ff']));
-    mkChart(document.getElementById('c-country'), barOptH(SESSIONS_BY_COUNTRY, '#5ab1ef'));
-    mkChart(document.getElementById('c-traffic'), barOptV(SESSIONS_BY_TRAFFIC, '#0066e6'));
-    mkChart(document.getElementById('c-socialsrc'), barOptV(SESSIONS_BY_SOCIAL, '#5ab1ef'));
-    mkChart(document.getElementById('c-refsales'), barOptH(SALES_BY_REFERRER, '#0066e6'));
-    mkChart(document.getElementById('c-cohort'), heatmapOpt(COHORT));
+    // static side lists (no comparison effect)
     document.getElementById('landing').innerHTML = LANDING_PAGES.map((r) => `
       <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--hair)">
         <span class="subtle" style="font-size:13px;max-width:68%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.page}</span>
         <span style="font-variant-numeric:tabular-nums">${r.value.toLocaleString()}</span>
       </div>`).join('');
-    // New vs returning customers (behavior — 神策; mock) + Popular referral websites
-    const NEWRET_NEW = SALES_TREND.values.map((v) => Math.round(v / 620));
-    const NEWRET_RET = SALES_TREND.values.map((v, i) => Math.round(v / 1900) + (i % 3));
-    mkChart(document.getElementById('c-newret'), {
-      grid: { left: 40, right: 16, top: 16, bottom: 36 }, tooltip: { trigger: 'axis' },
-      legend: { bottom: 0, icon: 'roundRect', itemHeight: 3, itemWidth: 14, textStyle: { color: '#62708d', fontSize: 12 } },
-      xAxis: { type: 'category', data: SALES_TREND.dates, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#94a3b8', fontSize: 11, interval: 4 } },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
-      series: [{ type: 'line', name: 'New customers', data: NEWRET_NEW, smooth: true, symbol: 'none', lineStyle: { color: '#0066e6', width: 2 } }, { type: 'line', name: 'Returning customers', data: NEWRET_RET, smooth: true, symbol: 'none', lineStyle: { color: '#5ab1ef', width: 2 } }],
-    });
     const REFERRAL_SITES = [['google.com', 134700], ['instagram.com', 81000], ['m.facebook.com', 54200], ['facebook.com', 33100], ['t.co', 12685], ['youtube.com', 7300]];
     document.getElementById('referrals').innerHTML = `<div class="flex items-center justify-between" style="padding:2px 0 6px;border-bottom:1px solid var(--hair)"><span class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.03em">External referrer website</span><span class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.03em">Sessions</span></div>` + REFERRAL_SITES.map((r) => `<div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--hair)"><span class="subtle" style="font-size:13px">${r[0]}</span><span style="font-variant-numeric:tabular-nums">${r[1].toLocaleString()}</span></div>`).join('');
+    const NEWRET_NEW = SALES_TREND.values.map((v) => Math.round(v / 620));
+    const NEWRET_RET = SALES_TREND.values.map((v, i) => Math.round(v / 1900) + (i % 3));
+    // charts — re-render with Comparison series when the chip changes (R20)
+    function paintCharts() {
+      disposeCharts();
+      const comp = CHIP_STATE.comparison !== 'No comparison';
+      const cd = (a) => comp ? a.map((v) => Math.round(v * 0.9)) : null;
+      const cdc = (d) => comp ? d.map((x) => Math.round(x.value * 0.9)) : null;
+      KPIS.forEach((k, i) => mkChart(document.getElementById('spark-' + i), sparkOpt(SALES_TREND.values.map((v) => v * (0.6 + i * 0.1)), k.up)));
+      mkChart(document.getElementById('c-sessions'), mkLineOpt(SESSIONS_TREND.dates, SESSIONS_TREND.values, '#5ab1ef', cd(SESSIONS_TREND.values)));
+      mkChart(document.getElementById('c-pageviews'), mkLineOpt(PAGEVIEWS_TREND.dates, PAGEVIEWS_TREND.values, '#5ab1ef', cd(PAGEVIEWS_TREND.values)));
+      mkChart(document.getElementById('c-fulfilled'), mkLineOpt(ORDERS_FULFILLED_TREND.dates, ORDERS_FULFILLED_TREND.values, '#0066e6', cd(ORDERS_FULFILLED_TREND.values)));
+      mkChart(document.getElementById('c-paid'), mkLineOpt(PAID_AMOUNT_TREND.dates, PAID_AMOUNT_TREND.values, '#0066e6', cd(PAID_AMOUNT_TREND.values)));
+      mkChart(document.getElementById('c-refund'), mkLineOpt(REFUND_TREND.dates, REFUND_TREND.values, '#D33612', cd(REFUND_TREND.values)));
+      mkChart(document.getElementById('c-marketing'), mkLineOpt(MARKETING_SALES_TREND.dates, MARKETING_SALES_TREND.values, '#019680', cd(MARKETING_SALES_TREND.values)));
+      mkChart(document.getElementById('c-product'), barOptH(SALES_BY_PRODUCT, '#0066e6', cdc(SALES_BY_PRODUCT)));
+      mkChart(document.getElementById('c-device'), donutOpt(SESSIONS_BY_DEVICE, '1.32M', ['#0066e6', '#5ab1ef', '#a5c8ff', '#cfe1ff']));
+      mkChart(document.getElementById('c-country'), barOptH(SESSIONS_BY_COUNTRY, '#5ab1ef', cdc(SESSIONS_BY_COUNTRY)));
+      mkChart(document.getElementById('c-traffic'), barOptV(SESSIONS_BY_TRAFFIC, '#0066e6', cdc(SESSIONS_BY_TRAFFIC)));
+      mkChart(document.getElementById('c-socialsrc'), barOptV(SESSIONS_BY_SOCIAL, '#5ab1ef', cdc(SESSIONS_BY_SOCIAL)));
+      mkChart(document.getElementById('c-refsales'), barOptH(SALES_BY_REFERRER, '#0066e6', cdc(SALES_BY_REFERRER)));
+      mkChart(document.getElementById('c-cohort'), heatmapOpt(COHORT));
+      mkChart(document.getElementById('c-newret'), {
+        grid: { left: 40, right: 16, top: 16, bottom: 36 }, tooltip: { trigger: 'axis' },
+        legend: { bottom: 0, icon: 'roundRect', itemHeight: 3, itemWidth: 14, textStyle: { color: '#62708d', fontSize: 12 } },
+        xAxis: { type: 'category', data: SALES_TREND.dates, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e5e7eb' } }, axisLabel: { color: '#94a3b8', fontSize: 11, interval: 4 } },
+        yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f1f3f6' } }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
+        series: [{ type: 'line', name: 'New customers', data: NEWRET_NEW, smooth: true, symbol: 'none', lineStyle: { color: '#0066e6', width: 2 } }, { type: 'line', name: 'Returning customers', data: NEWRET_RET, smooth: true, symbol: 'none', lineStyle: { color: '#5ab1ef', width: 2 } }],
+      });
+    }
+    paintCharts();
+    onChipChange = () => paintCharts();
 
     // every card title → clickable into its report; attach metric tooltips
     view.querySelectorAll('.card-link-title').forEach((t) => {
@@ -709,7 +717,9 @@
   };
   // resolve at call time — COMMERCE_DIM_LABELS is declared later in the module (avoid TDZ)
   const DIM_SAMPLE_VALUES = { 'Order No.': ['SILIX1042', 'SILIX1041', 'SILIX1040', 'SILIX1039', 'SILIX1038', 'SILIX1037'], 'Customer name': ['Emma W.', 'Liam S.', 'Olivia M.', 'Noah T.', 'Ava R.', 'Mia K.'] };
-  const filterEnumsFor = (dim) => BEHAVIOR_LABELS[dim] || COMMERCE_DIM_LABELS[dim] || DIM_SAMPLE_VALUES[dim] || FILTER_EXTRA[dim] || null;
+  // Freeform / high-cardinality dims are text inputs (is / is not / contains), NOT dropdowns (R21 + PRD Manage-filters table).
+  const TEXT_DIMS = new Set(['Order No.', 'Customer name', 'Email', 'SKU', 'Product name', 'Variant', 'Discount code', 'Landing page URL', 'Landing page path', 'Referrer name', 'Referrer site', 'UTM source', 'UTM medium', 'UTM campaign']);
+  const filterEnumsFor = (dim) => TEXT_DIMS.has(dim) ? null : (BEHAVIOR_LABELS[dim] || COMMERCE_DIM_LABELS[dim] || DIM_SAMPLE_VALUES[dim] || FILTER_EXTRA[dim] || null);
 
   function manageFiltersModal(filters, onApply, dims) {
     const draft = filters.map((f) => ({ dim: f.dim, op: f.op, value: f.value }));
