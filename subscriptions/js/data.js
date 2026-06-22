@@ -68,10 +68,19 @@ window.DATA_SUBS = {
       product: 'High Waist Leggings', bundleId: 'BND-03', bundleTemplate: 'ab', tierIndex: 1,
       cycle: { every: 2, unit: 'month' }, price: 41.9, compareAt: 49.30, discountType: 'percent', discountValue: 15, currency: 'USD',
       trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 18, createdAt: '2026-06-16' },
+    // Deactivated (draft) bundle plans — one Volume, one A+B Set — so both bundle types appear in the Deactivated tab.
+    { id: 'PL-1009', name: 'Coffee Multipack — Subscribe & Save', status: 'draft', itemType: 'bundle',
+      product: 'Signature Blend Coffee', bundleId: 'BND-02', bundleTemplate: 'volume', tierIndex: 0,
+      cycle: { every: 1, unit: 'month' }, price: 29.74, compareAt: 34.99, discountType: 'percent', discountValue: 15, currency: 'USD',
+      trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 0, createdAt: '2026-06-17' },
+    { id: 'PL-1010', name: 'Yoga Outfit — Subscribe & Save', status: 'draft', itemType: 'bundle',
+      product: 'High Waist Leggings', bundleId: 'BND-04', bundleTemplate: 'ab', tierIndex: 1,
+      cycle: { every: 2, unit: 'month' }, price: 41.9, compareAt: 49.30, discountType: 'percent', discountValue: 15, currency: 'USD',
+      trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 0, createdAt: '2026-06-18' },
   ],
 
   // ---- Contracts (a customer's live subscription) ----
-  // status: active | paused | past_due | cancelled. next = next charge (or resume) date.
+  // status: active | past_due | cancelled. next = next charge date.
   contracts: [
     { id: 'SUB-20451', customer: 'Emma Johnson',  email: 'emma.j@example.com',   plan: 'Coffee Club — Monthly',      planId: 'PL-1001', product: 'Signature Blend Coffee 500g', status: 'active',   next: '2026-06-22', amount: 24, currency: 'USD', cyclesDone: 5, gateway: 'airwallex', method: 'Visa ···· 4242',       qty: 1, startedAt: '2026-01-22', address: '24 Maple St, Austin, TX 78701, US',
       history: [ { id: '#1042-R5', date: '2026-05-22', amount: 24, status: 'paid', cycle: 5 }, { id: '#1042-R4', date: '2026-04-22', amount: 24, status: 'paid', cycle: 4 }, { id: '#1042-R3', date: '2026-03-22', amount: 24, status: 'paid', cycle: 3 } ] },
@@ -81,7 +90,7 @@ window.DATA_SUBS = {
       history: [ { id: '#1061-R2', date: '2026-05-02', amount: 45, status: 'paid', cycle: 2 }, { id: '#1061-R1', date: '2026-03-02', amount: 45, status: 'paid', cycle: 1 } ] },
     { id: 'SUB-20454', customer: 'Noah Davis',     email: 'noah.d@example.com',   plan: 'Pet Food — Monthly',         planId: 'PL-1004', product: 'Grain-Free Dog Food 5kg', status: 'past_due', next: '2026-06-16', amount: 58, currency: 'USD', cyclesDone: 7, gateway: 'airwallex', method: 'Visa ···· 1881',       qty: 1, startedAt: '2025-11-16', address: '3 Birch Ln, Portland, OR 97201, US',
       history: [ { id: '#1033-R7', date: '2026-06-16', amount: 58, status: 'failed', cycle: 7 }, { id: '#1033-R6', date: '2026-05-16', amount: 58, status: 'paid', cycle: 6 } ] },
-    { id: 'SUB-20455', customer: 'Ava Wilson',     email: 'ava.w@example.com',    plan: 'Coffee Club — Monthly',      planId: 'PL-1001', product: 'Signature Blend Coffee 500g', status: 'paused',   next: '2026-07-01', amount: 24, currency: 'USD', cyclesDone: 4, gateway: 'airwallex', method: 'Visa ···· 9032',       qty: 2, startedAt: '2026-02-01', address: '77 Cedar Blvd, Miami, FL 33101, US',
+    { id: 'SUB-20455', customer: 'Ava Wilson',     email: 'ava.w@example.com',    plan: 'Coffee Club — Monthly',      planId: 'PL-1001', product: 'Signature Blend Coffee 500g', status: 'active',   next: '2026-07-01', amount: 24, currency: 'USD', cyclesDone: 4, gateway: 'airwallex', method: 'Visa ···· 9032',       qty: 2, startedAt: '2026-02-01', address: '77 Cedar Blvd, Miami, FL 33101, US',
       history: [ { id: '#1044-R4', date: '2026-05-01', amount: 48, status: 'paid', cycle: 4 }, { id: '#1044-R3', date: '2026-04-01', amount: 48, status: 'paid', cycle: 3 } ] },
     { id: 'SUB-20456', customer: 'Sophia Lee',     email: 'sophia.l@example.com', plan: 'Protein Resupply — Monthly', planId: 'PL-1005', product: 'Whey Protein 1kg', status: 'active',   next: '2026-06-25', amount: 39, currency: 'USD', cyclesDone: 6, gateway: 'paypal',    method: 'PayPal',               qty: 1, startedAt: '2025-12-25', address: '140 Elm St, Boston, MA 02108, US',
       history: [ { id: '#1029-R6', date: '2026-05-25', amount: 39, status: 'paid', cycle: 6 } ] },
@@ -115,8 +124,8 @@ window.DATA_SUBS = {
   // ---- App-level settings ----
   settings: {
     defaultGateway: 'airwallex',
-    dunning: { retries: 3, intervalDays: 3, finalAction: 'pause' },   // finalAction: pause | cancel
-    portal: { enabled: true, allowPause: true, allowSkip: true, allowSwap: true, allowReschedule: true, allowCancel: true },
+    dunning: { retries: 3, intervalDays: 3, finalAction: 'cancel' },   // after the last failed retry the subscription is cancelled
+    portal: { enabled: true, allowSkip: true, allowSwap: true, allowReschedule: true, allowCancel: true },
     notifications: { upcomingCharge: true, paymentFailed: true, cancelled: true, upcomingChargeDays: 3 },
   },
 };

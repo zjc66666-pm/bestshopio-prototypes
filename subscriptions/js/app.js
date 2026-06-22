@@ -1,10 +1,10 @@
 /* BestShopio Admin · Subscriptions app — workspace (V1.142).
    Pluggable app (turned on from #/apps). Sub-routes mirror the sidebar children:
-     #/subscriptions            -> Overview
+     #/subscriptions            -> Overview (KPIs + MRR + upcoming charges + dunning settings)
      #/subscriptions/plans      -> Plans (+ /plans/:id detail, /plans/0 = create)
-     #/subscriptions/contracts  -> Subscriptions (contracts)   [built in next slice]
-     #/subscriptions/orders     -> Recurring orders            [built in next slice]
-     #/subscriptions/settings   -> App settings                [built in next slice]
+     #/subscriptions/contracts  -> Subscriptions (contracts)
+     #/subscriptions/orders     -> Recurring orders
+     #/subscriptions/settings   -> alias -> Overview (Settings folded in; kept for old links)
    Chrome (sidebar + header) is the shared shell.js; this renders the body into #root. */
 (function () {
   const D = window.DATA_SUBS;
@@ -30,9 +30,12 @@
         '<button type="button" class="bn-ndn" tabindex="-1" style="flex:1;border:0;border-top:1px solid var(--ctl);background:#f3f4f8;cursor:pointer;color:var(--ink-muted);font-size:7px;line-height:0">&#9660;</button>' +
       '</span></span>';
   };
-  const VAR_COLORS = ['Black', 'Dark Gray', 'Navy', 'Olive', 'Sand', 'Off-White'];
+  const VAR_COLORS = ['Grey', 'Black', 'Navy', 'Olive', 'Sand', 'Off-White'];
   const VAR_SIZES = ['S', 'M', 'L', 'XL'];
+  const VAR_LENGTHS = ['Full Length', '7/8 Length', 'Cropped'];
   const variantList = (name, count) => { count = Math.max(1, count || 4); var out = []; for (var i = 0; i < count; i++) { var c = VAR_COLORS[i % VAR_COLORS.length]; out.push(count > VAR_COLORS.length ? c + ' / ' + VAR_SIZES[Math.floor(i / VAR_COLORS.length) % VAR_SIZES.length] : c); } return out; };
+  // Synthetic labeled option groups for the preview (a real PDP lists the product's own option names). More SKUs ⇒ more option dimensions.
+  const variantGroups = (count) => { count = Math.max(1, count || 1); if (count <= 1) return []; var g = [{ name: 'Color', values: VAR_COLORS }]; if (count >= 3) g.push({ name: 'Size', values: VAR_SIZES }); if (count >= 5) g.push({ name: 'Length', values: VAR_LENGTHS }); return g; };
   const svg = (p, w) => '<svg viewBox="0 0 24 24" width="' + (w || 16) + '" height="' + (w || 16) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
   const I = {
     chev: svg('<path d="m9 18 6-6-6-6"/>', 16),
@@ -42,7 +45,8 @@
     plus: svg('<path d="M12 5v14M5 12h14"/>', 15),
     search: svg('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'),
   };
-  const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
+  // Top-center success toast (Ant Design message parity) — mirrors the store admin + Analytics, not a bottom bar.
+  const toast = (msg) => { const t = document.createElement('div'); t.innerHTML = '<span style="color:#1f8f4e;display:inline-flex;font-weight:700">✓</span><span>' + esc(msg) + '</span>'; t.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1f2433;border:1px solid #e6e8ee;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:200;box-shadow:0 6px 20px rgba(20,30,55,.14)'; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
 
   const planById = (id) => D.plans.find((p) => String(p.id) === String(id));
   const cycleLabel = (c) => !c ? '—' : (c.every === 1 ? 'Every ' + c.unit : 'Every ' + c.every + ' ' + c.unit + 's');
@@ -50,7 +54,6 @@
 
   const STATUS = {
     active:    { label: 'Active',    cls: 'pill-green' },
-    paused:    { label: 'Paused',    cls: 'pill-orange' },
     past_due:  { label: 'Past due',  cls: 'pill-red' },
     cancelled: { label: 'Cancelled', cls: 'pill-gray' },
     draft:     { label: 'Draft',     cls: 'pill-gray' },
@@ -67,6 +70,7 @@
   // ================= OVERVIEW =================
   function renderOverview() {
     const m = D.metrics;
+    const s = D.settings;
     const pastDue = D.contracts.filter((c) => c.status === 'past_due').length;
     const failed = D.orders.filter((o) => o.status === 'failed' || o.status === 'retrying').length;
 
@@ -90,6 +94,15 @@
       '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Subscriptions</h1>' +
         '<a class="btn btn-primary" href="#/subscriptions/plans/0">Add plan</a></div>' +
       attention +
+      '<div class="panel card-pad" style="margin-bottom:18px">' +
+        '<div class="card-title" style="margin-bottom:4px">Failed payments (dunning)</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-bottom:12px">How recurring charges retry before a subscription is cancelled.</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:520px">' +
+          '<div>' + label('Retry attempts') + '<input class="input" id="set-retries" type="number" min="0" max="10" value="' + s.dunning.retries + '" /></div>' +
+          '<div>' + label('Days between retries') + '<input class="input" id="set-interval" type="number" min="1" value="' + s.dunning.intervalDays + '" /></div>' +
+          '<div style="grid-column:1/-1">' + label('After the last failed attempt') + '<div class="muted" style="font-size:12.5px;line-height:1.5">The subscription is automatically <b>cancelled</b> and the customer is notified — no further retries or charges.</div></div>' +
+        '</div>' +
+      '</div>' +
       '<div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:16px;margin-bottom:18px">' +
         kpi('Monthly recurring revenue', money(m.mrr), '<div style="margin-top:3px"><span class="delta-up">+' + m.mrrDelta + '%</span> <span class="muted" style="font-size:12px">vs last month</span></div>') +
         kpi('Active subscriptions', m.activeSubs.toLocaleString(), '<div style="margin-top:3px"><span class="delta-up">+' + m.activeDelta + '%</span> <span class="muted" style="font-size:12px">vs last month</span></div>') +
@@ -111,6 +124,9 @@
       '</div>' +
       '<style>@media(max-width:860px){.subs-ov-cols{grid-template-columns:1fr!important}}</style>';
 
+    const bindN = (id, fn) => { const e = root.querySelector(id); if (e) e.oninput = () => fn(e.value); };
+    bindN('#set-retries', (v) => s.dunning.retries = Number(v) || 0);
+    bindN('#set-interval', (v) => s.dunning.intervalDays = Number(v) || 1);
     initChart();
   }
 
@@ -371,12 +387,14 @@
     function wirePreviewInner() {
       root.querySelectorAll('#pl-preview [data-ptier]').forEach((el) => el.onclick = () => selectTier(+el.getAttribute('data-ptier')));
       root.querySelectorAll('#pl-preview [data-buymode]').forEach((el) => el.onclick = () => { previewBuyMode = el.getAttribute('data-buymode'); refreshPreview(); });
+      // Variant dropdowns are interactive; keep their clicks from bubbling to the tier card (which would re-render and reset them).
+      root.querySelectorAll('#pl-preview .pl-vsel').forEach((el) => { el.onclick = (e) => e.stopPropagation(); el.onmousedown = (e) => e.stopPropagation(); });
     }
     wirePreviewInner();
     const save = root.querySelector('[data-act="save"]'); if (save) save.onclick = () => doSavePlan(isEdit);
     const saveBar = root.querySelector('[data-act="save-bar"]'); if (saveBar) saveBar.onclick = () => doSavePlan(isEdit);
     const disc = root.querySelector('[data-act="discard"]'); if (disc) disc.onclick = () => { EDIT = snap(ORIGINAL); paintPlan(isEdit); };
-    const del = root.querySelector('[data-act="delete"]'); if (del) del.onclick = () => window.UI.confirm({ title: 'Delete plan', content: 'Delete this plan? Existing subscriptions keep running.', okText: 'Delete', danger: true, onOk: () => { const i = D.plans.findIndex((x) => x.id === EDIT_ID); if (i >= 0) D.plans.splice(i, 1); ORIGINAL = snap(EDIT); toast('Plan deleted'); location.hash = '#/subscriptions/plans'; } });
+    const del = root.querySelector('[data-act="delete"]'); if (del) del.onclick = () => window.UI.confirm({ title: 'Delete plan', content: 'Delete this plan? Existing subscriptions keep running.', okText: 'Delete', danger: true, onOk: () => { const i = D.plans.findIndex((x) => x.id === EDIT_ID); if (i >= 0) D.plans.splice(i, 1); ORIGINAL = snap(EDIT); toast('Deleted successfully'); location.hash = '#/subscriptions/plans'; } });
     syncBar();
   }
 
@@ -385,8 +403,8 @@
     if (!(p.name || '').trim()) return toast('Enter a plan name');
     if (p.compareAt == null || p.compareAt <= 0) return toast('Select a product or bundle first');
     p.price = recurringPrice(p);
-    if (isEdit) { const i = D.plans.findIndex((x) => x.id === EDIT_ID); if (i >= 0) D.plans[i] = Object.assign({}, D.plans[i], p); ORIGINAL = snap(EDIT); syncBar(); toast('Plan saved'); }
-    else { p.id = 'PL-' + (1000 + D.plans.length + 1); D.plans.unshift(snap(p)); ORIGINAL = snap(p); toast('Plan created'); location.hash = '#/subscriptions/plans'; }
+    if (isEdit) { const i = D.plans.findIndex((x) => x.id === EDIT_ID); if (i >= 0) D.plans[i] = Object.assign({}, D.plans[i], p); ORIGINAL = snap(EDIT); syncBar(); toast('Updated successfully'); }
+    else { p.id = 'PL-' + (1000 + D.plans.length + 1); D.plans.unshift(snap(p)); ORIGINAL = snap(p); toast('Created successfully'); location.hash = '#/subscriptions/plans'; }
   }
 
   function renderMissing(what, backHash) {
@@ -428,12 +446,15 @@
   // ================= SUBSCRIPTIONS (contracts) — list =================
   const LSTC = { tab: 'all', kw: '', kwType: 'customer', kwApplied: '' };
   const CONTRACT_FIELDS = [{ value: 'customer', label: 'Customer' }, { value: 'email', label: 'Email' }, { value: 'plan', label: 'Plan' }, { value: 'id', label: 'Subscription ID' }];
-  const TABSC = [{ k: 'all', label: 'All' }, { k: 'active', label: 'Active' }, { k: 'paused', label: 'Paused' }, { k: 'past_due', label: 'Past due' }, { k: 'cancelled', label: 'Cancelled' }];
+  const TABSC = [{ k: 'all', label: 'All' }, { k: 'active', label: 'Active' }, { k: 'past_due', label: 'Past due' }, { k: 'cancelled', label: 'Cancelled' }];
   const contractsFiltered = () => {
     let rows = LSTC.tab === 'all' ? D.contracts.slice() : D.contracts.filter((c) => c.status === LSTC.tab);
     if (LSTC.kwApplied) { const q = LSTC.kwApplied.toLowerCase(); rows = rows.filter((c) => String(c[LSTC.kwType] || '').toLowerCase().includes(q)); }
     return rows;
   };
+  // The plan a contract runs on (drives the frequency shown in the list + the projected upcoming schedule).
+  const contractPlan = (c) => D.plans.find((p) => p.id === c.planId || p.name === c.plan);
+  const contractFreq = (c) => { const p = contractPlan(c); return p ? cycleLabel(p.cycle) : '<span class="muted">—</span>'; };
 
   function renderContracts() {
     const cnt = (k) => k === 'all' ? D.contracts.length : D.contracts.filter((c) => c.status === k).length;
@@ -441,17 +462,17 @@
       '<tr data-id="' + c.id + '" style="cursor:pointer">' +
         '<td><div style="font-weight:600;color:var(--ink)">' + esc(c.customer) + '</div><div class="muted" style="font-size:12px">' + esc(c.email) + '</div></td>' +
         '<td><div style="color:var(--ink)">' + esc(c.plan) + '</div><div class="muted" style="font-size:12px">' + esc(c.product) + '</div></td>' +
-        '<td>' + pill(c.status) + '</td>' +
+        '<td>' + contractFreq(c) + '</td>' +
         '<td>' + (c.next ? fmtDate(c.next) : '<span class="muted">—</span>') + '</td>' +
         '<td class="num">' + money(c.amount) + '</td>' +
-        '<td>' + gwName(c.gateway) + '</td>' +
+        '<td>' + pill(c.status) + '</td>' +
         '<td style="text-align:center;color:var(--ink-muted)">' + I.chev + '</td>' +
       '</tr>').join('');
     root.innerHTML =
       '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Subscriptions</h1></div>' +
       '<div class="panel">' + tabsBar(TABSC, LSTC.tab, cnt) + filterBar(LSTC, CONTRACT_FIELDS) +
         '<div style="overflow-x:auto"><table class="tbl" style="min-width:880px">' +
-          '<thead><tr><th>Customer</th><th>Plan</th><th style="width:110px">Status</th><th style="width:130px">Next charge</th><th class="num" style="width:90px">Amount</th><th style="width:110px">Gateway</th><th style="width:48px"></th></tr></thead>' +
+          '<thead><tr><th>Customer</th><th>Plan</th><th style="width:120px">Frequency</th><th style="width:130px">Next charge</th><th class="num" style="width:90px">Amount</th><th style="width:110px">Status</th><th style="width:48px"></th></tr></thead>' +
           '<tbody id="ct-tbody">' + (rows || '<tr><td colspan="7" class="muted" style="text-align:center;padding:40px">No subscriptions in this view.</td></tr>') + '</tbody>' +
         '</table></div>' +
       '</div>';
@@ -469,7 +490,6 @@
   }
   function scheduleHtml(c) {
     if (c.status === 'cancelled') return '<div class="muted" style="font-size:13.5px">Ended on ' + fmtDate(c.endedAt) + '. No further charges.</div>';
-    if (c.status === 'paused') return '<div style="font-size:13.5px;color:var(--ink)">Paused — resumes <b>' + fmtDate(c.next) + '</b>.</div>';
     const overdue = c.status === 'past_due';
     return '<div style="font-size:13.5px;color:var(--ink)">' + (overdue ? '<span style="color:var(--err)">Payment overdue since <b>' + fmtDate(c.next) + '</b></span>' : 'Next charge on <b>' + fmtDate(c.next) + '</b>') + ' · ' + money(c.amount) + '</div>' +
       '<div class="muted" style="font-size:12px;margin-top:6px">Charged automatically via ' + gwName(c.gateway) + '.</div>';
@@ -483,28 +503,113 @@
   function custHtml(c) { return row2('Name', esc(c.customer)) + row2('Email', esc(c.email)) + '<div style="padding-top:8px;font-size:12.5px;color:var(--ink-body);line-height:1.5"><span class="muted">Ships to</span><br>' + esc(c.address) + '</div>'; }
   function payHtml(c) { return row2('Method', esc(c.method)) + row2('Gateway', gwName(c.gateway)); }
 
+  // Add n billing cycles to a YYYY-MM-DD date (used to project the upcoming charge schedule). Deterministic — no Date.now().
+  function addCycle(dateStr, every, unit, n) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    const step = (every || 1) * n;
+    if (unit === 'week') d.setDate(d.getDate() + 7 * step);
+    else if (unit === 'year') d.setFullYear(d.getFullYear() + step);
+    else d.setMonth(d.getMonth() + step);
+    const p2 = (x) => String(x).length < 2 ? '0' + x : String(x);
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  }
+  // Projected upcoming charges from the current schedule (read-only forecast).
+  function upcomingHtml(c) {
+    if (c.status === 'cancelled') return '<div class="muted" style="font-size:13px">No upcoming charges — this subscription has ended.</div>';
+    if (!c.next) return '<div class="muted" style="font-size:13px">No upcoming charges scheduled.</div>';
+    const plan = contractPlan(c); const every = plan ? plan.cycle.every : 1; const unit = plan ? plan.cycle.unit : 'month';
+    let rows = '';
+    for (let i = 0; i < 4; i++) {
+      const date = i === 0 ? c.next : addCycle(c.next, every, unit, i);
+      const lbl = i === 0 ? (c.status === 'past_due' ? 'Overdue' : 'Next charge') : 'Scheduled';
+      const cls = (i === 0 && c.status === 'past_due') ? 'pill-red' : (i === 0 ? 'pill-blue' : 'pill-gray');
+      rows += '<tr><td>' + fmtDate(date) + '</td><td>' + esc(c.product) + '</td><td class="num">' + money(c.amount) + '</td><td><span class="pill ' + cls + '">' + lbl + '</span></td></tr>';
+    }
+    return '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:130px">Charge date</th><th>Product</th><th class="num" style="width:90px">Amount</th><th style="width:120px">Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="muted" style="font-size:12px;margin-top:8px">Projected from the current schedule — skipping or rescheduling a charge shifts these dates.</div>';
+  }
+  // Activity log — a timeline synthesized from start date, charge history and current status.
+  function activityHtml(c) {
+    const ev = [{ d: c.startedAt, t: 'Subscription started', sub: 'Plan: ' + c.plan }];
+    (c.history || []).forEach((o) => ev.push({ d: o.date, t: (o.status === 'paid' ? 'Charge succeeded' : o.status === 'failed' ? 'Charge failed' : 'Charge ' + o.status) + ' · ' + money(o.amount), sub: 'Order ' + o.id }));
+    if (c.status === 'cancelled') ev.push({ d: c.endedAt, t: 'Subscription cancelled', sub: 'No further charges' });
+    else if (c.next) ev.push({ d: c.next, t: 'Next charge scheduled', sub: money(c.amount), future: true });
+    ev.sort((a, b) => String(b.d || '').localeCompare(String(a.d || '')));
+    return '<div>' + ev.map((e, i) => {
+      const last = i === ev.length - 1;
+      return '<div style="display:flex;gap:12px">' +
+        '<div style="flex:none;display:flex;flex-direction:column;align-items:center"><span style="width:10px;height:10px;border-radius:50%;flex:none;margin-top:3px;background:' + (e.future ? 'var(--ctl)' : 'var(--brand)') + '"></span>' + (last ? '' : '<span style="flex:1;width:2px;background:var(--hair);margin:2px 0"></span>') + '</div>' +
+        '<div style="flex:1;min-width:0;padding-bottom:' + (last ? '0' : '16px') + '"><div style="font-size:13px;color:var(--ink);font-weight:500">' + esc(e.t) + '</div>' + (e.sub ? '<div class="muted" style="font-size:12px">' + esc(e.sub) + '</div>' : '') + '</div>' +
+        '<div class="muted" style="font-size:12px;white-space:nowrap;flex:none">' + (e.d ? fmtDate(e.d) : '') + '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+  // Tab bar + body for the contract detail (Details / Past orders / Upcoming orders / Activity log).
+
   function actionBtns(c) {
     if (c.status === 'cancelled') return '<div class="muted" style="font-size:13px">Cancelled on ' + fmtDate(c.endedAt) + '. No further charges.</div>';
     const b = (act, txt, danger) => '<button class="btn btn-default" data-ca="' + act + '" style="width:100%;justify-content:center;margin-bottom:8px' + (danger ? ';color:var(--err);border-color:#f3c4ba' : '') + '">' + txt + '</button>';
     let out = '';
-    if (c.status === 'active') out += b('pause', 'Pause subscription') + b('skip', 'Skip next charge') + b('reschedule', 'Reschedule next charge') + b('swap', 'Swap product') + b('address', 'Change shipping address');
-    if (c.status === 'paused') out += b('resume', 'Resume subscription') + b('address', 'Change shipping address');
-    if (c.status === 'past_due') out += b('retry', 'Retry payment now') + b('method', 'Update payment method') + b('pause', 'Pause subscription');
+    // Manage actions mirror the Customer-portal settings (Cancel + basic edits). Pause / Skip / Reschedule / Swap are retired — low frequency.
+    if (c.status === 'active') out += b('address', 'Change shipping address');
+    if (c.status === 'past_due') out += b('retry', 'Retry payment now') + b('method', 'Update payment method');
     return out + b('cancel', 'Cancel subscription', true);
   }
   function handleAction(c, act) {
     switch (act) {
-      case 'pause': c.status = 'paused'; toast('Subscription paused'); break;
-      case 'resume': c.status = 'active'; toast('Subscription resumed'); break;
-      case 'skip': toast('Next charge skipped'); break;
       case 'retry': c.status = 'active'; toast('Payment retried — charge succeeded'); break;
-      case 'cancel': window.UI.confirm({ title: 'Cancel subscription', content: 'Cancel this subscription? It will stop future charges.', okText: 'Cancel subscription', danger: true, onOk: () => { c.status = 'cancelled'; c.endedAt = '2026-06-18'; c.next = ''; toast('Subscription cancelled'); renderContractDetail(c.id); } }); return;
-      case 'reschedule': { const d = prompt('New next-charge date (YYYY-MM-DD):', c.next); if (d) { c.next = d; toast('Next charge rescheduled'); } break; }
-      case 'swap': toast('Product swap — wires to the catalog in production'); return;
-      case 'address': toast('Address editor — wires to the address book in production'); return;
+      case 'cancel': window.UI.confirm({ title: 'Cancel subscription', content: 'Cancel this subscription? It will stop future charges.', okText: 'Cancel subscription', danger: true, onOk: () => { c.status = 'cancelled'; c.endedAt = '2026-06-22'; c.next = ''; toast('Subscription cancelled'); renderContractDetail(c.id); } }); return;
+      case 'address': openAddressModal(c); return;
       case 'method': toast('Update payment method — opens the gateway hosted page in production'); return;
     }
     renderContractDetail(c.id);
+  }
+
+  // Edit shipping address — mirrors the Orders module modal (Contact + Delivery sections, Save with required-field validation).
+  function openAddressModal(c) {
+    const parts = String(c.address || '').split(',').map((x) => x.trim()).filter(Boolean);   // mock: "<street>, <city>, <state> <zip>, <country>"
+    const street = parts[0] || '';
+    const country = parts.length >= 4 ? parts[parts.length - 1] : '';
+    const stateZip = parts.length >= 3 ? parts[parts.length - 2] : '';
+    const szM = stateZip.match(/^(.*?)\s+(\S+)$/);
+    const state = szM ? szM[1] : stateZip;
+    const zip = szM ? szM[2] : '';
+    const city = parts.length >= 4 ? parts[1] : '';
+    const nm = String(c.customer || '').trim().split(/\s+/);
+    const first = nm.length > 1 ? nm.slice(0, -1).join(' ') : (nm[0] || '');
+    const last = nm.length > 1 ? nm[nm.length - 1] : '';
+    const inp = (id, ph, val) => '<input class="input" id="' + id + '" placeholder="' + esc(ph) + '" value="' + esc(val || '') + '" style="margin-bottom:12px" />';
+    const body =
+      '<div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:8px">Contact</div>' +
+      inp('sa-email', 'Email', c.email) +
+      '<div style="font-size:13px;font-weight:500;color:var(--ink);margin:4px 0 8px">Delivery</div>' +
+      inp('sa-country', 'Country/Region', country) +
+      '<div class="grid grid-cols-2 gap-3"><div>' + inp('sa-first', 'First name', first) + '</div><div>' + inp('sa-last', 'Last name', last) + '</div></div>' +
+      inp('sa-addr', 'Address', street) +
+      inp('sa-apt', 'Apartment, suite, etc.(optional)', '') +
+      '<div class="grid grid-cols-3 gap-3"><div>' + inp('sa-state', 'State', state) + '</div><div>' + inp('sa-city', 'City', city) + '</div><div>' + inp('sa-zip', 'ZIP code', zip) + '</div></div>' +
+      inp('sa-phone', 'Phone', c.phone) +
+      '<div id="sa-err" style="color:var(--err);font-size:12px;margin-top:4px;display:none">Please fill in all required fields.</div>';
+    const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
+    const m = document.createElement('div'); m.className = 'modal'; m.style.width = '760px'; m.style.maxWidth = 'calc(100vw - 32px)';
+    m.innerHTML =
+      '<div class="modal-head flex items-center justify-between"><span>Edit shipping address</span><span data-x style="cursor:pointer;font-size:18px;line-height:1;color:var(--muted)">&times;</span></div>' +
+      '<div class="modal-body">' + body + '</div>' +
+      '<div class="modal-foot"><button class="btn btn-default" data-cancel>Cancel</button><button class="btn btn-primary" data-ok>Save</button></div>';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    m.querySelector('[data-x]').onclick = close;
+    m.querySelector('[data-cancel]').onclick = close;
+    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    m.querySelector('[data-ok]').onclick = () => {
+      const req = ['sa-email', 'sa-country', 'sa-first', 'sa-last', 'sa-addr', 'sa-state', 'sa-city', 'sa-zip'];   // phone optional — contract model carries no phone yet
+      if (req.some((id) => !m.querySelector('#' + id).value.trim())) { m.querySelector('#sa-err').style.display = 'block'; return; }
+      const g = (id) => m.querySelector('#' + id).value.trim();
+      c.email = g('sa-email'); c.phone = g('sa-phone');
+      c.address = [g('sa-addr'), g('sa-apt'), g('sa-city'), (g('sa-state') + ' ' + g('sa-zip')).trim(), g('sa-country')].filter(Boolean).join(', ');
+      close(); toast('Address updated'); renderContractDetail(c.id);
+    };
   }
 
   function renderContractDetail(id) {
@@ -519,7 +624,9 @@
         '<div class="detail-cols"><div class="detail-main">' +
           card('Subscription', summaryHtml(c)) +
           card('Billing schedule', scheduleHtml(c)) +
-          card('Order history', orderHistory(c)) +
+          card('Upcoming orders', upcomingHtml(c)) +
+          card('Past orders', orderHistory(c)) +
+          card('Activity log', activityHtml(c)) +
         '</div><div class="detail-rail">' +
           card('Manage', actionBtns(c)) +
           card('Customer', custHtml(c)) +
@@ -734,13 +841,29 @@
       const radio = '<span style="flex:none;width:15px;height:15px;border-radius:50%;border:1.5px solid ' + (on ? bc : 'var(--ctl)') + ';display:inline-grid;place-items:center">' + (on ? '<span style="width:7px;height:7px;border-radius:50%;background:' + bc + '"></span>' : '') + '</span>';
       const variantRows = on ? mains.map(function (m) {
         const multi = (m.variants == null || m.variants > 1);
-        const vcount = (m.variants == null ? 4 : m.variants);
+        const vcount = (m.variants == null ? 6 : m.variants);
         const qty = Math.max(1, m.qty || 1);
+        const groups = multi ? variantGroups(vcount) : [];
         var row = '<div class="flex items-center gap-2" style="margin-top:10px">' + imgCell(compImg(m), 40) + '<div style="flex:1;min-width:0;font-size:13px;color:var(--ink)">' + (esc(m.displayName) || esc(m.product) || 'Product') + '</div><span class="muted" style="font-size:13px;white-space:nowrap">&times; ' + qty + '</span></div>';
-        if (multi) { var vn = variantList(m.product, vcount)[0] || 'Variant'; for (var k = 1; k <= qty; k++) row += '<div class="flex items-center gap-2" style="margin-top:6px">' + (qty > 1 ? '<span style="font-size:11.5px;color:var(--ink-muted);width:22px;flex:none">#' + k + '</span>' : '') + '<span style="display:inline-flex;align-items:center;justify-content:space-between;gap:6px;flex:1;min-width:0;border:1px solid var(--ctl);border-radius:6px;padding:5px 9px;font-size:12px;color:var(--ink-body);background:#fff;white-space:nowrap">' + esc(vn) + ' ' + chevDn + '</span></div>'; }
+        if (groups.length) {
+          // Option-name title (e.g. "Color, Size, Length") + one selectable dropdown per option, per unit.
+          row += '<div class="muted" style="font-size:11px;margin-top:8px;font-weight:600">' + groups.map(function (g) { return esc(g.name); }).join(', ') + '</div>';
+          for (var k = 1; k <= qty; k++) {
+            row += '<div class="flex items-center gap-2" style="margin-top:5px">' + (qty > 1 ? '<span style="font-size:11.5px;color:var(--ink-muted);width:22px;flex:none">#' + k + '</span>' : '') +
+              '<div style="display:flex;gap:6px;flex:1;min-width:0">' +
+              groups.map(function (g) { return '<select class="pl-vsel" style="flex:1;min-width:0;height:30px;border:1px solid var(--ctl);border-radius:6px;padding:0 6px;font-size:12px;color:var(--ink-body);background:#fff;cursor:pointer">' + g.values.map(function (v) { return '<option>' + esc(v) + '</option>'; }).join('') + '</select>'; }).join('') +
+              '</div></div>';
+          }
+        }
         return row;
       }).join('') : '';
-      const giftRows = gifts.length ? '<div style="margin:10px -12px -12px;border-radius:0 0 6.5px 6.5px;overflow:hidden' + (on ? '' : ';opacity:0.5') + '">' + gifts.map(function (g, gi) { return '<div class="flex items-center gap-2" style="background:' + bc + ';color:#fff;font-size:11.5px;padding:7px 12px' + (gi ? ';border-top:1px solid rgba(255,255,255,0.18)' : '') + '"><span style="width:38px;height:38px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,0.25);flex:none;display:inline-block"><img src="' + compImg(g) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.remove()" /></span><span>+ ' + esc(g.displayName || g.product) + '</span></div>'; }).join('') + '</div>' : '';
+      const giftRows = gifts.length ? '<div style="margin:10px -12px -12px;border-radius:0 0 6.5px 6.5px;overflow:hidden' + (on ? '' : ';opacity:0.5') + '">' + gifts.map(function (g, gi) {
+        const gmulti = (g.variants != null && g.variants > 1);   // single-variant gifts have nothing to pick
+        const ggroups = gmulti ? variantGroups(g.variants) : [];
+        // Compact: variant dropdown(s) sit inline on the gift's own row (right-aligned) — no separate title line, so the row stays one line tall.
+        var sel = ggroups.length ? '<div style="display:flex;gap:6px;flex:none;margin-left:auto">' + ggroups.map(function (gg) { return '<select class="pl-vsel" title="' + esc(gg.name) + '" style="height:26px;max-width:128px;border:1px solid rgba(255,255,255,0.55);border-radius:6px;padding:0 6px;font-size:11.5px;color:var(--ink-body);background:#fff;cursor:pointer">' + gg.values.map(function (v) { return '<option>' + esc(v) + '</option>'; }).join('') + '</select>'; }).join('') + '</div>' : '';
+        return '<div class="flex items-center gap-2" style="background:' + bc + ';color:#fff;font-size:11.5px;padding:7px 12px' + (gi ? ';border-top:1px solid rgba(255,255,255,0.18)' : '') + '"><span style="width:38px;height:38px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,0.25);flex:none;display:inline-block"><img src="' + compImg(g) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.remove()" /></span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">+ ' + esc(g.displayName || g.product) + '</span>' + sel + '</div>';
+      }).join('') + '</div>' : '';
       return '<div data-ptier="' + i + '" style="position:relative;border:1.5px solid ' + (on ? bc : 'var(--hair)') + ';border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer">' + badge +
         '<div class="flex items-center justify-between" style="gap:8px"><div class="flex items-center gap-2" style="min-width:0">' + radio +
           '<div style="min-width:0"><div class="flex items-center gap-2" style="flex-wrap:wrap"><span style="font-weight:600;color:var(--ink);font-size:13.5px">' + (esc(t.title) || (t.qty + ' PCS')) + '</span>' + (t.tag ? '<span style="background:' + bc + ';color:#fff;font-size:9.5px;font-weight:700;border-radius:4px;padding:2px 6px;white-space:nowrap">' + esc(t.tag) + '</span>' : '') + '</div>' + (t.subtitle ? '<div class="muted" style="font-size:11.5px">' + esc(t.subtitle) + '</div>' : '') + '</div></div>' +
@@ -809,52 +932,6 @@
     root.querySelectorAll('[data-wtog]').forEach((t) => t.onclick = () => { const k = t.getAttribute('data-wtog'); WID[k] = !WID[k]; renderStorefront(); });
   }
 
-  // ================= SETTINGS (app-level) =================
-  function renderSettings() {
-    const s = D.settings;
-    const finalOpt = [['pause', 'Pause the subscription'], ['cancel', 'Cancel the subscription']].map((o) => '<option value="' + o[0] + '"' + (s.dunning.finalAction === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('');
-    root.innerHTML =
-      '<div style="width:860px;max-width:100%;margin:0 auto">' +
-        '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Settings</h1><button class="btn btn-primary" data-act="save-settings">Save</button></div>' +
-        card('Billing gateway', '<div class="info-banner" style="font-size:12.5px;line-height:1.5">Recurring charges go through the payment provider connected in <b>Settings → Payments</b> — it auto-charges each renewal on schedule. No separate setup needed here.</div>') +
-        card('Failed payments (dunning)',
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
-            '<div>' + label('Retry attempts') + '<input class="input" id="set-retries" type="number" min="0" max="10" value="' + s.dunning.retries + '" /></div>' +
-            '<div>' + label('Days between retries') + '<input class="input" id="set-interval" type="number" min="1" value="' + s.dunning.intervalDays + '" /></div>' +
-            '<div style="grid-column:1/-1">' + label('After the last failed attempt') + '<select class="input" id="set-final">' + finalOpt + '</select></div>' +
-          '</div>') +
-        card('Customer portal',
-          chk('set-portal', s.portal.enabled, 'Let customers manage their own subscriptions', false, 'Gives subscribers a self-service portal (opened from their account or an email link) to change their subscription without emailing you. Turn on the specific actions you allow below.') +
-          '<div style="border-top:1px solid var(--hair);margin-top:8px;padding-top:6px">' +
-            chk('set-pause', s.portal.allowPause, 'Pause / resume', !s.portal.enabled, 'Temporarily stop billing and deliveries, then resume later — keeps the subscription alive instead of cancelling.') +
-            chk('set-skip', s.portal.allowSkip, 'Skip a delivery', !s.portal.enabled, 'Skip the next charge and shipment (e.g. still stocked up). The normal schedule continues after.') +
-            chk('set-swap', s.portal.allowSwap, 'Swap products', !s.portal.enabled, 'Switch to a different product or variant on the same plan — e.g. change flavor, scent or size.') +
-            chk('set-resch', s.portal.allowReschedule, 'Reschedule next charge', !s.portal.enabled, 'Move the next billing / delivery date earlier or later to fit the customer’s timing.') +
-            chk('set-cancel', s.portal.allowCancel, 'Cancel', !s.portal.enabled, 'End the subscription themselves. If off, customers must contact you to cancel (useful with minimum-cycle commitments).') +
-          '</div>') +
-        card('Notifications',
-          chk('set-n-up', s.notifications.upcomingCharge, 'Upcoming charge reminder') +
-          '<div style="margin:2px 0 10px 26px">' + label('Days before charge') + '<input class="input" id="set-n-days" type="number" min="1" value="' + s.notifications.upcomingChargeDays + '" style="width:120px" /></div>' +
-          chk('set-n-fail', s.notifications.paymentFailed, 'Payment failed') +
-          chk('set-n-cancel', s.notifications.cancelled, 'Subscription cancelled')) +
-      '</div>';
-    wireSettings(s);
-  }
-  function wireSettings(s) {
-    const bindN = (id, fn) => { const e = root.querySelector(id); if (e) e.oninput = () => fn(e.value); };
-    bindN('#set-retries', (v) => s.dunning.retries = Number(v) || 0);
-    bindN('#set-interval', (v) => s.dunning.intervalDays = Number(v) || 1);
-    const fin = root.querySelector('#set-final'); if (fin) fin.onchange = () => s.dunning.finalAction = fin.value;
-    const port = root.querySelector('#set-portal'); if (port) port.onchange = () => { s.portal.enabled = port.checked; renderSettings(); };
-    const map = { 'set-pause': 'allowPause', 'set-skip': 'allowSkip', 'set-swap': 'allowSwap', 'set-resch': 'allowReschedule', 'set-cancel': 'allowCancel' };
-    Object.keys(map).forEach((id) => { const e = root.querySelector('#' + id); if (e) e.onchange = () => s.portal[map[id]] = e.checked; });
-    const nb = (id, key) => { const e = root.querySelector(id); if (e) e.onchange = () => s.notifications[key] = e.checked; };
-    nb('#set-n-up', 'upcomingCharge'); nb('#set-n-fail', 'paymentFailed'); nb('#set-n-cancel', 'cancelled');
-    bindN('#set-n-days', (v) => s.notifications.upcomingChargeDays = Number(v) || 1);
-    const save = root.querySelector('[data-act="save-settings"]'); if (save) save.onclick = () => toast('Settings saved');
-    if (window.UI) window.UI.scan(root);
-  }
-
   // ================= ROUTER =================
   function route(rest) {
     disposeChart();
@@ -863,7 +940,7 @@
     const id = parts[1];
     if (page === 'plans') return id != null ? renderPlanDetail(id) : renderPlans();
     if (page === 'contracts') return id != null ? renderContractDetail(id) : renderContracts();
-    if (page === 'settings') return renderSettings();
+    if (page === 'settings') return renderOverview();   // Settings folded into Overview (dunning) — keep alias for old links
     return renderOverview();
   }
 

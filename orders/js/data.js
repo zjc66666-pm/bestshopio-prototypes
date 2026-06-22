@@ -46,6 +46,39 @@
   // order_status drives the OrderStatusCell pill + derived fulfillment. order_type:
   // 0 = standard shipping order, 1/2 = pickup/verify order (drives Verify action).
   const ORDERS = [
+    // --- Subscription / Bundle sample orders (Subscriptions + Bundles integration) ---
+    // sub = recurring/initial order tied to a contract (list shows "Subscription · cycle N" tag -> jumps to the contract).
+    // bundle = order containing a bundle (list shows "Bundle" tag; detail groups the bundle's SKUs).
+    {
+      order_id: 5045, order_sn: 'SILIX1056-R3', create_time: '2026-06-19 06:00', order_type: 0,
+      user: { nickname: 'Liam Smith', uid: 80452 },
+      shipping: { name: 'Liam Smith', first_name: 'Liam', last_name: 'Smith',
+        detail: '9 Oak Ave', detail2: '', city: 'Denver', province: 'CO', post_code: '80202',
+        country: 'United States', phone_code: '1', phone: '720 555 0133', email: 'liam.s@example.com' },
+      total: 32.00, order_status: 'shipped', payment_status: 'paid', payment_method: 'PayPal',
+      pay_time: '2026-06-19 06:00', delivery_time: '2026-06-20 11:00',
+      sub: { id: 'SUB-20452', cycle: 3, next: '2026-07-19' },
+    },
+    {
+      order_id: 5044, order_sn: 'SILIX1057', create_time: '2026-06-18 10:30', order_type: 0,
+      user: { nickname: 'Mia Anderson', uid: 80460 },
+      shipping: { name: 'Mia Anderson', first_name: 'Mia', last_name: 'Anderson',
+        detail: '19 Willow Ct', detail2: '', city: 'San Diego', province: 'CA', post_code: '92101',
+        country: 'United States', phone_code: '1', phone: '619 555 0177', email: 'mia.a@example.com' },
+      total: 41.99, order_status: 'to_ship', payment_status: 'paid', payment_method: 'Stripe Card',
+      pay_time: '2026-06-18 10:31', delivery_time: null,
+      sub: { id: 'SUB-20460', cycle: 1, next: '2026-06-23' },
+    },
+    {
+      order_id: 5043, order_sn: 'SILIX1058', create_time: '2026-06-17 15:12', order_type: 0,
+      user: { nickname: 'Jordan Park', uid: 80588 },
+      shipping: { name: 'Jordan Park', first_name: 'Jordan', last_name: 'Park',
+        detail: '300 Spear St', detail2: 'Apt 12', city: 'San Francisco', province: 'CA', post_code: '94105',
+        country: 'United States', phone_code: '1', phone: '415 555 0150', email: 'jordan.park@example.com' },
+      total: 49.30, order_status: 'shipped', payment_status: 'paid', payment_method: 'PayPal',
+      pay_time: '2026-06-17 15:13', delivery_time: '2026-06-18 09:30',
+      bundle: { id: 'BND-01', name: 'Focus Gum — Multipack' },
+    },
     {
       order_id: 5042, order_sn: 'SILIX1042', create_time: '2026-06-04 14:22', order_type: 0,
       user: { nickname: 'Emma Whitfield', uid: 81245 },
@@ -193,6 +226,86 @@
       '<text x="22" y="27" font-family="Inter,Arial" font-size="13" font-weight="600" fill="' + fg + '" text-anchor="middle">' + t + '</text></svg>');
 
   const DETAILS = {
+    // Subscription renewal order (cycle 3 of contract SUB-20452) — single recurring product.
+    5045: {
+      order_id: 5045, order_sn: 'SILIX1056-R3', status: 'shipped', paid: 1, order_type: 0,
+      payment_status: 'paid', verify_code: '',
+      create_time: '2026-06-19 06:00', pay_time: '2026-06-19 06:00',
+      payment_method: 'PayPal', delivery_name: 'USPS', delivery_id: 'US9341005512',
+      user: { nickname: 'Liam Smith', uid: 80452 },
+      shipping: { first_name: 'Liam', last_name: 'Smith', detail: '9 Oak Ave', detail2: '',
+        city: 'Denver', province: 'CO', post_code: '80202', country: 'United States',
+        phone_code: '1', phone: '720 555 0133', email: 'liam.s@example.com' },
+      note: '',
+      sub: { id: 'SUB-20452', cycle: 3, next: '2026-07-19' },
+      total_num: 1, subtotal: 32.00, shipping_fee: 0.00, total: 32.00, paid_amount: 32.00,
+      order_discounts: [], shipping_discounts: [], total_savings: 0,
+      items: [
+        { title: 'Daily Multivitamin (60 ct)', sku: '60 ct', image: IMG('#eafaf0', '#1f8f4e', 'V'),
+          unit_price: 32.00, qty: 1, line_total: 32.00, product_price: 32.00, discounts: [],
+          subLine: true, subLabel: 'monthly' },
+      ],
+      timeline: [
+        { label: 'Recurring charge captured · PayPal', time: '2026-06-19 06:00' },
+        { label: 'Order created from SUB-20452 (cycle 3)', time: '2026-06-19 06:00' },
+        { label: 'Shipped · USPS', time: '2026-06-20 11:00' },
+      ],
+    },
+    // Mixed initial order — a one-time item + the first cycle of a new subscription (SUB-20460).
+    5044: {
+      order_id: 5044, order_sn: 'SILIX1057', status: 'to_ship', paid: 1, order_type: 0,
+      payment_status: 'paid', verify_code: '',
+      create_time: '2026-06-18 10:30', pay_time: '2026-06-18 10:31',
+      payment_method: 'Stripe Card', delivery_name: '', delivery_id: '',
+      user: { nickname: 'Mia Anderson', uid: 80460 },
+      shipping: { first_name: 'Mia', last_name: 'Anderson', detail: '19 Willow Ct', detail2: '',
+        city: 'San Diego', province: 'CA', post_code: '92101', country: 'United States',
+        phone_code: '1', phone: '619 555 0177', email: 'mia.a@example.com' },
+      note: 'First subscription order — also includes a one-time mug.',
+      sub: { id: 'SUB-20460', cycle: 1, next: '2026-06-23' },
+      total_num: 2, subtotal: 41.99, shipping_fee: 0.00, total: 41.99, paid_amount: 41.99,
+      order_discounts: [], shipping_discounts: [], total_savings: 0,
+      items: [
+        { title: 'Signature Blend Coffee 500g', sku: 'Whole bean', image: IMG('#f3ece1', '#7a5c3a', 'C'),
+          unit_price: 24.00, qty: 1, line_total: 24.00, product_price: 24.00, discounts: [],
+          subLine: true, subLabel: 'monthly · cycle 1' },
+        { title: 'Ceramic Pour-Over Mug', sku: 'Stone / 12oz', image: IMG('#eef0f4', '#525a6b', 'M'),
+          unit_price: 17.99, qty: 1, line_total: 17.99, product_price: 17.99, discounts: [] },
+      ],
+      timeline: [
+        { label: 'Order placed', time: '2026-06-18 10:30' },
+        { label: 'Payment captured · Stripe Card', time: '2026-06-18 10:31' },
+        { label: 'Subscription SUB-20460 started (Signature Blend Coffee)', time: '2026-06-18 10:31' },
+      ],
+    },
+    // Bundle order — the bundle's component SKUs (+ a gift) are grouped under one bundle block.
+    5043: {
+      order_id: 5043, order_sn: 'SILIX1058', status: 'shipped', paid: 1, order_type: 0,
+      payment_status: 'paid', verify_code: '',
+      create_time: '2026-06-17 15:12', pay_time: '2026-06-17 15:13',
+      payment_method: 'PayPal', delivery_name: 'FedEx', delivery_id: 'FX882001774521',
+      user: { nickname: 'Jordan Park', uid: 80588 },
+      shipping: { first_name: 'Jordan', last_name: 'Park', detail: '300 Spear St', detail2: 'Apt 12',
+        city: 'San Francisco', province: 'CA', post_code: '94105', country: 'United States',
+        phone_code: '1', phone: '415 555 0150', email: 'jordan.park@example.com' },
+      note: '',
+      bundle: { id: 'BND-01', name: 'Focus Gum — Multipack' },
+      total_num: 3, subtotal: 49.30, shipping_fee: 0.00, total: 49.30, paid_amount: 49.30,
+      order_discounts: [], shipping_discounts: [], total_savings: 48.70,
+      items: [
+        { title: 'Neurix Focus & Energy Gum', sku: '2 PCS · 60-piece', image: IMG('#eaf3ff', '#1d4ed8', 'N'),
+          unit_price: 24.65, qty: 2, line_total: 49.30, product_price: 49.30, discounts: [],
+          bundle: 'Focus Gum — Multipack' },
+        { title: 'Focus E-Book', sku: 'Digital download', image: IMG('#f3eaff', '#7a3ad6', 'E'),
+          unit_price: 0, qty: 1, line_total: 0, product_price: 0, discounts: [],
+          bundle: 'Focus Gum — Multipack', gift: true },
+      ],
+      timeline: [
+        { label: 'Order placed', time: '2026-06-17 15:12' },
+        { label: 'Payment captured · PayPal', time: '2026-06-17 15:13' },
+        { label: 'Shipped · FedEx', time: '2026-06-18 09:30' },
+      ],
+    },
     5042: {
       order_id: 5042, order_sn: 'SILIX1042', status: 'to_ship', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',

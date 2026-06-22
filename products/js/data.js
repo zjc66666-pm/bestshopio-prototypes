@@ -133,7 +133,10 @@
       is_show: 1, is_del: 0, spec_type: 1 },
     { product_id: 50415, store_name: 'Lightweight Racerback Sports Bra', image: IMG.bra, cate_id: 13,
       price_min: 22.0, price_max: 26.0, on_sale_stock: 47, variant_count: 10, inventory_status: 2,
-      is_show: 1, is_del: 0, spec_type: 1 },
+      is_show: 1, is_del: 0, spec_type: 1,
+      // po = cross-module purchase-option links (read-only on the detail's "Purchase options" card + list tags).
+      // subscription.via = the bundle whose Subscribe & Save plan includes this product. planId -> #/subscriptions/plans/:id ; bundles[].id -> #/bundles/edit/:id
+      po: { subscription: { planId: 'PL-1008', save: 'Save 15%', via: 'Complete Wellness Set' }, bundles: [{ id: 'BND-03', name: 'Complete Wellness Set' }] } },
     { product_id: 50414, store_name: 'Tummy-Control Shaping Bodysuit', image: IMG.bodysuit, cate_id: 22,
       price_min: 45.0, price_max: 52.0, on_sale_stock: 0, variant_count: 9, inventory_status: 1,
       is_show: 0, is_del: 0, spec_type: 1 },
@@ -142,7 +145,8 @@
       is_show: 1, is_del: 0, spec_type: 0 },
     { product_id: 50412, store_name: 'Classic High-Waist Yoga Leggings', image: IMG.waist, cate_id: 12,
       price_min: 34.0, price_max: 34.0, on_sale_stock: 760, variant_count: 12, inventory_status: 0,
-      is_show: 1, is_del: 0, spec_type: 1 },
+      is_show: 1, is_del: 0, spec_type: 1,
+      po: { subscription: { planId: 'PL-1008', save: 'Save 15%', via: 'Complete Wellness Set' }, bundles: [{ id: 'BND-03', name: 'Complete Wellness Set' }, { id: 'BND-04', name: 'Yoga Outfit — Top + Legging' }] } },
     { product_id: 50411, store_name: 'Seamless Ribbed Tank Top', image: IMG.tank, cate_id: 11,
       price_min: 19.0, price_max: 19.0, on_sale_stock: 88, variant_count: 7, inventory_status: 0,
       is_show: 1, is_del: 0, spec_type: 1 },

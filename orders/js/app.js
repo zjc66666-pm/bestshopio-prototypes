@@ -203,11 +203,21 @@
     wireList();
   }
 
+  // Inline source tags under the order number (Subscriptions / Bundles awareness).
+  // Subscription tag jumps to its contract; bundle tag is a passive marker.
+  function orderTags(o) {
+    const tag = (txt, bg, fg, attr) => '<span ' + (attr || '') + ' style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + '">' + txt + '</span>';
+    let out = '';
+    if (o.sub) out += tag('Subscription · cycle ' + o.sub.cycle, '#e6f0ff', '#1d6fe0', 'class="ord-sub-tag" data-sub="' + esc(o.sub.id) + '" title="View contract" style="cursor:pointer"');
+    if (o.bundle) out += tag('Bundle', '#eef0f4', '#525a6b');
+    return out ? '<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;font-weight:400">' + out + '</div>' : '';
+  }
+
   function rowHtml(o) {
     const ful = deriveFulfillment(o.order_status);
     return '<tr data-id="' + o.order_id + '">' +
       '<td style="text-align:center"><input type="checkbox" class="ord-check" data-id="' + o.order_id + '" /></td>' +
-      '<td style="font-weight:600;color:var(--brand)">' + esc(o.order_sn) + '</td>' +
+      '<td style="font-weight:600;color:var(--brand)">' + esc(o.order_sn) + orderTags(o) + '</td>' +
       '<td class="muted">' + esc(o.create_time) + '</td>' +
       '<td>' + esc(o.user.nickname) + '</td>' +
       // shipping address: name + chevron, click opens full-address popover (table.tsx Popover)
@@ -276,9 +286,11 @@
     root.querySelectorAll('.pg-item[data-page]').forEach((el) => el.onclick = () => { LST.page = Number(el.getAttribute('data-page')); renderList(); });
     // row click -> detail (but not when clicking checkbox / ship popover / view button)
     root.querySelectorAll('#ord-tbody tr[data-id]').forEach((tr) => tr.onclick = (e) => {
-      if (e.target.closest('.ord-check') || e.target.closest('.ship-cell') || e.target.closest('[data-view]')) return;
+      if (e.target.closest('.ord-check') || e.target.closest('.ship-cell') || e.target.closest('[data-view]') || e.target.closest('.ord-sub-tag')) return;
       goDetail(tr.getAttribute('data-id'));
     });
+    // subscription tag -> jump to the contract in the Subscriptions app
+    root.querySelectorAll('.ord-sub-tag').forEach((t) => t.onclick = (e) => { e.stopPropagation(); location.hash = '#/subscriptions/contracts/' + t.getAttribute('data-sub'); });
     root.querySelectorAll('[data-view]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); goDetail(b.getAttribute('data-view')); });
     // shipping-address popover
     root.querySelectorAll('.ship-cell').forEach((c) => c.onclick = (e) => { e.stopPropagation(); openShipPopover(c, c.getAttribute('data-ship')); });
@@ -407,31 +419,73 @@
 
   // ---- Products card: flat ant List (ProductsCard.tsx) — title + SKU + discount tags ----
   function productsCard(o, fulfillment) {
-    const items = (o.items || []).map((it, i, arr) => {
-      const hasDisc = (it.discounts || []).length > 0;
-      const disc = (it.discounts || []).map((d) =>
-        '<div class="flex items-center gap-1 mt-1" style="font-size:12px;color:#8B8B8B">' + I.tag +
-        '<span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></div>').join('');
-      // grid: [1fr 140px 80px] — left product, middle unit×qty, right line price (after disc) + struck original
-      return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 140px 80px;gap:16px;align-items:flex-start;padding:14px 0' +
-          (i < arr.length - 1 ? ';border-bottom:1px solid var(--hair)' : '') + '">' +
+    const items = o.items || [];
+    const blocks = []; let buf = [];
+    const flush = () => { if (buf.length) { blocks.push('<div style="border:1px solid var(--hair);border-radius:10px;padding:0 16px">' + buf.join('') + '</div>'); buf = []; } };
+    let i = 0;
+    while (i < items.length) {
+      if (items[i].bundle) {   // group a consecutive run of the same bundle's components into one block
+        flush();
+        const name = items[i].bundle; const grp = [];
+        while (i < items.length && items[i].bundle === name) { grp.push(items[i]); i++; }
+        blocks.push(bundleGroupHtml(name, grp));
+      } else { buf.push(itemRowHtml(items[i], buf.length > 0)); i++; }
+    }
+    flush();
+    const subStrip = o.sub ? subOrderStrip(o.sub) : '';
+    return cardOpen('<span>Product</span>' + pill(FULFILL_STATUS, fulfillment)) + subStrip + blocks.join('<div style="height:12px"></div>') + '</div>';
+  }
+  // One product line row — adds a per-line "Subscription" badge for recurring lines.
+  function itemRowHtml(it, topBorder) {
+    const hasDisc = (it.discounts || []).length > 0;
+    const disc = (it.discounts || []).map((d) =>
+      '<div class="flex items-center gap-1 mt-1" style="font-size:12px;color:#8B8B8B">' + I.tag +
+      '<span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></div>').join('');
+    const subBadge = it.subLine ? '<div style="margin-top:3px"><span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;background:#e6f0ff;color:#1d6fe0;border-radius:4px;padding:2px 6px">Subscription' + (it.subLabel ? ' · ' + esc(it.subLabel) : '') + '</span></div>' : '';
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 140px 80px;gap:16px;align-items:flex-start;padding:14px 0' +
+        (topBorder ? ';border-top:1px solid var(--hair)' : '') + '">' +
+      '<div class="flex items-center gap-3" style="min-width:0">' +
+        '<img src="' + it.image + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />' +
+        '<div style="min-width:0">' +
+          '<div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(it.title) + '</div>' +
+          '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div>' +
+          subBadge + disc +
+        '</div>' +
+      '</div>' +
+      '<div class="muted" style="font-size:13px">' + money(it.unit_price) + ' x ' + it.qty + '</div>' +
+      '<div style="font-size:13px;font-weight:500;color:var(--ink-body)">' +
+        '<div>' + money(it.product_price) + '</div>' +
+        (hasDisc ? '<div class="muted" style="text-decoration:line-through">' + money(it.line_total) + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+  // Recurring-order strip at the top of the Product card — links back to the contract.
+  function subOrderStrip(sub) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:10px 12px;background:#eef4ff;border:1px solid #d6e4ff;border-radius:8px;margin-bottom:12px;font-size:12.5px">' +
+      '<span style="color:#1d4ed8"><b>Recurring order</b> · from ' + esc(sub.id) + ' · cycle ' + sub.cycle + (sub.next ? ' · next charge ' + esc(sub.next) : '') + '</span>' +
+      '<a href="#/subscriptions/contracts/' + esc(sub.id) + '" style="color:#1d4ed8;font-weight:600;white-space:nowrap;text-decoration:none">View contract →</a>' +
+    '</div>';
+  }
+  // Bundle group block — component SKUs (+ gifts) under one header with a subtotal.
+  function bundleGroupHtml(name, group) {
+    const sub = group.reduce((s, it) => s + (Number(it.line_total) || 0), 0);
+    const rows = group.map((it, gi) =>
+      '<div style="display:grid;grid-template-columns:minmax(0,1fr) 90px 70px;gap:12px;align-items:center;padding:9px 0' + (gi > 0 ? ';border-top:1px solid var(--hair)' : '') + '">' +
         '<div class="flex items-center gap-3" style="min-width:0">' +
-          '<img src="' + it.image + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />' +
-          '<div style="min-width:0">' +
-            '<div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(it.title) + '</div>' +
-            '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div>' +
-            disc +
-          '</div>' +
+          '<img src="' + it.image + '" alt="" style="width:34px;height:34px;border-radius:6px;flex:none" />' +
+          '<div style="min-width:0"><div style="font-weight:500;font-size:13px;color:var(--ink)">' + esc(it.title) + (it.gift ? ' <span style="color:#1f8f4e;font-size:10.5px;font-weight:700">FREE GIFT</span>' : '') + '</div>' +
+            '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div></div>' +
         '</div>' +
-        '<div class="muted" style="font-size:13px">' + money(it.unit_price) + ' x ' + it.qty + '</div>' +
-        '<div style="font-size:13px;font-weight:500;color:var(--ink-body)">' +
-          '<div>' + money(it.product_price) + '</div>' +
-          (hasDisc ? '<div class="muted" style="text-decoration:line-through">' + money(it.line_total) + '</div>' : '') +
-        '</div>' +
-      '</div>';
-    }).join('');
-    const inner = '<div style="border:1px solid var(--hair);border-radius:10px;padding:0 16px">' + items + '</div>';
-    return cardOpen('<span>Product</span>' + pill(FULFILL_STATUS, fulfillment)) + inner + '</div>';
+        '<div class="muted" style="font-size:13px">x ' + it.qty + '</div>' +
+        '<div style="font-size:13px;font-weight:500;color:var(--ink-body)">' + (it.gift ? '<span style="color:#1f8f4e">Free</span>' : money(it.product_price)) + '</div>' +
+      '</div>').join('');
+    return '<div style="border:1.5px solid #d6e4ff;border-radius:10px;overflow:hidden">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:#eef4ff">' +
+        '<span style="font-weight:600;font-size:13px;color:#1d4ed8">' + esc(name) + ' <span style="font-weight:700;font-size:10px;background:#dbe7ff;color:#1d4ed8;border-radius:4px;padding:2px 6px;margin-left:4px;letter-spacing:.03em">BUNDLE</span></span>' +
+        '<span style="font-weight:700;font-size:13.5px;color:var(--ink)">' + money(sub) + '</span>' +
+      '</div>' +
+      '<div style="padding:2px 14px 8px">' + rows + '</div>' +
+    '</div>';
   }
 
   // ---- Amount card (AmountCard.tsx): subtotal / order discounts / shipping / total / savings / paid ----

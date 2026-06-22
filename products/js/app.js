@@ -235,6 +235,16 @@
     wireList();
   }
 
+  // Cross-module purchase-option tags shown under the product name (subscription / bundle awareness).
+  function poTags(p) {
+    if (!p.po) return '';
+    const tag = (txt, bg, fg) => '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + '">' + txt + '</span>';
+    let out = '';
+    if (p.po.subscription) out += tag('Subscription', '#e6f0ff', '#1d6fe0');
+    if (p.po.bundles && p.po.bundles.length) out += tag('Bundle', '#eef0f4', '#525a6b');
+    return out ? '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">' + out + '</div>' : '';
+  }
+
   function rowHtml(p) {
     const st = statusOf(p);
     const checked = LST.sel[p.product_id] ? 'checked' : '';
@@ -245,7 +255,7 @@
       '<td data-stop><input type="checkbox" class="row-sel" data-id="' + p.product_id + '" ' + checked + ' style="width:15px;height:15px;accent-color:var(--brand);cursor:pointer" /></td>' +
       '<td><div class="flex items-center gap-3">' +
         '<img src="' + p.image + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none;object-fit:cover;background:#f3f4f6" />' +
-        '<span style="font-weight:500;color:var(--ink)">' + esc(p.store_name) + '</span>' +
+        '<div style="min-width:0"><span style="font-weight:500;color:var(--ink)">' + esc(p.store_name) + '</span>' + poTags(p) + '</div>' +
       '</div></td>' +
       '<td style="font-variant-numeric:tabular-nums;color:var(--ink)">' + priceText(p) + '</td>' +
       '<td>' + inventoryCell(p) + '</td>' +
@@ -524,7 +534,29 @@
       footerHtml(isEdit);
   }
   function sideHtml(isEdit) {
-    return secSettings(isEdit) + secSeo() + (isEdit ? secTemplate() : '');
+    return secSettings(isEdit) + secPurchaseOptions() + secSeo() + (isEdit ? secTemplate() : '');
+  }
+
+  // Read-only "Purchase options" card — surfaces how this product is sold beyond a one-time purchase
+  // (Subscribe & Save plan / bundle membership), with jump links into the Subscriptions + Bundles apps.
+  function secPurchaseOptions() {
+    const p = D.PRODUCTS.find((x) => String(x.product_id) === String(EDIT_ID));
+    if (!p || !p.po) return '';
+    const po = p.po;
+    const row = (href, title, sub) =>
+      '<a href="' + href + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--hair);text-decoration:none;color:inherit">' +
+        '<span style="min-width:0"><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(title) + '</span>' +
+          (sub ? '<span class="muted" style="font-size:12px">' + esc(sub) + '</span>' : '') + '</span>' +
+        '<span style="flex:none;color:var(--muted);font-size:16px">›</span>' +
+      '</a>';
+    let rows = '';
+    if (po.subscription) {
+      const sub = [po.subscription.save, po.subscription.via ? 'via ' + po.subscription.via : ''].filter(Boolean).join(' · ');
+      rows += row('#/subscriptions/plans/' + po.subscription.planId, 'Subscribe & Save', sub);
+    }
+    (po.bundles || []).forEach((b) => { rows += row('#/bundles/edit/' + b.id, b.name, 'Bundle'); });
+    const intro = '<div class="muted" style="font-size:12px;line-height:1.5;margin-bottom:2px">How customers can buy this beyond a one-time purchase.</div>';
+    return card('Purchase options', intro + rows, null, true);
   }
 
   // footer actions (edit.tsx 264-293)
@@ -1035,7 +1067,7 @@
 
     // footer + bar actions. Save commits the current state as the new origin (edit.tsx reloads
     // the product detail after saving, which makes hasUnsavedChanges false again).
-    const doSave = () => { ORIGIN = snapshot(); DIRTY = false; syncUnsavedBar(); toast(isEdit ? 'Product updated' : 'Product added'); };
+    const doSave = () => { ORIGIN = snapshot(); DIRTY = false; syncUnsavedBar(); toast(isEdit ? 'Product updated successfully' : 'Product created successfully'); };
     const sb = q('[data-act="save"]'); if (sb) sb.onclick = doSave;
     const sbar = q('[data-act="save-bar"]'); if (sbar) sbar.onclick = doSave;
     const disc = q('[data-act="discard"]'); if (disc) disc.onclick = () => modal({
