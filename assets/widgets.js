@@ -271,5 +271,232 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  window.UI = { scan: scan, closePop: closePop, unsavedBar: unsavedBar, setUnsavedBar: setUnsavedBar };
+  // ---------- shared product picker (one implementation for collections / bundles / subscriptions) ----------
+  // opts: { multiple:true, selected:[names], max:100, onConfirm:function(products){} }
+  // products passed to onConfirm are the full picked rows ({name, sku, price, ...}).
+  // variants: number of SKUs (1 = single-variant). priceMax > price = a price range. partial = some variants out of stock.
+  var PP_PRODUCTS = [
+    { name: 'Neurix Focus & Energy Gum', sku: 'GUM-FE',  price: 34.99, priceMax: 39.99, variants: 4, inv: 1240, status: 'active', cat: 'supplements' },
+    { name: 'Peppermint Gum',            sku: 'GUM-PEP', price: 12.00, variants: 1, inv: 860,  status: 'active', cat: 'supplements' },
+    { name: 'Spearmint Gum',             sku: 'GUM-SPE', price: 12.00, variants: 1, inv: 540,  status: 'active', cat: 'supplements' },
+    { name: 'Watermelon Gum',            sku: 'GUM-WAT', price: 12.00, variants: 3, inv: 0,    status: 'active', cat: 'supplements' },
+    { name: 'Ginger Gum',                sku: 'GUM-GIN', price: 12.00, variants: 1, inv: 120,  status: 'draft',  cat: 'supplements' },
+    { name: 'Energy Drink Mix',          sku: 'DRK-ENE', price: 29.00, priceMax: 34.00, variants: 5, inv: 430,  status: 'active', cat: 'beverages' },
+    { name: 'Focus Capsules',            sku: 'CAP-FOC', price: 39.00, priceMax: 45.00, variants: 2, inv: 210,  status: 'active', cat: 'supplements' },
+    { name: 'Sleep Gummies',             sku: 'GUM-SLP', price: 24.00, priceMax: 28.00, variants: 3, inv: 780,  status: 'active', cat: 'supplements' },
+    { name: 'Greens Powder',             sku: 'PWD-GRN', price: 35.00, variants: 1, inv: 90,   status: 'active', cat: 'beverages' },
+    { name: 'Signature Blend Coffee',    sku: 'COF-500', price: 24.00, priceMax: 30.00, variants: 4, inv: 1500, status: 'active', cat: 'beverages', partial: true },
+    { name: 'Cold Brew Concentrate',     sku: 'COF-CB',  price: 28.00, priceMax: 32.00, variants: 2, inv: 340,  status: 'active', cat: 'beverages' },
+    { name: 'Shaker Bottle',             sku: 'ACC-SHK', price: 9.99,  variants: 1, inv: 2000, status: 'active', cat: 'accessories' },
+  ];
+  var PP_IMGS = ['https://silixwear.com/cdn/shop/files/Dark-GRAY.jpg?v=1776154216&width=120', 'https://silixwear.com/cdn/shop/files/01_cf6e37ef-a0ab-4c82-ac61-c30d06d3111e.jpg?width=120', 'https://silixwear.com/cdn/shop/files/01_50091071-d25f-4060-9fce-acd28e12ce10.jpg?width=120', 'https://silixwear.com/cdn/shop/files/7_3bd5ccd0-0637-4559-b7be-1cd8196b15d4.jpg?width=120'];
+  PP_PRODUCTS.forEach(function (p, i) { p.image = PP_IMGS[i % PP_IMGS.length]; });
+  var PP_CATS = [{ value: 'supplements', label: 'Supplements' }, { value: 'beverages', label: 'Beverages' }, { value: 'accessories', label: 'Accessories' }];
+  var PP_FIELDS = [{ value: 'name', label: 'Product name' }, { value: 'sku', label: 'SKU' }];
+  var PP_STATUS = [['active', 'Active'], ['draft', 'Draft']];
+  var SRCH_ICO = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
+  var X_ICO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+  function ppMoney(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: (n % 1 ? 2 : 0), maximumFractionDigits: 2 }); }
+  function ppInventory(p) {
+    var txt = (p.inv || 0) + ' on sale' + (p.variants > 1 ? ' · ' + p.variants + ' variants' : '');
+    var badge = (!p.inv) ? 'Out of stock' : (p.partial ? 'Partial - Out of stock' : '');
+    return txt + (badge ? ' <span style="color:#c2620f;background:#fff2e6;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600;white-space:nowrap">' + badge + '</span>' : '');
+  }
+  function ppPrice(p) { return (p.priceMax && p.priceMax > p.price) ? ppMoney(p.price) + ' ~ ' + ppMoney(p.priceMax) : ppMoney(p.price); }
+
+  function productPicker(opts) {
+    opts = opts || {};
+    var multiple = opts.multiple !== false;
+    var max = opts.max || 100;
+    var onConfirm = opts.onConfirm || function () {};
+    var st = { field: 'name', kw: '', kwApplied: '', cat: '', priceMin: '', priceMax: '', priceApplied: false, status: [], page: 1, size: 8, sel: new Set(opts.selected || []) };
+    var backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
+    var m = document.createElement('div'); m.className = 'modal'; m.style.width = '960px'; m.style.maxWidth = '94vw';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    var close = function () { closePop(); backdrop.remove(); };
+    backdrop.addEventListener('mousedown', function (e) { if (e.target === backdrop) close(); });
+
+    function filtered() {
+      var rows = PP_PRODUCTS.slice();
+      if (st.kwApplied) { var q = st.kwApplied.toLowerCase(); rows = rows.filter(function (p) { return (st.field === 'sku' ? p.sku : p.name).toLowerCase().indexOf(q) >= 0; }); }
+      if (st.cat) rows = rows.filter(function (p) { return p.cat === st.cat; });
+      if (st.priceApplied) { var lo = st.priceMin !== '' ? Number(st.priceMin) : -Infinity, hi = st.priceMax !== '' ? Number(st.priceMax) : Infinity; rows = rows.filter(function (p) { var pmax = p.priceMax != null ? p.priceMax : p.price; return pmax >= lo && p.price <= hi; }); }
+      if (st.status.length) rows = rows.filter(function (p) { return st.status.indexOf(p.status) >= 0; });
+      return rows;
+    }
+    function statusTxt() { return st.status.length === 1 ? (PP_STATUS.filter(function (s) { return s[0] === st.status[0]; })[0][1]) : (st.status.length > 1 ? st.status.length + ' selected' : 'Status'); }
+    function priceTxt() { var mn = st.priceMin !== '' ? ppMoney(st.priceMin) : 'Min', mx = st.priceMax !== '' ? ppMoney(st.priceMax) : 'Max'; return mn + ' - ' + mx; }
+    function tagList() {
+      var t = [];
+      if (st.cat) t.push(['category', 'Category', (PP_CATS.filter(function (c) { return c.value === st.cat; })[0] || {}).label]);
+      if (st.kwApplied) t.push(['keyword', (PP_FIELDS.filter(function (f) { return f.value === st.field; })[0] || {}).label, st.kwApplied]);
+      if (st.priceApplied) t.push(['price', 'Price range', priceTxt()]);
+      if (st.status.length) t.push(['status', 'Status', st.status.map(function (s) { return s.charAt(0).toUpperCase() + s.slice(1); }).join(', ')]);
+      return t;
+    }
+    function pagerHtml(page, pages) {
+      var item = function (lbl, p, dis, act) { return '<span class="pg-item' + (act ? ' active' : '') + (dis ? ' disabled' : '') + '"' + (dis ? '' : ' data-pg="' + p + '"') + '>' + lbl + '</span>'; };
+      var nums = ''; for (var p = 1; p <= pages; p++) nums += item(String(p), p, false, p === page);
+      return '<div class="pg">' + item('‹', page - 1, page <= 1) + nums + item('›', page + 1, page >= pages) + '</div>';
+    }
+    var IMG = '<span style="width:36px;height:36px;border-radius:6px;background:#e9ecf2;color:#9aa3b2;display:grid;place-items:center;font-size:9px;font-weight:600;flex:none">IMG</span>';
+
+    function paint() {
+      var rows = filtered(); var pages = Math.max(1, Math.ceil(rows.length / st.size));
+      if (st.page > pages) st.page = pages;
+      var pageRows = rows.slice((st.page - 1) * st.size, (st.page - 1) * st.size + st.size);
+      var fieldOpts = PP_FIELDS.map(function (f) { return '<option value="' + f.value + '"' + (st.field === f.value ? ' selected' : '') + '>' + f.label + '</option>'; }).join('');
+      var catOpts = '<option value="">Category</option>' + PP_CATS.map(function (c) { return '<option value="' + c.value + '"' + (st.cat === c.value ? ' selected' : '') + '>' + c.label + '</option>'; }).join('');
+      var tg = tagList();
+      var rowHtml = function (p) {
+        var on = st.sel.has(p.name);
+        return '<tr data-pp="' + escAttr(p.name) + '" style="cursor:pointer">' +
+          '<td style="width:44px"><input type="' + (multiple ? 'checkbox' : 'radio') + '"' + (on ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);pointer-events:none" /></td>' +
+          '<td><div class="flex items-center gap-2"><span style="width:36px;height:36px;border-radius:6px;overflow:hidden;background:#e9ecf2;flex:none;display:inline-block"><img src="' + escAttr(p.image) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.remove()" /></span><span style="color:var(--ink)">' + escAttr(p.name) + '</span></div></td>' +
+          '<td class="muted" style="font-size:13px">' + ppInventory(p) + '</td>' +
+          '<td>' + ppPrice(p) + '</td>' +
+          '<td>' + (p.status === 'active' ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Draft</span>') + '</td>' +
+        '</tr>';
+      };
+      m.innerHTML =
+        '<div class="modal-head flex items-center justify-between"><span>' + (multiple ? 'Add products' : 'Add product') + '</span><span data-x style="cursor:pointer">' + X_ICO + '</span></div>' +
+        '<div class="modal-body">' +
+          '<div class="flex items-center gap-2" style="flex-wrap:wrap">' +
+            '<div class="flex" style="width:340px"><select class="filter-select" id="pp-field" style="width:140px;border-top-right-radius:0;border-bottom-right-radius:0">' + fieldOpts + '</select>' +
+              '<div style="position:relative;flex:1"><input class="filter-input" id="pp-kw" placeholder="Search" value="' + escAttr(st.kw) + '" style="width:100%;padding-right:30px;border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px" /><span style="position:absolute;right:9px;top:9px;color:var(--ink-muted)">' + SRCH_ICO + '</span></div></div>' +
+            '<select class="filter-select" id="pp-cat" style="width:170px">' + catOpts + '</select>' +
+            '<div class="sel-trigger" id="pp-price" style="width:170px"><span class="' + (st.priceApplied ? '' : 'muted') + '">' + (st.priceApplied ? priceTxt() : 'Price range') + '</span>' + CHEV + '</div>' +
+            '<div class="sel-trigger" id="pp-status" style="width:150px"><span class="' + (st.status.length ? '' : 'muted') + '">' + statusTxt() + '</span>' + CHEV + '</div>' +
+          '</div>' +
+          (tg.length ? '<div class="flex gap-2" style="flex-wrap:wrap;margin-top:8px" id="pp-tags">' + tg.map(function (t) { return '<span class="field-pill" data-clear="' + t[0] + '"><span class="muted">' + escAttr(t[1]) + ':</span> ' + escAttr(t[2]) + ' <span class="x">&times;</span></span>'; }).join('') + '</div>' : '') +
+          '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden;margin-top:12px"><div style="max-height:380px;overflow:auto"><table class="tbl"><thead><tr><th style="width:44px"></th><th>Product</th><th style="width:150px">Inventory</th><th style="width:100px">Price</th><th style="width:100px">Status</th></tr></thead><tbody id="pp-tbody">' +
+            (pageRows.length ? pageRows.map(rowHtml).join('') : '<tr><td colspan="5" style="text-align:center;padding:36px" class="muted">No products match these filters.</td></tr>') +
+          '</tbody></table></div></div>' +
+        '</div>' +
+        '<div class="modal-foot flex items-center justify-between"><span class="muted" style="font-size:13px">' + st.sel.size + (multiple ? ' / ' + max : '') + ' selected</span>' +
+          '<div class="flex items-center gap-3">' + pagerHtml(st.page, pages) + '<button class="btn btn-default" data-cancel>Cancel</button><button class="btn btn-primary"' + (st.sel.size === 0 ? ' disabled' : '') + ' data-ok>' + (multiple ? 'Add products' : 'Add product') + '</button></div></div>';
+
+      m.querySelector('[data-x]').onclick = close;
+      m.querySelector('[data-cancel]').onclick = close;
+      var field = m.querySelector('#pp-field'); field.onchange = function () { st.field = field.value; if (st.kw.trim()) st.kwApplied = st.kw.trim(); st.page = 1; paint(); };
+      var kw = m.querySelector('#pp-kw');
+      kw.oninput = function () { st.kw = kw.value; if (!kw.value.trim() && st.kwApplied) { st.kwApplied = ''; st.page = 1; paint(); } };
+      kw.onkeydown = function (e) { if (e.key === 'Enter') { st.kwApplied = st.kw.trim(); st.page = 1; paint(); } };
+      kw.onblur = function () { st.kwApplied = st.kw.trim(); st.page = 1; paint(); };
+      var cat = m.querySelector('#pp-cat'); cat.onchange = function () { st.cat = cat.value; st.page = 1; paint(); };
+      var statusChip = m.querySelector('#pp-status'); statusChip.onclick = function () { openStatusPop(statusChip); };
+      var priceChip = m.querySelector('#pp-price'); if (priceChip) priceChip.onclick = function () { openPricePop(priceChip); };
+      m.querySelectorAll('#pp-tags [data-clear]').forEach(function (tgl) { tgl.onclick = function () { var k = tgl.getAttribute('data-clear'); if (k === 'category') st.cat = ''; if (k === 'keyword') { st.kw = ''; st.kwApplied = ''; } if (k === 'price') { st.priceApplied = false; st.priceMin = ''; st.priceMax = ''; } if (k === 'status') st.status = []; st.page = 1; paint(); }; });
+      m.querySelectorAll('#pp-tbody tr[data-pp]').forEach(function (tr) { tr.onclick = function () { var name = tr.getAttribute('data-pp'); if (multiple) { if (st.sel.has(name)) st.sel.delete(name); else if (st.sel.size < max) st.sel.add(name); } else { st.sel = new Set([name]); } paint(); }; });
+      m.querySelectorAll('.pg-item[data-pg]').forEach(function (el) { el.onclick = function () { st.page = Number(el.getAttribute('data-pg')); paint(); }; });
+      var ok = m.querySelector('[data-ok]'); if (ok) ok.onclick = function () { if (st.sel.size === 0) return; var picked = PP_PRODUCTS.filter(function (p) { return st.sel.has(p.name); }); close(); onConfirm(picked); };
+      if (window.UI && window.UI.scan) window.UI.scan(m);
+    }
+    function openStatusPop(anchor) {
+      var panel = document.createElement('div'); panel.style.minWidth = '150px'; panel.style.padding = '6px';
+      panel.innerHTML = PP_STATUS.map(function (s) { return '<label class="flex items-center gap-2" style="padding:7px 10px;cursor:pointer;border-radius:6px"><input type="checkbox" data-v="' + s[0] + '"' + (st.status.indexOf(s[0]) >= 0 ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand)" /><span style="font-size:13px">' + s[1] + '</span></label>'; }).join('');
+      panel.querySelectorAll('input[data-v]').forEach(function (cb) { cb.onchange = function () { var v = cb.getAttribute('data-v'); if (cb.checked) { if (st.status.indexOf(v) < 0) st.status.push(v); } else st.status = st.status.filter(function (x) { return x !== v; }); st.page = 1; paint(); }; });
+      openPop(anchor, panel);
+    }
+    function openPricePop(anchor) {
+      var panel = document.createElement('div'); panel.style.minWidth = '300px'; panel.style.padding = '14px';
+      panel.innerHTML =
+        '<div class="flex items-center gap-2">' +
+          '<div class="pr-field"><span class="pr-cur">$</span><input class="pr-input" id="pp-pmin" placeholder="Min" type="number" value="' + escAttr(st.priceMin) + '" /></div>' +
+          '<span class="muted">-</span>' +
+          '<div class="pr-field"><span class="pr-cur">$</span><input class="pr-input" id="pp-pmax" placeholder="Max" type="number" value="' + escAttr(st.priceMax) + '" /></div>' +
+        '</div>' +
+        '<div class="flex justify-end gap-2" style="margin-top:12px">' +
+          '<button class="btn btn-default" data-pp-pclear>Clear</button>' +
+          '<button class="btn btn-primary" data-pp-papply>Apply</button>' +
+        '</div>';
+      panel.querySelector('[data-pp-papply]').onclick = function () { st.priceMin = panel.querySelector('#pp-pmin').value; st.priceMax = panel.querySelector('#pp-pmax').value; st.priceApplied = (st.priceMin !== '' || st.priceMax !== ''); st.page = 1; closePop(); paint(); };
+      panel.querySelector('[data-pp-pclear]').onclick = function () { st.priceMin = ''; st.priceMax = ''; st.priceApplied = false; st.page = 1; closePop(); paint(); };
+      openPop(anchor, panel);
+    }
+    paint();
+  }
+
+  // Single-select bundle picker — mirrors productPicker's modal shell but lighter (bundles have no inventory/price facets).
+  function bundlePicker(opts) {
+    opts = opts || {};
+    var onConfirm = opts.onConfirm || function () {};
+    var DB = window.DATA_BUNDLES || { bundles: [], templates: [] };
+    var tplLabel = function (v) { var t = (DB.templates || []).filter(function (x) { return x.value === v; })[0]; return t ? t.label : v; };
+    var st = { kw: '', sel: opts.selected ? String(opts.selected) : '' };
+    var backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
+    var m = document.createElement('div'); m.className = 'modal'; m.style.width = '760px'; m.style.maxWidth = '94vw';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    var close = function () { backdrop.remove(); };
+    backdrop.addEventListener('mousedown', function (e) { if (e.target === backdrop) close(); });
+
+    function filtered() {
+      var rows = (DB.bundles || []).slice();
+      if (st.kw.trim()) { var q = st.kw.trim().toLowerCase(); rows = rows.filter(function (b) { return (b.name || '').toLowerCase().indexOf(q) >= 0 || (b.parentProduct || '').toLowerCase().indexOf(q) >= 0; }); }
+      return rows;
+    }
+    function rowHtml(b) {
+      var on = st.sel === String(b.id);
+      return '<tr data-bid="' + escAttr(b.id) + '" style="cursor:pointer">' +
+        '<td style="width:44px"><input type="radio"' + (on ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:var(--brand);pointer-events:none" /></td>' +
+        '<td><div style="color:var(--ink);font-weight:500">' + escAttr(b.name) + '</div><div class="muted" style="font-size:12px">' + escAttr(b.id) + '</div></td>' +
+        '<td class="muted" style="font-size:13px">' + escAttr(b.parentProduct) + '</td>' +
+        '<td><span class="pill pill-blue">' + escAttr(tplLabel(b.template)) + '</span></td>' +
+        '<td>' + (b.status === 'active' ? '<span class="pill pill-green">Active</span>' : '<span class="pill pill-gray">Draft</span>') + '</td>' +
+      '</tr>';
+    }
+    function renderRows() {
+      var rows = filtered();
+      m.querySelector('#bp-tbody').innerHTML = rows.length ? rows.map(rowHtml).join('') : '<tr><td colspan="5" style="text-align:center;padding:36px" class="muted">No bundles found.</td></tr>';
+      m.querySelectorAll('#bp-tbody tr[data-bid]').forEach(function (tr) { tr.onclick = function () { st.sel = tr.getAttribute('data-bid'); renderRows(); }; });
+      var ok = m.querySelector('[data-ok]'); if (ok) ok.disabled = !st.sel;
+    }
+    m.innerHTML =
+      '<div class="modal-head flex items-center justify-between"><span>Add bundle</span><span data-x style="cursor:pointer">' + X_ICO + '</span></div>' +
+      '<div class="modal-body">' +
+        '<div style="position:relative;width:340px"><input class="filter-input" id="bp-kw" placeholder="Search bundles" style="width:100%;padding-right:30px" /><span style="position:absolute;right:9px;top:9px;color:var(--ink-muted)">' + SRCH_ICO + '</span></div>' +
+        '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden;margin-top:12px"><div style="max-height:380px;overflow:auto"><table class="tbl"><thead><tr><th style="width:44px"></th><th>Bundle</th><th style="width:180px">Parent product</th><th style="width:150px">Template</th><th style="width:90px">Status</th></tr></thead><tbody id="bp-tbody"></tbody></table></div></div>' +
+      '</div>' +
+      '<div class="modal-foot flex items-center justify-end gap-3"><button class="btn btn-default" data-cancel>Cancel</button><button class="btn btn-primary" disabled data-ok>Add bundle</button></div>';
+    m.querySelector('[data-x]').onclick = close;
+    m.querySelector('[data-cancel]').onclick = close;
+    var kw = m.querySelector('#bp-kw'); kw.oninput = function () { st.kw = kw.value; renderRows(); };
+    m.querySelector('[data-ok]').onclick = function () {
+      if (!st.sel) return;
+      var picked = (DB.bundles || []).filter(function (b) { return String(b.id) === st.sel; })[0];
+      close();
+      if (!picked) return;
+      // attach a representative image: matching product's photo, else a deterministic placeholder
+      var img = '', match = PP_PRODUCTS.filter(function (pp) { return pp.name === picked.parentProduct; })[0];
+      if (match) img = match.image;
+      else if (typeof PP_IMGS !== 'undefined' && PP_IMGS.length) { var h = 0, nm = String(picked.name); for (var i = 0; i < nm.length; i++) h = (h * 31 + nm.charCodeAt(i)) >>> 0; img = PP_IMGS[h % PP_IMGS.length]; }
+      onConfirm(Object.assign({}, picked, { image: img }));
+    };
+    renderRows();
+  }
+
+  // Shared confirm dialog — same look as the settings module's Ant-style Modal.confirm (modal-* theme classes).
+  // window.UI.confirm({ title, content, okText, cancelText, danger, width, onOk })
+  function confirmDialog(opts) {
+    opts = opts || {};
+    var backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
+    var m = document.createElement('div'); m.className = 'modal'; m.style.width = (opts.width || 440) + 'px';
+    m.innerHTML =
+      '<div class="modal-head flex items-center justify-between"><span>' + escAttr(opts.title || 'Confirm') + '</span><span data-x style="cursor:pointer">' + X_ICO + '</span></div>' +
+      '<div class="modal-body"><div class="muted" style="font-size:13.5px;line-height:1.6">' + escAttr(opts.content || '') + '</div></div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn btn-default" data-cancel>' + escAttr(opts.cancelText || 'Cancel') + '</button>' +
+        '<button class="btn ' + (opts.danger ? '' : 'btn-primary') + '"' + (opts.danger ? ' style="background:var(--err);color:#fff;border-color:var(--err)"' : '') + ' data-ok>' + escAttr(opts.okText || 'OK') + '</button>' +
+      '</div>';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    var onKey = function (e) { if (e.key === 'Escape') close(); else if (e.key === 'Enter') { var ok = m.querySelector('[data-ok]'); if (ok) ok.click(); } };
+    var close = function () { document.removeEventListener('keydown', onKey); backdrop.remove(); };
+    m.querySelector('[data-x]').onclick = close;
+    m.querySelector('[data-cancel]').onclick = close;
+    backdrop.addEventListener('mousedown', function (e) { if (e.target === backdrop) close(); });
+    m.querySelector('[data-ok]').onclick = function () { close(); if (opts.onOk) opts.onOk(); };
+    document.addEventListener('keydown', onKey);
+  }
+
+  window.UI = { scan: scan, closePop: closePop, unsavedBar: unsavedBar, setUnsavedBar: setUnsavedBar, productPicker: productPicker, bundlePicker: bundlePicker, confirm: confirmDialog };
 })();

@@ -61,8 +61,8 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
    Discard + primary on the right. Rendered by UI.unsavedBar(); toggled by UI.setUnsavedBar(). */
 .unsaved-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 80; min-height: var(--header-h); display: flex; align-items: center; gap: 8px; background: #242833; color: #fff; padding: 0 24px; box-shadow: 0 4px 12px rgb(0 0 0 / 18%); }
 .unsaved-bar .btn-primary { height: 32px; }
-.unsaved-discard { background: transparent; color: #fff; border: 1px solid rgb(255 255 255 / 55%); height: 32px; }
-.unsaved-discard:hover { background: rgb(255 255 255 / 12%); }
+.unsaved-bar .unsaved-discard { background: transparent; color: #fff; border: 1px solid rgb(255 255 255 / 55%); height: 32px; }
+.unsaved-bar .unsaved-discard:hover { background: rgb(255 255 255 / 12%); border-color: rgb(255 255 255 / 75%); }
 .hdr-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
 .hdr-logo-name { font-weight: 600; font-size: 18px; color: var(--ink); letter-spacing: -.01em; }
 .nav-footer { padding: 8px; margin-top: auto; }
@@ -71,6 +71,8 @@ body { font-size: 14px; line-height: 1.5; color: var(--ink); }
 .detail-cols { display: flex; gap: 24px; align-items: flex-start; }
 .detail-main { flex: 1; min-width: 0; }
 .detail-rail { width: 275px; flex: 0 0 275px; }
+.bn-num input::-webkit-outer-spin-button, .bn-num input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.bn-num input { -moz-appearance: textfield; appearance: textfield; }
 .search-box { flex: 1; max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius); color: var(--ink-muted); font-size: 13px; }
 .icon-btn { width: 32px; height: 32px; border-radius: var(--radius); background: #EEF0F7; border: none; display: grid; place-items: center; color: var(--ink-body); cursor: pointer; }
 .icon-btn:hover { background: #e3e6f0; }
@@ -157,7 +159,7 @@ input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 /* ---------- Table ---------- */
 .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .tbl thead th { background: #fff; text-align: left; font-weight: 600; color: var(--ink); padding: 12px 16px; border-bottom: 1px solid var(--hair); white-space: nowrap; }
-.tbl tbody td { padding: 12px 16px; border-bottom: 1px solid var(--hair); color: var(--ink-body); }
+.tbl tbody td { padding: 12px 16px; border-bottom: 1px solid var(--hair); color: var(--ink-body); vertical-align: middle; }
 .tbl tbody tr { cursor: pointer; }
 .tbl tbody tr:hover { background: var(--panel); }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }

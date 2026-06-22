@@ -58,16 +58,74 @@ window.NAV_SETTINGS = [
   ] },
 ];
 
+/* ---------- Subscriptions workspace (V1.142) ----------
+   See 系统架构认知 §2: the main site keeps the base infrastructure (subscription
+   product type, subscription orders); this app wraps the recurring logic. The
+   workspace is a resident top-level item in the sidebar — the separate "Apps"
+   shell was dropped as redundant while there's a single built-in app.
+   PLUGGABLE_APPS / AppState are kept for a future app marketplace. */
+window.PLUGGABLE_APPS = [
+  {
+    id: 'subscriptions', name: 'Subscriptions', icon: 'refresh', builtin: true, category: 'Selling', status: 'available',
+    tagline: 'Sell products on a recurring schedule — Subscribe & Save.',
+    blurb: 'Turn one-off products into recurring revenue. Customers subscribe on the product page and are billed automatically through your connected Airwallex, Stripe or PayPal; every cycle drops a fresh order into Orders.',
+    permissions: ['Read products and customers', 'Create orders on the main store', 'Use connected payment gateways for recurring charges'],
+    // Workspace menu item, injected into the sidebar only when the app is ON.
+    menu: { id: 'subscriptions', label: 'Subscriptions', icon: 'refresh', route: '#/subscriptions',
+      desc: 'Subscription plans, contracts, recurring orders and billing.',
+      children: [
+        { id: 'subscriptions-plans',      label: 'Plans',         route: '#/subscriptions/plans' },
+        { id: 'subscriptions-contracts',  label: 'Subscriptions', route: '#/subscriptions/contracts' },
+        { id: 'subscriptions-settings',   label: 'Settings',      route: '#/subscriptions/settings' },
+      ] },
+  },
+  {
+    id: 'bundles', name: 'Bundles', icon: 'box', builtin: true, category: 'Selling', status: 'available',
+    tagline: 'Quantity breaks and build-a-box bundles.',
+    blurb: 'Sell more per order with quantity-break offers (Buy 1 / BOGO / N-pack + gifts) or let customers build their own box. Bundles can be one-time or subscription.',
+    menu: { id: 'bundles', label: 'Bundles', icon: 'box', route: '#/bundles', desc: 'Quantity-break and build-a-box bundles.' },
+  },
+  { id: 'loyalty',   name: 'Loyalty & Rewards', icon: 'badgePercent', builtin: true, category: 'Marketing', status: 'coming_soon', tagline: 'Points, rewards and a loyalty program.' },
+  { id: 'wholesale', name: 'Wholesale / B2B',   icon: 'tag',          builtin: true, category: 'Selling',   status: 'coming_soon', tagline: 'Wholesale pricing, minimum order quantity and B2B customers.' },
+  { id: 'affiliate', name: 'Affiliate',         icon: 'userPen',      builtin: true, category: 'Marketing', status: 'coming_soon', tagline: 'Referral links and commission payouts.' },
+];
+
+/* Per-store app enable-state (prototype: localStorage; real admin: store config). */
+window.AppState = {
+  k: function (id) { return 'bsio_app_' + id; },
+  isEnabled: function (id) { try { return localStorage.getItem(this.k(id)) === '1'; } catch (e) { return false; } },
+  setEnabled: function (id, on) { try { localStorage.setItem(this.k(id), on ? '1' : '0'); } catch (e) {} },
+};
+
+/* Sidebar menu = base modules + every built-in workspace (Subscriptions, Bundles…). */
+window.buildMenu = function () {
+  var apps = window.PLUGGABLE_APPS
+    .filter(function (a) { return a.menu && a.status === 'available'; })
+    .map(function (a) { return a.menu; });
+  return window.NAV_MENU.concat(apps);
+};
+
 /* route first-segment -> module folder to lazy-load (router uses this). */
 window.ROUTE_MODULE = {
   home: 'home', orders: 'orders', products: 'products', collections: 'collections',
   reviews: 'reviews', customers: 'customers', discounts: 'discounts',
   blog: 'blog', page: 'page', menu: 'menu', analytics: 'analytics',
   'online-store': 'online-store', google: 'google', settings: 'settings',
+  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles',
 };
 
 /* Newest first. `modules` lists the route ids each version touched (for the Home changelog). */
 window.CHANGELOG = [
+  {
+    version: 'V1.142', date: '2026-06', title: 'Subscriptions — sell on a recurring schedule',
+    modules: [],
+    items: [
+      'Subscriptions: a new top-level workspace — click it for the Overview (MRR / active / upcoming charges / churn)',
+      'Plans, Subscriptions (contracts), Orders and Settings sit under it',
+      'Recurring billing through your connected Airwallex, Stripe or PayPal — Subscribe & Save with trials, subscription discounts and failed-payment retries (dunning)',
+      'Storefront: One-time vs Subscribe & Save on the product page, plus a customer portal to pause / skip / change / cancel',
+    ],
+  },
   {
     version: 'V1.141', date: '2026-06', title: 'Notifications — configurable order emails',
     modules: [],

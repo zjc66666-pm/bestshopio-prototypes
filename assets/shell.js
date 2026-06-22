@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260616g'; // cache-bust for lazy-loaded module scripts
+  var V = '20260622p'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -37,6 +37,9 @@
     collections: s('<path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>'),
     reviews: s('<path d="m12 3 2.9 6 6.1.9-4.5 4.3 1 6.1-5.5-2.9-5.5 2.9 1-6.1L3 9.9 9 9z"/>'),
     page: s('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13h6M9 17h6"/>'),
+    apps: s('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>'),
+    refresh: s('<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/>'),
+    box: s('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>'),
   };
   window.ICONS = ICONS;
 
@@ -56,7 +59,10 @@
   var setupDismissed = false;
   window.VIEWS = window.VIEWS || {};
 
-  var navEl, footEl, settingsBar, root, current = null, loaded = {};
+  var navEl, footEl, settingsBar, root, current = null, loaded = {}, curActiveId = 'home';
+
+  // Sidebar menu source: prefer nav.js buildMenu() (adds enabled pluggable apps), else static MENU.
+  function getMenu() { return (typeof window.buildMenu === 'function') ? window.buildMenu() : MENU; }
 
   // ---------- route parsing ----------
   function parse() {
@@ -84,7 +90,7 @@
   }
 
   function renderSidebar(activeId) {
-    navEl.innerHTML = MENU.map(function (it) { return itemHtml(it, activeId); }).join('');
+    navEl.innerHTML = getMenu().map(function (it) { return itemHtml(it, activeId); }).join('');
     footEl.innerHTML = '<a class="nav-item' + (activeId === 'settings' ? ' active' : '') + '" href="#/settings/base">' + ICONS.settings + '<span>Settings</span></a>';
   }
 
@@ -213,9 +219,12 @@
   function renderHome() {
     var CL = window.CHANGELOG || [];
     var cards = [];
-    MENU.forEach(function (m) {
+    getMenu().forEach(function (m) {
       cards.push(m);
-      (m.children || []).forEach(function (c) { cards.push(c); });
+      // Only sub-items that carry their own desc are real Home cards (Collections, Blog…).
+      // Workspace children (Analytics / Subscriptions) have no desc and can duplicate a
+      // top-level label — skip them so Home stays one clean card per module.
+      (m.children || []).forEach(function (c) { if (c.desc) cards.push(c); });
     });
     var cardHtml = cards.map(function (m) {
       var icon = ICONS[m.icon] || ICONS.tag;
@@ -226,7 +235,7 @@
     }).join('');
     var resolve = function (id) {
       var found = null;
-      MENU.forEach(function (m) { if (m.id === id) found = m; (m.children || []).forEach(function (c) { if (c.id === id) found = c; }); });
+      getMenu().forEach(function (m) { if (m.id === id) found = m; (m.children || []).forEach(function (c) { if (c.id === id) found = c; }); });
       return found;
     };
     var clHtml = CL.map(function (e, i) {
@@ -256,6 +265,8 @@
     var moduleId = ROUTE_MODULE[p.first] || p.first;
     var activeId = p.first;
     if (p.first === 'analytics') { var asub = p.rest.split('/')[0]; activeId = asub ? 'analytics-' + asub : 'analytics'; }
+    if (p.first === 'subscriptions') { var ssub = p.rest.split('/')[0]; activeId = ssub ? 'subscriptions-' + ssub : 'subscriptions'; }
+    curActiveId = activeId;
     renderSidebar(activeId);
     if (current && current !== moduleId && window.VIEWS[current] && window.VIEWS[current].unmount) {
       try { window.VIEWS[current].unmount(); } catch (e) {}
@@ -427,6 +438,8 @@
     backdrop.addEventListener('click', closeDrawer);
     app.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('a[href^="#/"]')) closeDrawer(); });
 
+    // Pluggable-app toggles (Apps page) call this to re-render the sidebar in place.
+    window.Shell = { refresh: function () { if (navEl) renderSidebar(curActiveId); } };
     if (!location.hash) location.replace('#/home');
     window.addEventListener('hashchange', dispatch);
     dispatch();

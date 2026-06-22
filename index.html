@@ -7,16 +7,21 @@
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="assets/tailwind-config.js?v=20260607k"></script>
-  <link rel="stylesheet" href="assets/theme.css?v=20260610g" />
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+  <link rel="stylesheet" href="assets/theme.css?v=20260622o" />
+  <!-- chart libs are async so a slow/blocked CDN can never white-screen the whole app;
+       only analytics / subscriptions charts use them (guarded by typeof echarts checks). -->
+  <script async src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+  <script async src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
 </head>
 <body class="bg-page text-ink font-sans antialiased">
   <!-- Single-page app: the shell (sidebar + header) and every module view are rendered by shell.js. -->
   <div id="app" class="flex h-screen overflow-hidden"></div>
 
-  <script src="assets/nav.js?v=20260616a"></script>
-  <script src="assets/shell.js?v=20260616g"></script>
-  <script src="assets/widgets.js?v=20260609i"></script>
+  <script src="assets/nav.js?v=20260622l"></script>
+  <!-- Bundle catalog is loaded eagerly so the shared bundle picker (used by Subscriptions → Add plan) always has data,
+       even before the Bundles module is visited. Pure data; the lazy module loader re-uses the same cached file. -->
+  <script src="bundles/js/data.js?v=20260622p"></script>
+  <script src="assets/shell.js?v=20260622p"></script>
+  <script src="assets/widgets.js?v=20260622o"></script>
 </body>
 </html>
