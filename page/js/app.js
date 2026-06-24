@@ -763,7 +763,7 @@
       ok: 'Confirm',
       danger: true,
       onOk: function () {
-        toast('Page deleted successfully');
+        toast('Deleted successfully');
         ORIGIN = formSnapshot(); // avoid the leave-guard firing on navigation
         setTimeout(function () { location.hash = '#/page'; }, 500);
       },

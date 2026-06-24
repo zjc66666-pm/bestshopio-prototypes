@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Signature Blend Coffee — Lovocross</title>
+<!-- Storefront (buyer) prototype · uses the neutral storefront design system
+     (BestVoy 设计风格_用户端): black #222 + red accent + TT Norms Pro, mobile-first.
+     This is the product page where a buyer chooses One-time vs Subscribe & Save. -->
+<style>
+  :root{
+    --brand:#222222; --brand-ink:#ffffff;
+    --accent:#E93323;
+    --t-strong:#222; --t-body:#333; --t-muted:#999; --t-faint:#bbb;
+    --bg:#fff; --bg-soft:#f0f0f0; --bg-softer:#f7f7f7; --line:#ececec;
+    --price:#222; --price-sale:#E93323; --price-strike:#999;
+    --radius:4px; --radius-lg:8px; --wrap:1100px;
+    --font:"TT Norms Pro","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font);color:var(--t-body);background:var(--bg);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  img{max-width:100%;display:block}
+  /* utility + header */
+  .util{background:#222;color:#fff;text-align:center;font-size:12px;letter-spacing:.05em;text-transform:uppercase;padding:9px 12px}
+  .hdr{border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:5}
+  .hdr-in{max-width:var(--wrap);margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+  .logo{font-weight:800;letter-spacing:.04em;font-size:20px;color:var(--t-strong);text-transform:uppercase}
+  .hdr-nav{display:none;gap:26px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--t-body)}
+  .hdr-nav a{color:inherit;text-decoration:none}.hdr-nav a:hover{color:var(--accent)}
+  .hdr-ico{display:flex;gap:18px;color:var(--t-strong)}
+  /* layout */
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:20px}
+  .pdp{display:grid;grid-template-columns:1fr;gap:28px}
+  /* gallery */
+  .gal-main{background:linear-gradient(135deg,#efe7dc,#d9c6ad);border-radius:var(--radius-lg);aspect-ratio:1/1;display:grid;place-items:center;position:relative;overflow:hidden}
+  .gal-main .badge{position:absolute;top:14px;left:14px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:5px 10px;border-radius:3px}
+  .gal-thumbs{display:flex;gap:10px;margin-top:10px}
+  .gal-thumbs span{flex:1;aspect-ratio:1/1;border-radius:var(--radius);background:linear-gradient(135deg,#efe7dc,#d9c6ad);opacity:.65;border:1px solid var(--line);cursor:pointer}
+  .gal-thumbs span:first-child{opacity:1;border-color:#222}
+  .bag{width:46%;filter:drop-shadow(0 12px 24px rgba(80,50,20,.25))}
+  /* info */
+  .brandline{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--t-muted);margin-bottom:8px}
+  .title{font-size:28px;font-weight:700;color:var(--t-strong);margin:0 0 10px;letter-spacing:-.01em}
+  .rating{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:var(--t-muted)}
+  .stars{color:var(--accent);letter-spacing:2px;font-size:15px}
+  .lead{color:var(--t-body);margin:0 0 22px}
+  /* purchase options */
+  .opts{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+  .opt{border:1.5px solid var(--line);border-radius:var(--radius-lg);padding:16px;cursor:pointer;transition:border-color .15s,background .15s}
+  .opt:hover{border-color:#bbb}
+  .opt.active{border-color:var(--brand);background:var(--bg-softer)}
+  .opt-head{display:flex;align-items:flex-start;gap:12px}
+  .opt input{margin-top:3px;width:18px;height:18px;accent-color:var(--brand);flex:none}
+  .opt-mid{flex:1;min-width:0}
+  .opt-name{font-weight:600;color:var(--t-strong);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .save-badge{background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:.03em}
+  .opt-sub{font-size:13px;color:var(--t-muted);margin-top:3px}
+  .opt-price{text-align:right;white-space:nowrap}
+  .opt-price b{font-size:18px;color:var(--price)}
+  .opt-price .sale{color:var(--price-sale)}
+  .opt-price s{color:var(--price-strike);font-size:13px;margin-left:4px}
+  .opt-price small{display:block;font-size:11px;color:var(--t-muted);text-transform:uppercase;letter-spacing:.04em}
+  .opt-detail{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:none}
+  .opt.active .opt-detail{display:block}
+  .freq-row{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--t-body);margin-bottom:12px;flex-wrap:wrap}
+  .freq-row select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid #d5d5d5;border-radius:var(--radius);background:#fff;color:var(--t-strong)}
+  .perks{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+  .perks li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t-body)}
+  .perks svg{color:#1f8f4e;flex:none}
+  /* qty + cta */
+  .buy-row{display:flex;gap:12px;align-items:stretch;margin-bottom:14px}
+  .qty{display:flex;align-items:center;border:1px solid #d5d5d5;border-radius:var(--radius);overflow:hidden}
+  .qty button{width:42px;border:0;background:#fff;font-size:18px;cursor:pointer;color:var(--t-strong)}
+  .qty span{width:40px;text-align:center;font-weight:600;color:var(--t-strong)}
+  .cta{flex:1;background:var(--brand);color:var(--brand-ink);border:0;border-radius:var(--radius);font-family:inherit;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;padding:0 18px;min-height:54px;transition:opacity .15s}
+  .cta:hover{opacity:.88}
+  .reassure{font-size:12.5px;color:var(--t-muted);text-align:center}
+  .note{margin-top:24px;padding:14px 16px;background:var(--bg-softer);border-radius:var(--radius);font-size:12.5px;color:var(--t-muted);line-height:1.5}
+  @media(min-width:860px){
+    .pdp{grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+    .hdr-nav{display:flex}
+    .title{font-size:34px}
+  }
+</style>
+</head>
+<body>
+  <div class="util">Free shipping on orders over $79 · Subscribe &amp; save 20%</div>
+  <header class="hdr"><div class="hdr-in">
+    <nav class="hdr-nav"><a href="#">Shop</a><a href="#">Coffee</a><a href="#">About</a></nav>
+    <div class="logo">Lovocross</div>
+    <div class="hdr-ico">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h3l2.4 12.4a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.5-1.2L22 7H6"/></svg>
+    </div>
+  </div></header>
+
+  <div class="wrap"><div class="pdp">
+    <!-- gallery -->
+    <div>
+      <div class="gal-main"><span class="badge">Bestseller</span>
+        <svg class="bag" viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg">
+          <rect x="18" y="22" width="84" height="118" rx="6" fill="#3b2a1a"/>
+          <rect x="18" y="22" width="84" height="118" rx="6" fill="url(#g)" opacity=".25"/>
+          <path d="M18 28 Q60 14 102 28 L102 40 Q60 28 18 40 Z" fill="#2a1d11"/>
+          <rect x="34" y="60" width="52" height="44" rx="3" fill="#efe7dc"/>
+          <text x="60" y="80" text-anchor="middle" font-family="Helvetica" font-size="9" font-weight="700" fill="#3b2a1a">SIGNATURE</text>
+          <text x="60" y="93" text-anchor="middle" font-family="Helvetica" font-size="7" fill="#7a5c3a">BLEND · 500g</text>
+          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient></defs>
+        </svg>
+      </div>
+      <div class="gal-thumbs"><span></span><span></span><span></span></div>
+    </div>
+
+    <!-- info -->
+    <div>
+      <div class="brandline">Lovocross Coffee Roasters</div>
+      <h1 class="title">Signature Blend Coffee 500g</h1>
+      <div class="rating"><span class="stars">★★★★★</span> 4.8 · 326 reviews</div>
+      <p class="lead">A smooth, balanced medium roast — chocolate and toasted-nut notes. Roasted to order and shipped fresh.</p>
+
+      <div class="opts" id="opts">
+        <label class="opt" data-mode="onetime">
+          <div class="opt-head">
+            <input type="radio" name="purchase" value="onetime" />
+            <div class="opt-mid"><div class="opt-name">One-time purchase</div>
+              <div class="opt-sub">Ships once. No commitment.</div></div>
+            <div class="opt-price"><b>$30.00</b></div>
+          </div>
+        </label>
+
+        <label class="opt active" data-mode="subscribe">
+          <div class="opt-head">
+            <input type="radio" name="purchase" value="subscribe" checked />
+            <div class="opt-mid"><div class="opt-name">Subscribe &amp; Save <span class="save-badge">Save 20%</span></div>
+              <div class="opt-sub">Delivered on your schedule. Cancel anytime.</div></div>
+            <div class="opt-price"><b class="sale">$24.00</b><s>$30.00</s><small>per delivery</small></div>
+          </div>
+          <div class="opt-detail">
+            <div class="freq-row"><span>Deliver every</span>
+              <select id="freq">
+                <option>1 week</option><option>2 weeks</option>
+                <option selected>1 month</option><option>2 months</option>
+              </select>
+            </div>
+            <ul class="perks">
+              <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Free shipping on every order</li>
+              <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Skip, pause or cancel anytime</li>
+              <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Manage from your account in one tap</li>
+            </ul>
+          </div>
+        </label>
+      </div>
+
+      <div class="buy-row">
+        <div class="qty"><button id="dec">−</button><span id="qty">1</span><button id="inc">+</button></div>
+        <button class="cta" id="cta">Subscribe — $24.00 / month</button>
+      </div>
+      <div class="reassure" id="reassure">Your first order ships now, then every month. Cancel anytime.</div>
+
+      <div class="note">Billed automatically through Lovocross's secure checkout (Airwallex, Stripe or PayPal). You'll get a reminder before each charge and can manage everything from <b>Account › Subscriptions</b>.</div>
+    </div>
+  </div></div>
+
+<script>
+  (function(){
+    var ONE = 30, SUB = 24;
+    var opts = document.getElementById('opts');
+    var cta = document.getElementById('cta');
+    var reassure = document.getElementById('reassure');
+    var freq = document.getElementById('freq');
+    var qtyEl = document.getElementById('qty');
+    var qty = 1;
+    function freqWord(){ var f = freq.value; return f === '1 month' ? 'month' : f === '1 week' ? 'week' : 'every ' + f; }
+    function refresh(){
+      var mode = opts.querySelector('.opt.active').getAttribute('data-mode');
+      if(mode === 'subscribe'){
+        cta.textContent = 'Subscribe — $' + (SUB*qty).toFixed(2) + ' / ' + freqWord();
+        reassure.textContent = 'Your first order ships now, then every ' + freq.value + '. Cancel anytime.';
+      } else {
+        cta.textContent = 'Add to cart — $' + (ONE*qty).toFixed(2);
+        reassure.textContent = 'One-time purchase. Ships within 1–2 business days.';
+      }
+    }
+    opts.querySelectorAll('.opt').forEach(function(o){
+      o.addEventListener('click', function(){
+        opts.querySelectorAll('.opt').forEach(function(x){ x.classList.remove('active'); });
+        o.classList.add('active');
+        o.querySelector('input').checked = true;
+        refresh();
+      });
+    });
+    freq.addEventListener('change', refresh);
+    freq.addEventListener('click', function(e){ e.stopPropagation(); });
+    document.getElementById('inc').addEventListener('click', function(e){ e.preventDefault(); qty++; qtyEl.textContent = qty; refresh(); });
+    document.getElementById('dec').addEventListener('click', function(e){ e.preventDefault(); if(qty>1){ qty--; qtyEl.textContent = qty; refresh(); } });
+    cta.addEventListener('click', function(){ cta.textContent = 'Added ✓'; setTimeout(refresh, 1200); });
+    refresh();
+  })();
+</script>
+</body>
+</html>

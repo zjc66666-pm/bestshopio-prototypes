@@ -76,7 +76,6 @@ window.PLUGGABLE_APPS = [
       children: [
         { id: 'subscriptions-plans',      label: 'Plans',         route: '#/subscriptions/plans' },
         { id: 'subscriptions-contracts',  label: 'Subscriptions', route: '#/subscriptions/contracts' },
-        { id: 'subscriptions-settings',   label: 'Settings',      route: '#/subscriptions/settings' },
       ] },
   },
   {
@@ -84,6 +83,20 @@ window.PLUGGABLE_APPS = [
     tagline: 'Quantity breaks and build-a-box bundles.',
     blurb: 'Sell more per order with quantity-break offers (Buy 1 / BOGO / N-pack + gifts) or let customers build their own box. Bundles can be one-time or subscription.',
     menu: { id: 'bundles', label: 'Bundles', icon: 'box', route: '#/bundles', desc: 'Quantity-break and build-a-box bundles.' },
+  },
+  {
+    id: 'bestcheckout', name: 'BestCheckout', icon: 'card', builtin: true, category: 'Selling', status: 'available',
+    tagline: 'High-converting external checkout for your Shopify store — and your on-ramp to BestShopio.',
+    blurb: 'Bring your Shopify store: products, discounts and shipping sync both ways and stay editable here, orders write back to Shopify for fulfillment. Sell through a faster checkout with one-click post-purchase upsells and multi-MID payment routing, then migrate to a native BestShopio store with a single domain switch. Subscriptions reuse the Subscriptions app.',
+    permissions: ['Connect a Shopify store (OAuth)', 'Two-way sync of products, collections, discounts and shipping', 'Write paid orders back to Shopify to trigger fulfillment', 'Use connected payment gateways for checkout & routing'],
+    // App workspace with a second-level menu (like Subscriptions / Analytics): parent = Overview, children below.
+    menu: { id: 'bestcheckout', label: 'BestCheckout', icon: 'card', route: '#/bestcheckout', desc: 'External high-converting checkout, payment routing & post-purchase for a connected Shopify store.',
+      children: [
+        { id: 'bestcheckout-checkout',      label: 'Checkout design',  route: '#/bestcheckout/checkout' },
+        { id: 'bestcheckout-thankyou',      label: 'Thank-you design', route: '#/bestcheckout/thankyou' },
+        { id: 'bestcheckout-post-purchase', label: 'Post-purchase',    route: '#/bestcheckout/post-purchase' },
+        { id: 'bestcheckout-connect',       label: 'Connection',       route: '#/bestcheckout/connect' },
+      ] },
   },
   { id: 'loyalty',   name: 'Loyalty & Rewards', icon: 'badgePercent', builtin: true, category: 'Marketing', status: 'coming_soon', tagline: 'Points, rewards and a loyalty program.' },
   { id: 'wholesale', name: 'Wholesale / B2B',   icon: 'tag',          builtin: true, category: 'Selling',   status: 'coming_soon', tagline: 'Wholesale pricing, minimum order quantity and B2B customers.' },
@@ -111,11 +124,21 @@ window.ROUTE_MODULE = {
   reviews: 'reviews', customers: 'customers', discounts: 'discounts',
   blog: 'blog', page: 'page', menu: 'menu', analytics: 'analytics',
   'online-store': 'online-store', google: 'google', settings: 'settings',
-  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles',
+  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles', bestcheckout: 'bestcheckout',
 };
 
 /* Newest first. `modules` lists the route ids each version touched (for the Home changelog). */
 window.CHANGELOG = [
+  {
+    version: 'V1.143', date: '2026-06', title: 'BestCheckout — external checkout for Shopify merchants',
+    modules: [],
+    items: [
+      'New app (sits under Bundles): connect a Shopify store and sell through a faster external checkout with one-click post-purchase upsells and multi-MID payment routing',
+      'Two-way sync — products, collections, discounts and shipping are editable here in BestShopio and sync back to Shopify; paid orders write back to trigger the merchant’s existing fulfillment apps',
+      'Connection hub gathers the whole Shopify bridge — authorization (OAuth), data sync, checkout injection (App Embed) and the checkout domain — and retires at migration',
+      'One-domain-switch migration to a native BestShopio store; subscriptions reuse the Subscriptions app rather than a second engine',
+    ],
+  },
   {
     version: 'V1.142', date: '2026-06', title: 'Subscriptions — sell on a recurring schedule',
     modules: [],

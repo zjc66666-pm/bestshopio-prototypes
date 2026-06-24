@@ -631,8 +631,8 @@
       return;
     }
     ORIG = snapshot(ST);
-    if (ST.id == null) { toast('Collection "' + ST.name.trim() + '" added'); location.hash = '#/collections'; }
-    else { toast('Collection updated'); refreshEdit(); }
+    if (ST.id == null) { toast('Added successfully'); location.hash = '#/collections'; }
+    else { toast('Updated successfully'); refreshEdit(); }
   }
   function discardChanges() {
     confirm2({
@@ -650,7 +650,7 @@
       title: 'Confirm to delete?',
       text: 'Once deleted, the data cannot be retrieved. Please confirm before proceeding!',
       okText: 'Confirm', danger: true,
-      onOk: () => { toast('Collection deleted'); location.hash = '#/collections'; },
+      onOk: () => { toast('Deleted successfully'); location.hash = '#/collections'; },
     });
   }
   function tryLeave() {

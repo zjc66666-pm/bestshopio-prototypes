@@ -699,14 +699,14 @@
     if (!validateEdit()) { toast('Please fix the highlighted fields'); return; }
     if (isNew) {
       // mirrors handleSave: on create, redirect to the list
-      toast('Blog added');
+      toast('Added successfully');
       saved = true;
       setTimeout(() => { location.hash = '#/blog'; }, 350);
     } else {
       // mirrors handleSave: on update, stay on the page; clear the dirty/unsaved state
       ORIG = snap(F);
       syncUnsaved();
-      toast('Blog updated');
+      toast('Updated successfully');
     }
   }
 
@@ -739,7 +739,7 @@
       title: 'Delete blog',
       content: 'Are you sure you want to delete this blog?',
       okText: 'Confirm', danger: true,
-      onOk: () => { saved = true; toast('Blog deleted successfully'); location.hash = '#/blog'; },
+      onOk: () => { saved = true; toast('Deleted successfully'); location.hash = '#/blog'; },
     });
   }
 

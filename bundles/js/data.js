@@ -27,7 +27,7 @@ window.DATA_BUNDLES = {
       tiers: [
         { qty: 1, title: '1 PC',  subtitle: '',                       price: 34.99, compareAt: 49,  badge: '',             components: [{ role: 'main', product: 'Neurix Focus & Energy Gum', qty: 1, displayName: '' }] },
         { qty: 2, title: '2 PCS', subtitle: 'One to wear, one to wash.', price: 49.30, compareAt: 98,  badge: 'Most Popular', tag: '50% OFF', components: [{ role: 'main', product: 'Neurix Focus & Energy Gum', qty: 2, displayName: '' }, { role: 'gift', product: 'Focus E-Book', qty: 1, displayName: 'FREE E-Book' }] },
-        { qty: 3, title: '3 PCS', subtitle: '',                       price: 69.60, compareAt: 147, badge: 'Best Value', tag: 'Save 30%',   components: [{ role: 'main', product: 'Neurix Focus & Energy Gum', qty: 3, displayName: '' }, { role: 'gift', product: 'Focus E-Book', qty: 1, displayName: 'FREE E-Book' }, { role: 'gift', product: 'Shaker Bottle', qty: 1, displayName: 'FREE Shaker' }] },
+        { qty: 3, title: '3 PCS', subtitle: '',                       price: 69.60, compareAt: 147, badge: 'Best Value', tag: 'Save 30%',   components: [{ role: 'main', product: 'Neurix Focus & Energy Gum', qty: 3, displayName: '' }, { role: 'gift', product: 'Focus E-Book', qty: 1, displayName: 'FREE E-Book' }, { role: 'gift', product: 'Shaker Bottle', qty: 1, displayName: 'FREE Shaker', variants: 2 }] },
       ],
     },
     ab: {

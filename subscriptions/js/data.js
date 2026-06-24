@@ -102,6 +102,9 @@ window.DATA_SUBS = {
       history: [ { id: '#0951-R9', date: '2026-05-21', amount: 58, status: 'paid', cycle: 9 } ] },
     { id: 'SUB-20460', customer: 'Mia Anderson',   email: 'mia.a@example.com',    plan: 'Coffee Club — Monthly',      planId: 'PL-1001', product: 'Signature Blend Coffee 500g', status: 'active',   next: '2026-06-23', amount: 24, currency: 'USD', cyclesDone: 2, gateway: 'airwallex', method: 'Visa ···· 4242',       qty: 1, startedAt: '2026-04-23', address: '19 Willow Ct, San Diego, CA 92101, US',
       history: [ { id: '#1066-R2', date: '2026-05-23', amount: 24, status: 'paid', cycle: 2 } ] },
+    // past_due — its cycle-3 renewal (#1010-R3) is failing; pairs with the recurring order below so the dunning queue reconciles.
+    { id: 'SUB-20461', customer: 'Lucas Moore',    email: 'lucas.m@example.com',  plan: 'Protein Resupply — Monthly', planId: 'PL-1005', product: 'Whey Protein 1kg', status: 'past_due', next: '2026-05-12', amount: 39, currency: 'USD', cyclesDone: 2, gateway: 'paypal',    method: 'PayPal',               qty: 1, startedAt: '2026-03-12', address: '88 Cedar St, Austin, TX 78701, US',
+      history: [ { id: '#1010-R2', date: '2026-04-12', amount: 39, status: 'paid', cycle: 2 }, { id: '#1010-R1', date: '2026-03-12', amount: 39, status: 'paid', cycle: 1 } ] },
   ],
 
   // ---- Recurring orders (one per successful/attempted cycle; mirrors a main-store order) ----

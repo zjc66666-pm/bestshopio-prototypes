@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My subscriptions — Lovocross</title>
+<!-- Storefront (buyer) prototype · customer portal: "My subscriptions".
+     NOTE: the logged-in Account area normally uses the dedicated
+     `bestshopio-account-design` skill (its own tokens / badges / mobile pill nav).
+     That skill isn't available in this session, so this is a CLOSE approximation
+     built on the storefront base (black + red accent, .user-com-tab red active),
+     per BestVoy 设计风格_用户端. Swap in the account design system later. -->
+<style>
+  :root{
+    --brand:#222; --brand-ink:#fff; --accent:#E93323;
+    --t-strong:#222; --t-body:#333; --t-muted:#999; --line:#ececec;
+    --bg:#fff; --bg-soft:#f0f0f0; --bg-softer:#f7f7f7;
+    --radius:4px; --radius-lg:8px; --wrap:1100px;
+    --ok:#1f8f4e; --ok-bg:#eafaf1;
+    --font:"TT Norms Pro","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font);color:var(--t-body);background:var(--bg);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .util{background:#222;color:#fff;text-align:center;font-size:12px;letter-spacing:.05em;text-transform:uppercase;padding:9px 12px}
+  .hdr{border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:5}
+  .hdr-in{max-width:var(--wrap);margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+  .logo{font-weight:800;letter-spacing:.04em;font-size:20px;color:var(--t-strong);text-transform:uppercase}
+  .hdr-ico{display:flex;gap:18px;color:var(--t-strong)}
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:24px 20px 60px}
+  .crumb{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--t-muted);margin-bottom:6px}
+  .h1{font-size:26px;font-weight:700;color:var(--t-strong);margin:0 0 20px;letter-spacing:-.01em}
+  .acct{display:grid;grid-template-columns:1fr;gap:26px}
+  /* account nav — .user-com-tab style (red active) */
+  .anav{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--line);-webkit-overflow-scrolling:touch}
+  .anav a{white-space:nowrap;padding:11px 4px;margin-right:18px;font-size:14px;color:var(--t-muted);text-decoration:none;border-bottom:2px solid transparent}
+  .anav a.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+  /* subscription card */
+  .sub-card{border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px;margin-bottom:16px}
+  .sub-top{display:flex;gap:14px;align-items:flex-start}
+  .sub-img{width:64px;height:64px;border-radius:var(--radius);flex:none;background:linear-gradient(135deg,#efe7dc,#d9c6ad);display:grid;place-items:center;color:#6b4f30;font-size:9px;font-weight:700;text-align:center;letter-spacing:.03em}
+  .sub-img.vit{background:linear-gradient(135deg,#e3eede,#bcd6b0);color:#3f6b34}
+  .sub-mid{flex:1;min-width:0}
+  .sub-name{font-weight:600;color:var(--t-strong);font-size:16px}
+  .sub-plan{font-size:13px;color:var(--t-muted);margin-top:2px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px}
+  .pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.9}
+  .pill.active{background:var(--ok-bg);color:var(--ok)}
+  .pill.paused{background:#fdeecf;color:#9a6a12}
+  .sub-next{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg-softer);border-radius:var(--radius);padding:11px 14px;margin:14px 0;font-size:13.5px;color:var(--t-body);flex-wrap:wrap}
+  .sub-next b{color:var(--t-strong)}
+  .link{color:var(--accent);font-weight:600;cursor:pointer;text-decoration:none;font-size:13.5px;background:none;border:0;font-family:inherit;padding:0}
+  .sub-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .abtn{font-family:inherit;font-size:13px;padding:9px 14px;border:1px solid #d5d5d5;background:#fff;color:var(--t-strong);border-radius:var(--radius);cursor:pointer}
+  .abtn:hover{border-color:#222}
+  .abtn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .abtn.danger{color:var(--accent);border-color:#f0c4bd}
+  .help{margin-top:8px;font-size:12.5px;color:var(--t-muted);line-height:1.5}
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#222;color:#fff;padding:11px 18px;border-radius:var(--radius);font-size:13.5px;z-index:50;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+  @media(min-width:860px){
+    .acct{grid-template-columns:210px 1fr;gap:40px}
+    .anav{flex-direction:column;border-bottom:0;border-right:1px solid var(--line);overflow:visible}
+    .anav a{margin-right:0;border-bottom:0;border-left:2px solid transparent;padding:9px 14px}
+    .anav a.active{border-left-color:var(--accent);border-bottom-color:transparent}
+    .h1{font-size:30px}
+  }
+</style>
+</head>
+<body>
+  <div class="util">Free shipping on orders over $79 · Manage your subscriptions anytime</div>
+  <header class="hdr"><div class="hdr-in">
+    <div class="logo">Lovocross</div>
+    <div class="hdr-ico">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h3l2.4 12.4a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.5-1.2L22 7H6"/></svg>
+    </div>
+  </div></header>
+
+  <div class="wrap">
+    <div class="crumb">My account</div>
+    <h1 class="h1">My subscriptions</h1>
+    <div class="acct">
+      <nav class="anav">
+        <a href="#">Orders</a>
+        <a href="#" class="active">Subscriptions</a>
+        <a href="#">Addresses</a>
+        <a href="#">Account details</a>
+        <a href="#">Sign out</a>
+      </nav>
+
+      <div id="subs">
+        <!-- Active: Coffee -->
+        <div class="sub-card" data-id="coffee">
+          <div class="sub-top">
+            <div class="sub-img">SIGNATURE<br>BLEND</div>
+            <div class="sub-mid">
+              <div class="sub-name">Signature Blend Coffee 500g</div>
+              <div class="sub-plan">$24.00 · every month · Visa ···· 4242</div>
+            </div>
+            <span class="pill active" data-pill>Active</span>
+          </div>
+          <div class="sub-next">
+            <span>Next delivery <b data-next>Jun 22, 2026</b></span>
+            <button class="link" data-act="skip">Skip this delivery</button>
+          </div>
+          <div class="sub-actions">
+            <button class="abtn" data-act="freq">Edit frequency</button>
+            <button class="abtn" data-act="address">Change address</button>
+            <button class="abtn" data-act="pause">Pause</button>
+            <button class="abtn danger" data-act="cancel">Cancel</button>
+          </div>
+          <div class="help">You'll get an email 3 days before each charge. Changes apply to your next delivery.</div>
+        </div>
+
+        <!-- Paused: Vitamins -->
+        <div class="sub-card" data-id="vitamins">
+          <div class="sub-top">
+            <div class="sub-img vit">DAILY<br>VITAMINS</div>
+            <div class="sub-mid">
+              <div class="sub-name">Daily Multivitamin (60 ct)</div>
+              <div class="sub-plan">$32.00 · every month · PayPal</div>
+            </div>
+            <span class="pill paused" data-pill>Paused</span>
+          </div>
+          <div class="sub-next">
+            <span>Paused — no charges until you resume.</span>
+          </div>
+          <div class="sub-actions">
+            <button class="abtn primary" data-act="resume">Resume subscription</button>
+            <button class="abtn danger" data-act="cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  (function(){
+    var toastEl = document.getElementById('toast'), tmr;
+    function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(tmr); tmr = setTimeout(function(){ toastEl.classList.remove('show'); }, 2200); }
+    document.getElementById('subs').addEventListener('click', function(e){
+      var btn = e.target.closest('[data-act]'); if(!btn) return;
+      var card = btn.closest('.sub-card'); var act = btn.getAttribute('data-act');
+      var pill = card.querySelector('[data-pill]');
+      if(act === 'skip'){ var n = card.querySelector('[data-next]'); n.textContent = 'Jul 22, 2026'; toast('Next delivery skipped — moving to Jul 22'); }
+      else if(act === 'freq'){ toast('Frequency editor opens here (weekly · monthly · every 2 months)'); }
+      else if(act === 'address'){ toast('Shipping address editor opens here'); }
+      else if(act === 'pause'){ pill.className = 'pill paused'; pill.textContent = 'Paused'; card.querySelector('.sub-next').innerHTML = '<span>Paused — no charges until you resume.</span>'; card.querySelector('.sub-actions').innerHTML = '<button class="abtn primary" data-act="resume">Resume subscription</button><button class="abtn danger" data-act="cancel">Cancel</button>'; toast('Subscription paused'); }
+      else if(act === 'resume'){ pill.className = 'pill active'; pill.textContent = 'Active'; card.querySelector('.sub-next').innerHTML = '<span>Next delivery <b data-next>Jun 25, 2026</b></span><button class="link" data-act="skip">Skip this delivery</button>'; card.querySelector('.sub-actions').innerHTML = '<button class="abtn" data-act="freq">Edit frequency</button><button class="abtn" data-act="address">Change address</button><button class="abtn" data-act="pause">Pause</button><button class="abtn danger" data-act="cancel">Cancel</button>'; toast('Subscription resumed'); }
+      else if(act === 'cancel'){ if(confirm('Cancel this subscription? You can resubscribe anytime.')){ card.style.opacity = '.5'; card.querySelector('.sub-actions').innerHTML = ''; pill.className = 'pill paused'; pill.textContent = 'Cancelled'; toast('Subscription cancelled'); } }
+    });
+  })();
+</script>
+</body>
+</html>

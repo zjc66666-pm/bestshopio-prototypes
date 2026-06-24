@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Neurix Focus &amp; Energy Gum — Neurix</title>
+<!-- Storefront (buyer) PDP prototype · bestvoy storefront design system
+     (docs/BestVoy_设计风格_用户端): black #222 base + red accent + TT Norms Pro, mobile-first,
+     1200px centred wrap, direct corners. Models the standard DTC product page layout and grafts
+     OUR preview widgets: Volume bundle tier selector (from bundles BND-01) + Subscribe & Save
+     (from subscribe-product.html / plan PL-1007). All copy/imagery is our own placeholder content. -->
+<style>
+  :root{
+    --brand:#222222; --brand-ink:#ffffff;
+    --accent:#E93323;
+    --t-strong:#222; --t-body:#333; --t-muted:#999; --t-faint:#bbb;
+    --bg:#fff; --bg-soft:#f0f0f0; --bg-softer:#f7f7f7; --line:#ececec;
+    --price:#222; --price-sale:#E93323; --price-strike:#999;
+    --radius:4px; --radius-lg:8px; --wrap:1200px;
+    --font:"TT Norms Pro","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font);color:var(--t-body);background:var(--bg);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  img{max-width:100%;display:block}
+  a{color:inherit}
+  /* utility + header */
+  .util{background:#222;color:#fff;text-align:center;font-size:12px;letter-spacing:.05em;text-transform:uppercase;padding:9px 12px}
+  .hdr{border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:5}
+  .hdr-in{max-width:var(--wrap);margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+  .logo{font-weight:800;letter-spacing:.06em;font-size:21px;color:var(--t-strong);text-transform:uppercase}
+  .hdr-nav{display:none;gap:26px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--t-body)}
+  .hdr-nav a{color:inherit;text-decoration:none}.hdr-nav a:hover{color:var(--accent)}
+  .hdr-ico{display:flex;gap:18px;color:var(--t-strong);align-items:center}
+  .hdr-ico svg{cursor:pointer}
+  .cart-ico{position:relative}
+  .cart-count{position:absolute;top:-7px;right:-8px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:grid;place-items:center;padding:0 4px}
+  /* layout */
+  .wrap{max-width:var(--wrap);margin:0 auto;padding:20px}
+  .crumbs{font-size:12px;color:var(--t-muted);text-transform:uppercase;letter-spacing:.04em;margin:4px 0 16px}
+  .crumbs a{text-decoration:none}.crumbs a:hover{color:var(--accent)}
+  .pdp{display:grid;grid-template-columns:1fr;gap:28px}
+  /* gallery */
+  .gal-main{background:linear-gradient(135deg,#eaf3ff,#cfe0ff);border-radius:var(--radius-lg);aspect-ratio:1/1;display:grid;place-items:center;position:relative;overflow:hidden}
+  .gal-main .badge{position:absolute;top:14px;left:14px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:5px 10px;border-radius:3px}
+  .gal-thumbs{display:flex;gap:10px;margin-top:10px}
+  .gal-thumbs span{flex:1;aspect-ratio:1/1;border-radius:var(--radius);background:linear-gradient(135deg,#eaf3ff,#cfe0ff);opacity:.6;border:1px solid var(--line);cursor:pointer}
+  .gal-thumbs span.on{opacity:1;border-color:#222}
+  .jar{width:52%;filter:drop-shadow(0 14px 26px rgba(30,60,120,.28))}
+  /* info */
+  .brandline{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--t-muted);margin-bottom:8px}
+  .title{font-size:28px;font-weight:700;color:var(--t-strong);margin:0 0 10px;letter-spacing:-.01em}
+  .rating{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:var(--t-muted)}
+  .stars{color:var(--accent);letter-spacing:2px;font-size:15px}
+  .lead{color:var(--t-body);margin:0 0 14px}
+  .ic-list{list-style:none;margin:0 0 22px;padding:0;display:grid;gap:6px}
+  .ic-list li{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--t-body)}
+  .ic-list svg{color:var(--accent);flex:none}
+  /* section heading */
+  .step-h{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t-strong);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .step-n{background:var(--brand);color:#fff;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;flex:none}
+  /* bundle tier cards (mirrors bundles-module preview: corner badge, price+strike, gift rows bleeding to bottom) */
+  .tiers{display:flex;flex-direction:column;gap:12px;margin-bottom:24px}
+  .tier{position:relative;border:1.5px solid var(--line);border-radius:var(--radius-lg);cursor:pointer;transition:border-color .15s,box-shadow .15s;background:#fff}
+  .tier:hover{border-color:#bbb}
+  .tier.on{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand)}
+  .tier-badge{position:absolute;top:-9px;right:12px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:4px;padding:3px 9px}
+  .tier-head{display:flex;align-items:center;gap:12px;padding:14px}
+  .tier-head input{width:18px;height:18px;accent-color:var(--brand);flex:none}
+  .tier-mid{flex:1;min-width:0}
+  .tier-name{font-weight:700;color:var(--t-strong);font-size:15px}
+  .tier-sub{font-size:12.5px;color:var(--t-muted);margin-top:2px}
+  .tier-price{text-align:right;white-space:nowrap}
+  .tier-price b{font-size:17px;color:var(--price)}
+  .tier-price s{color:var(--price-strike);font-size:12.5px;margin-left:5px}
+  .tier-price small{display:block;font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-top:1px}
+  .tier-gifts{margin:0 14px;border-top:1px dashed var(--line);padding:9px 0;display:none;gap:8px;flex-wrap:wrap}
+  .tier.on .tier-gifts{display:flex}
+  .gift-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#1f8f4e;background:#eaf7ef;border-radius:20px;padding:4px 10px}
+  /* purchase mode (One-time vs Subscribe & Save) */
+  .opts{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+  .opt{border:1.5px solid var(--line);border-radius:var(--radius-lg);padding:15px;cursor:pointer;transition:border-color .15s,background .15s}
+  .opt:hover{border-color:#bbb}
+  .opt.on{border-color:var(--brand);background:var(--bg-softer)}
+  .opt-head{display:flex;align-items:flex-start;gap:12px}
+  .opt input{margin-top:2px;width:18px;height:18px;accent-color:var(--brand);flex:none}
+  .opt-mid{flex:1;min-width:0}
+  .opt-name{font-weight:600;color:var(--t-strong);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .save-badge{background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:3px;letter-spacing:.03em}
+  .opt-desc{font-size:13px;color:var(--t-muted);margin-top:3px}
+  .opt-price{text-align:right;white-space:nowrap}
+  .opt-price b{font-size:17px;color:var(--price)}
+  .opt-price .sale{color:var(--price-sale)}
+  .opt-price s{color:var(--price-strike);font-size:12.5px;margin-left:4px}
+  .opt-price small{display:block;font-size:11px;color:var(--t-muted);text-transform:uppercase;letter-spacing:.04em}
+  .opt-detail{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:none}
+  .opt.on .opt-detail{display:block}
+  .freq-row{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--t-body);margin-bottom:12px;flex-wrap:wrap}
+  .freq-row select{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid #d5d5d5;border-radius:var(--radius);background:#fff;color:var(--t-strong)}
+  .perks{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+  .perks li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t-body)}
+  .perks svg{color:#1f8f4e;flex:none}
+  /* cta */
+  .cta{width:100%;background:var(--brand);color:var(--brand-ink);border:0;border-radius:var(--radius);font-family:inherit;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;padding:0 18px;min-height:54px;transition:opacity .15s}
+  .cta:hover{opacity:.88}
+  .reassure{font-size:12.5px;color:var(--t-muted);text-align:center;margin-top:12px}
+  .pay-icons{display:flex;gap:8px;justify-content:center;margin-top:14px;opacity:.8}
+  .pay-icons span{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--t-muted);border:1px solid var(--line);border-radius:3px;padding:3px 7px}
+  /* lower content */
+  .section{max-width:var(--wrap);margin:0 auto;padding:36px 20px;border-top:1px solid var(--line)}
+  .section h2{font-size:20px;font-weight:700;color:var(--t-strong);margin:0 0 16px;letter-spacing:-.01em}
+  .feat-grid{display:grid;grid-template-columns:1fr;gap:20px}
+  .feat{padding:18px;background:var(--bg-softer);border-radius:var(--radius-lg)}
+  .feat h3{margin:0 0 6px;font-size:15px;color:var(--t-strong)}
+  .feat p{margin:0;font-size:13.5px;color:var(--t-muted);line-height:1.55}
+  .rev-summary{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:20px}
+  .rev-big{font-size:42px;font-weight:700;color:var(--t-strong);line-height:1}
+  .rev{padding:16px 0;border-top:1px solid var(--line)}
+  .rev-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .rev-name{font-weight:600;color:var(--t-strong);font-size:14px}
+  .rev-verified{font-size:11px;color:#1f8f4e;font-weight:600}
+  .rev p{margin:0;font-size:13.5px;color:var(--t-body)}
+  footer{background:#222;color:#bbb;font-size:12.5px;text-align:center;padding:28px 20px;margin-top:8px}
+  @media(min-width:860px){
+    .pdp{grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+    .hdr-nav{display:flex}
+    .title{font-size:34px}
+    .feat-grid{grid-template-columns:repeat(3,1fr)}
+    .gal-sticky{position:sticky;top:90px}
+  }
+</style>
+</head>
+<body>
+  <div class="util">Free shipping over $49 · Subscribe &amp; save 15% · 60-day money-back guarantee</div>
+  <header class="hdr"><div class="hdr-in">
+    <nav class="hdr-nav"><a href="#">Shop</a><a href="#">Focus Gum</a><a href="#">Science</a><a href="#">Reviews</a></nav>
+    <div class="logo">Neurix</div>
+    <div class="hdr-ico">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <span class="cart-ico" title="Cart">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h3l2.4 12.4a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.5-1.2L22 7H6"/></svg>
+        <span class="cart-count" id="cart-count">0</span>
+      </span>
+    </div>
+  </div></header>
+
+  <div class="wrap">
+    <div class="crumbs"><a href="#">Home</a> / <a href="#">Focus Gum</a> / Neurix Focus &amp; Energy Gum</div>
+    <div class="pdp">
+      <!-- gallery -->
+      <div class="gal-sticky">
+        <div class="gal-main"><span class="badge">Bestseller</span>
+          <svg class="jar" viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg">
+            <rect x="22" y="34" width="76" height="100" rx="10" fill="#1d4ed8"/>
+            <rect x="22" y="34" width="76" height="100" rx="10" fill="url(#sh)" opacity=".22"/>
+            <rect x="34" y="18" width="52" height="22" rx="6" fill="#0f3aa8"/>
+            <rect x="32" y="60" width="56" height="50" rx="4" fill="#eaf3ff"/>
+            <text x="60" y="82" text-anchor="middle" font-family="Helvetica" font-size="11" font-weight="800" fill="#1d4ed8">NEURIX</text>
+            <text x="60" y="96" text-anchor="middle" font-family="Helvetica" font-size="6.5" letter-spacing="1" fill="#3b6fd6">FOCUS · ENERGY</text>
+            <text x="60" y="105" text-anchor="middle" font-family="Helvetica" font-size="5.5" fill="#7a98d6">60 PIECES</text>
+            <defs><linearGradient id="sh" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient></defs>
+          </svg>
+        </div>
+        <div class="gal-thumbs"><span class="on"></span><span></span><span></span><span></span></div>
+      </div>
+
+      <!-- info -->
+      <div>
+        <div class="brandline">Neurix Nootropics</div>
+        <h1 class="title">Focus &amp; Energy Gum</h1>
+        <div class="rating"><span class="stars">★★★★★</span> 4.8 · 1,204 reviews</div>
+        <p class="lead">Sugar-free chewing gum with caffeine, L-theanine and B-vitamins for clean, jitter-free focus in about 5 minutes — no water, no crash.</p>
+        <ul class="ic-list">
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> 40&nbsp;mg caffeine + 100&nbsp;mg L-theanine per piece</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Sugar-free · vegan · 60 pieces per pack</li>
+        </ul>
+
+        <!-- STEP 1 — bundle tier selector (Volume / Buy-more-save-more) -->
+        <div class="step-h"><span class="step-n">1</span> Choose your pack</div>
+        <div class="tiers" id="tiers">
+          <label class="tier" data-tier="0">
+            <div class="tier-head">
+              <input type="radio" name="tier" />
+              <div class="tier-mid"><div class="tier-name">1 Pack</div><div class="tier-sub">60-piece pack</div></div>
+              <div class="tier-price"><b>$34.99</b></div>
+            </div>
+          </label>
+          <label class="tier on" data-tier="1">
+            <div class="tier-badge">Most Popular</div>
+            <div class="tier-head">
+              <input type="radio" name="tier" checked />
+              <div class="tier-mid"><div class="tier-name">2 Packs</div><div class="tier-sub">2 × 60-piece pack</div></div>
+              <div class="tier-price"><b>$49.30</b><s>$98.00</s><small>50% off</small></div>
+            </div>
+            <div class="tier-gifts">
+              <span class="gift-chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> FREE Focus E-Book</span>
+            </div>
+          </label>
+          <label class="tier" data-tier="2">
+            <div class="tier-badge">Best Value</div>
+            <div class="tier-head">
+              <input type="radio" name="tier" />
+              <div class="tier-mid"><div class="tier-name">3 Packs</div><div class="tier-sub">3 × 60-piece pack</div></div>
+              <div class="tier-price"><b>$69.60</b><s>$147.00</s><small>Save 30%</small></div>
+            </div>
+            <div class="tier-gifts">
+              <span class="gift-chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> FREE Focus E-Book</span>
+              <span class="gift-chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> FREE Shaker Bottle</span>
+            </div>
+          </label>
+        </div>
+
+        <!-- STEP 2 — purchase mode (One-time vs Subscribe & Save) -->
+        <div class="step-h"><span class="step-n">2</span> How would you like it?</div>
+        <div class="opts" id="opts">
+          <label class="opt" data-mode="onetime">
+            <div class="opt-head">
+              <input type="radio" name="purchase" />
+              <div class="opt-mid"><div class="opt-name">One-time purchase</div>
+                <div class="opt-desc">Ships once. No commitment.</div></div>
+              <div class="opt-price"><b id="ot-price">$49.30</b></div>
+            </div>
+          </label>
+          <label class="opt on" data-mode="subscribe">
+            <div class="opt-head">
+              <input type="radio" name="purchase" checked />
+              <div class="opt-mid"><div class="opt-name">Subscribe &amp; Save <span class="save-badge">Save 15%</span></div>
+                <div class="opt-desc">Delivered on your schedule. Skip, pause or cancel anytime.</div></div>
+              <div class="opt-price"><b class="sale" id="sub-price">$41.91</b><s id="sub-strike">$49.30</s><small>per delivery</small></div>
+            </div>
+            <div class="opt-detail">
+              <div class="freq-row"><span>Deliver every</span>
+                <select id="freq">
+                  <option>2 weeks</option>
+                  <option selected>1 month</option>
+                  <option>2 months</option>
+                  <option>3 months</option>
+                </select>
+              </div>
+              <ul class="perks">
+                <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Extra 15% off every delivery</li>
+                <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Free shipping on every order</li>
+                <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Skip, pause or cancel anytime from your account</li>
+              </ul>
+            </div>
+          </label>
+        </div>
+
+        <button class="cta" id="cta">Subscribe — $41.91 / month</button>
+        <div class="reassure" id="reassure">Your first order ships now, then every month. Cancel anytime.</div>
+        <div class="pay-icons"><span>VISA</span><span>MASTERCARD</span><span>AMEX</span><span>PAYPAL</span><span>G PAY</span><span>APPLE PAY</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- lower content (our own placeholder copy) -->
+  <div class="section">
+    <h2>Why Focus Gum</h2>
+    <div class="feat-grid">
+      <div class="feat"><h3>Works in ~5 minutes</h3><p>Active ingredients absorb through the cheek as you chew, so focus kicks in faster than a capsule and far faster than coffee.</p></div>
+      <div class="feat"><h3>Calm, not jittery</h3><p>L-theanine pairs with caffeine to smooth out the edge — sharp attention without the racing-heart crash.</p></div>
+      <div class="feat"><h3>Pocket-sized ritual</h3><p>No water, no spills, no prep. One piece before a meeting, a workout or a long drive.</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>What customers say</h2>
+    <div class="rev-summary">
+      <div class="rev-big">4.8</div>
+      <div><div class="stars" style="font-size:20px">★★★★★</div><div style="font-size:13px;color:var(--t-muted);margin-top:4px">Based on 1,204 verified reviews</div></div>
+    </div>
+    <div class="rev">
+      <div class="rev-top"><span class="rev-name">Marcus T.</span><span class="stars">★★★★★</span><span class="rev-verified">Verified</span></div>
+      <p>Replaced my afternoon coffee entirely. Clean focus, no 3pm slump. The 2-pack subscription is a no-brainer.</p>
+    </div>
+    <div class="rev">
+      <div class="rev-top"><span class="rev-name">Priya S.</span><span class="stars">★★★★★</span><span class="rev-verified">Verified</span></div>
+      <p>I keep a pack in my bag and one in the car. Kicks in fast before client calls and there's zero jitter.</p>
+    </div>
+    <div class="rev">
+      <div class="rev-top"><span class="rev-name">Devon L.</span><span class="stars">★★★★☆</span><span class="rev-verified">Verified</span></div>
+      <p>Taste took a day to get used to, but the effect is real. Subscribed after my first pack ran out.</p>
+    </div>
+  </div>
+
+  <footer>Neurix · Focus &amp; Energy Gum — buyer storefront prototype (bestvoy design system)</footer>
+
+<script>
+  (function(){
+    // Tier (volume bundle) data — mirrors bundles BND-01. price = one-time pack price; compare = strike MSRP.
+    var TIERS = [
+      { name:'1 Pack',  price:34.99, freqUnitDefault:'1 month' },
+      { name:'2 Packs', price:49.30, freqUnitDefault:'1 month' },
+      { name:'3 Packs', price:69.60, freqUnitDefault:'1 month' }
+    ];
+    var SUB_OFF = 0.15;   // Subscribe & Save = 15% off the selected pack (plan PL-1007)
+    var state = { tier:1, mode:'subscribe' };
+
+    var tiersEl = document.getElementById('tiers');
+    var optsEl  = document.getElementById('opts');
+    var freqEl  = document.getElementById('freq');
+    var cta      = document.getElementById('cta');
+    var reassure = document.getElementById('reassure');
+    var otPrice  = document.getElementById('ot-price');
+    var subPrice = document.getElementById('sub-price');
+    var subStrike= document.getElementById('sub-strike');
+    var cartCount= document.getElementById('cart-count');
+    var added = 0;
+
+    function money(n){ return '$' + n.toFixed(2); }
+    function freqWord(){ var f = freqEl.value; return f === '1 month' ? 'month' : (f === '2 weeks' ? '2 weeks' : 'every ' + f); }
+
+    function refresh(){
+      var t = TIERS[state.tier];
+      var sub = t.price * (1 - SUB_OFF);
+      // mode-card prices reflect the selected pack
+      otPrice.textContent = money(t.price);
+      subPrice.textContent = money(sub);
+      subStrike.textContent = money(t.price);
+      // CTA + reassurance
+      if (state.mode === 'subscribe'){
+        cta.textContent = 'Subscribe — ' + money(sub) + ' / ' + freqWord();
+        reassure.textContent = 'Your first order ships now, then ' + (freqEl.value === '1 month' ? 'every month' : 'every ' + freqEl.value) + '. Cancel anytime.';
+      } else {
+        cta.textContent = 'Add to cart — ' + money(t.price);
+        reassure.textContent = 'One-time purchase. Ships within 1–2 business days.';
+      }
+    }
+
+    // tier selection
+    tiersEl.querySelectorAll('.tier').forEach(function(el){
+      el.addEventListener('click', function(){
+        tiersEl.querySelectorAll('.tier').forEach(function(x){ x.classList.remove('on'); x.querySelector('input').checked = false; });
+        el.classList.add('on'); el.querySelector('input').checked = true;
+        state.tier = +el.getAttribute('data-tier');
+        refresh();
+      });
+    });
+    // purchase mode
+    optsEl.querySelectorAll('.opt').forEach(function(el){
+      el.addEventListener('click', function(e){
+        if (e.target.closest('#freq')) return;   // don't toggle when using the dropdown
+        optsEl.querySelectorAll('.opt').forEach(function(x){ x.classList.remove('on'); x.querySelector('input').checked = false; });
+        el.classList.add('on'); el.querySelector('input').checked = true;
+        state.mode = el.getAttribute('data-mode');
+        refresh();
+      });
+    });
+    freqEl.addEventListener('change', refresh);
+    freqEl.addEventListener('click', function(e){ e.stopPropagation(); });
+
+    cta.addEventListener('click', function(){
+      added += (state.tier + 1);
+      cartCount.textContent = added;
+      var label = cta.textContent;
+      cta.textContent = 'Added ✓';
+      setTimeout(function(){ refresh(); }, 1100);
+    });
+
+    refresh();
+  })();
+</script>
+</body>
+</html>

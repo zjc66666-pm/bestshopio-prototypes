@@ -3,7 +3,7 @@
      #/subscriptions            -> Overview (KPIs + MRR + upcoming charges + dunning settings)
      #/subscriptions/plans      -> Plans (+ /plans/:id detail, /plans/0 = create)
      #/subscriptions/contracts  -> Subscriptions (contracts)
-     #/subscriptions/orders     -> Recurring orders
+     (recurring-orders sub-page retired — not routed; recurring orders live in the main Orders module)
      #/subscriptions/settings   -> alias -> Overview (Settings folded in; kept for old links)
    Chrome (sidebar + header) is the shared shell.js; this renders the body into #root. */
 (function () {
@@ -70,46 +70,44 @@
   // ================= OVERVIEW =================
   function renderOverview() {
     const m = D.metrics;
-    const s = D.settings;
     const pastDue = D.contracts.filter((c) => c.status === 'past_due').length;
-    const failed = D.orders.filter((o) => o.status === 'failed' || o.status === 'retrying').length;
+    const atRisk = D.orders.filter((o) => o.status === 'failed' || o.status === 'retrying');
+    const atRiskValue = atRisk.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+    const arpu = m.activeSubs ? m.mrr / m.activeSubs : 0;
 
-    const kpi = (label, value, delta, sub) =>
-      '<div class="panel card-pad">' +
+    const kpi = (label, value, delta, sub, attr) =>
+      '<div class="panel card-pad"' + (attr || '') + '>' +
         '<div class="muted" style="font-size:12.5px">' + label + '</div>' +
         '<div class="stat-value" style="margin-top:6px">' + value + '</div>' +
         (delta || (sub ? '<div class="muted" style="font-size:12px;margin-top:3px">' + sub + '</div>' : '')) +
       '</div>';
+    const helpTip = (text) => '<span title="' + esc(text) + '" style="cursor:help;color:var(--ink-muted);display:inline-flex;vertical-align:-2px;margin-left:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span>';
 
-    const attention = (pastDue || failed)
+    const attention = (pastDue || atRisk.length)
       ? '<div class="panel card-pad" style="border-color:#f3d2c4;background:#fff7f3;display:flex;align-items:center;gap:12px;margin-bottom:18px">' +
           '<span style="color:var(--err);flex:none">' + I.alert + '</span>' +
           '<div style="flex:1;font-size:13.5px;color:var(--ink-body)"><b>Needs attention.</b> ' +
-            pastDue + ' subscription' + (pastDue === 1 ? '' : 's') + ' past due · ' + failed + ' payment' + (failed === 1 ? '' : 's') + ' failing.</div>' +
-          '<a class="btn btn-default" href="#/subscriptions/contracts">Review</a>' +
+            pastDue + ' subscription' + (pastDue === 1 ? '' : 's') + ' past due · ' + atRisk.length + ' payment' + (atRisk.length === 1 ? '' : 's') + ' failing.</div>' +
+          '<button class="btn btn-default" data-act="goto-atrisk">Review</button>' +
         '</div>'
       : '';
 
     root.innerHTML =
       '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Subscriptions</h1>' +
-        '<a class="btn btn-primary" href="#/subscriptions/plans/0">Add plan</a></div>' +
+        '<div class="flex items-center gap-2">' +
+          '<a class="btn btn-primary" href="#/subscriptions/plans/0">Add plan</a>' +
+          '<button class="btn btn-default" data-act="dunning-settings" title="Failed payment settings">' +
+            '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:5px"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>Settings</button>' +
+        '</div></div>' +
       attention +
-      '<div class="panel card-pad" style="margin-bottom:18px">' +
-        '<div class="card-title" style="margin-bottom:4px">Failed payments (dunning)</div>' +
-        '<div class="muted" style="font-size:12.5px;margin-bottom:12px">How recurring charges retry before a subscription is cancelled.</div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:520px">' +
-          '<div>' + label('Retry attempts') + '<input class="input" id="set-retries" type="number" min="0" max="10" value="' + s.dunning.retries + '" /></div>' +
-          '<div>' + label('Days between retries') + '<input class="input" id="set-interval" type="number" min="1" value="' + s.dunning.intervalDays + '" /></div>' +
-          '<div style="grid-column:1/-1">' + label('After the last failed attempt') + '<div class="muted" style="font-size:12.5px;line-height:1.5">The subscription is automatically <b>cancelled</b> and the customer is notified — no further retries or charges.</div></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:16px;margin-bottom:18px">' +
+      '<div class="kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:16px;margin-bottom:18px">' +
         kpi('Monthly recurring revenue', money(m.mrr), '<div style="margin-top:3px"><span class="delta-up">+' + m.mrrDelta + '%</span> <span class="muted" style="font-size:12px">vs last month</span></div>') +
         kpi('Active subscriptions', m.activeSubs.toLocaleString(), '<div style="margin-top:3px"><span class="delta-up">+' + m.activeDelta + '%</span> <span class="muted" style="font-size:12px">vs last month</span></div>') +
-        kpi('Upcoming (30 days)', m.upcoming30Count.toLocaleString(), null, money(m.upcoming30Value) + ' in charges') +
-        kpi('Churn rate', m.churn + '%', '<div style="margin-top:3px"><span class="delta-up">' + m.churnDelta + '%</span> <span class="muted" style="font-size:12px">lower is better</span></div>') +
+        kpi('ARPU' + helpTip('Average revenue per user — MRR ÷ active subscriptions, this month.'), money(Math.round(arpu)), null, 'per active subscription') +
+        kpi('Failed payments', '<span style="color:' + (atRisk.length ? 'var(--err)' : 'inherit') + '">' + atRisk.length + '</span>', null, money(atRiskValue) + ' at risk' + (atRisk.length ? ' · view →' : ''), atRisk.length ? ' data-act="goto-atrisk" style="cursor:pointer"' : '') +
+        kpi('Churn rate' + helpTip('Subscriptions cancelled this month ÷ active at the start of the month. Lower is better.'), m.churn + '%', '<div style="margin-top:3px"><span class="delta-up">' + m.churnDelta + '%</span> <span class="muted" style="font-size:12px">lower is better</span></div>') +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:16px" class="subs-ov-cols">' +
+      '<div style="display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:16px;margin-bottom:16px" class="subs-ov-cols">' +
         '<div class="panel card-pad">' +
           '<div class="flex items-center justify-between" style="margin-bottom:8px"><div class="card-title">Monthly recurring revenue</div>' +
             '<span class="muted" style="font-size:12px">Last 12 months</span></div>' +
@@ -119,15 +117,99 @@
           '<div class="flex items-center justify-between" style="margin-bottom:10px"><div class="card-title">Upcoming charges</div>' +
             '<span class="muted" style="font-size:12px">Next 7 days</span></div>' +
           D.upcoming.map(upcomingRow).join('') +
-          '<a href="#/subscriptions/orders" style="display:block;margin-top:12px;font-size:13px;color:var(--brand);font-weight:500">View recurring orders →</a>' +
         '</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px" class="subs-ov-cols">' +
+        topPlansHtml() +
+        atRiskHtml(atRisk) +
       '</div>' +
       '<style>@media(max-width:860px){.subs-ov-cols{grid-template-columns:1fr!important}}</style>';
 
-    const bindN = (id, fn) => { const e = root.querySelector(id); if (e) e.oninput = () => fn(e.value); };
-    bindN('#set-retries', (v) => s.dunning.retries = Number(v) || 0);
-    bindN('#set-interval', (v) => s.dunning.intervalDays = Number(v) || 1);
+    const ds = root.querySelector('[data-act="dunning-settings"]'); if (ds) ds.onclick = openDunningModal;
+    root.querySelectorAll('[data-act="goto-atrisk"]').forEach((el) => el.onclick = (e) => { e.preventDefault(); const t = root.querySelector('#subs-atrisk'); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+    root.querySelectorAll('.ar-row[data-cid]').forEach((el) => el.onclick = () => { location.hash = '#/subscriptions/contracts/' + el.getAttribute('data-cid'); });
     initChart();
+  }
+
+  // Top plans — active plans ranked by monthly recurring revenue (subscribers × price), with a mini bar.
+  function topPlansHtml() {
+    const ranked = D.plans.filter((p) => p.status === 'active')
+      .map((p) => ({ name: p.name, subs: p.subscribers || 0, mrr: (p.subscribers || 0) * (p.price || 0) }))
+      .sort((a, b) => b.mrr - a.mrr).slice(0, 5);
+    const max = ranked.length ? (ranked[0].mrr || 1) : 1;
+    const rows = ranked.map((p, i) =>
+      '<div style="padding:10px 0' + (i < ranked.length - 1 ? ';border-bottom:1px solid var(--hair)' : '') + '">' +
+        '<div class="flex items-center justify-between" style="margin-bottom:6px;gap:10px">' +
+          '<span style="font-size:13.5px;color:var(--ink);font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.name) + '</span>' +
+          '<span style="font-size:13px;color:var(--ink);font-weight:600;flex:none">' + money(p.mrr) + '<span class="muted" style="font-weight:400;font-size:12px">/mo</span></span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<div style="flex:1;height:6px;background:var(--hair);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + Math.max(4, Math.round(p.mrr / max * 100)) + '%;background:var(--brand)"></div></div>' +
+          '<span class="muted" style="font-size:12px;flex:none">' + p.subs + ' subs</span>' +
+        '</div>' +
+      '</div>').join('');
+    return '<div class="panel card-pad">' +
+      '<div class="flex items-center justify-between" style="margin-bottom:2px"><div class="card-title">Top plans</div>' +
+        '<a href="#/subscriptions/plans" style="font-size:12px;color:var(--brand);font-weight:500">All plans →</a></div>' +
+      '<div class="muted" style="font-size:12px;margin-bottom:6px">By monthly recurring revenue</div>' + rows +
+    '</div>';
+  }
+
+  // At-risk payments — failing / retrying renewals (the dunning queue). Click a row to open the contract.
+  function atRiskHtml(atRisk) {
+    if (!atRisk.length) {
+      return '<div class="panel card-pad" id="subs-atrisk"><div class="card-title" style="margin-bottom:6px">At-risk payments</div>' +
+        '<div class="muted" style="font-size:13px;padding:10px 0">No failing payments — all caught up.</div></div>';
+    }
+    const rows = atRisk.map((o, i) => {
+      const isRetry = o.status === 'retrying';
+      const meta = isRetry
+        ? 'Retry ' + (o.attempt || 1) + '/' + D.settings.dunning.retries + ' · next ' + fmtDate(o.nextRetry)
+        : 'Failed' + (o.reason ? ' · ' + esc(o.reason) : '');
+      const exists = !!D.contracts.find((c) => c.id === o.contract);
+      return '<div class="ar-row"' + (exists ? ' data-cid="' + esc(o.contract) + '" style="cursor:pointer;' : ' style="') + 'padding:11px 0' + (i < atRisk.length - 1 ? ';border-bottom:1px solid var(--hair)' : '') + '">' +
+        '<div class="flex items-center justify-between" style="gap:10px">' +
+          '<div style="min-width:0"><div style="font-size:13.5px;color:var(--ink);font-weight:500">' + esc(o.customer) + '</div>' +
+            '<div class="muted" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(o.plan) + ' · ' + esc(o.contract) + '</div></div>' +
+          '<div style="text-align:right;flex:none">' +
+            '<div style="font-size:13px;font-weight:600;color:var(--err)">' + money(o.amount) + '</div>' +
+            '<div style="font-size:11.5px;color:' + (isRetry ? 'var(--ink-muted)' : 'var(--err)') + '">' + meta + '</div></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    return '<div class="panel card-pad" id="subs-atrisk">' +
+      '<div class="flex items-center justify-between" style="margin-bottom:2px"><div class="card-title">At-risk payments</div>' +
+        '<span class="muted" style="font-size:12px">' + atRisk.length + ' to resolve</span></div>' +
+      '<div class="muted" style="font-size:12px;margin-bottom:4px">Failing or retrying renewals (dunning queue)</div>' + rows +
+    '</div>';
+  }
+
+  // Failed-payments (dunning) settings — opened from the Settings button next to "Add plan".
+  function openDunningModal() {
+    const s = D.settings;
+    const body =
+      '<div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">How recurring charges retry before a subscription is cancelled.</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+        '<div>' + label('Retry attempts') + '<input class="input" id="dn-retries" type="number" min="0" max="10" value="' + s.dunning.retries + '" /></div>' +
+        '<div>' + label('Days between retries') + '<input class="input" id="dn-interval" type="number" min="1" value="' + s.dunning.intervalDays + '" /></div>' +
+        '<div style="grid-column:1/-1">' + label('After the last failed attempt') + '<div class="muted" style="font-size:12.5px;line-height:1.5">The subscription is automatically <b>cancelled</b> and the customer is notified — no further retries or charges.</div></div>' +
+      '</div>';
+    const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
+    const m = document.createElement('div'); m.className = 'modal'; m.style.width = '520px'; m.style.maxWidth = 'calc(100vw - 32px)';
+    m.innerHTML =
+      '<div class="modal-head flex items-center justify-between"><span>Failed payments (dunning)</span><span data-x style="cursor:pointer;font-size:18px;line-height:1;color:var(--muted)">&times;</span></div>' +
+      '<div class="modal-body">' + body + '</div>' +
+      '<div class="modal-foot"><button class="btn btn-default" data-cancel>Cancel</button><button class="btn btn-primary" data-ok>Save</button></div>';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    m.querySelector('[data-x]').onclick = close;
+    m.querySelector('[data-cancel]').onclick = close;
+    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    m.querySelector('[data-ok]').onclick = () => {
+      s.dunning.retries = Number(m.querySelector('#dn-retries').value) || 0;
+      s.dunning.intervalDays = Number(m.querySelector('#dn-interval').value) || 1;
+      close(); toast('Settings saved');
+    };
   }
 
   function upcomingRow(u) {
@@ -466,17 +548,18 @@
         '<td>' + (c.next ? fmtDate(c.next) : '<span class="muted">—</span>') + '</td>' +
         '<td class="num">' + money(c.amount) + '</td>' +
         '<td>' + pill(c.status) + '</td>' +
-        '<td style="text-align:center;color:var(--ink-muted)">' + I.chev + '</td>' +
+        '<td style="text-align:center" data-stop><button class="back-btn ct-view" data-view="' + c.id + '" title="View" style="width:30px;height:30px;color:var(--ink-muted)">' + I.eye + '</button></td>' +
       '</tr>').join('');
     root.innerHTML =
       '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Subscriptions</h1></div>' +
       '<div class="panel">' + tabsBar(TABSC, LSTC.tab, cnt) + filterBar(LSTC, CONTRACT_FIELDS) +
         '<div style="overflow-x:auto"><table class="tbl" style="min-width:880px">' +
-          '<thead><tr><th>Customer</th><th>Plan</th><th style="width:120px">Frequency</th><th style="width:130px">Next charge</th><th class="num" style="width:90px">Amount</th><th style="width:110px">Status</th><th style="width:48px"></th></tr></thead>' +
+          '<thead><tr><th>Customer</th><th>Plan</th><th style="width:120px">Frequency</th><th style="width:130px">Next charge</th><th class="num" style="width:90px">Amount</th><th style="width:110px">Status</th><th style="width:80px;text-align:center">Action</th></tr></thead>' +
           '<tbody id="ct-tbody">' + (rows || '<tr><td colspan="7" class="muted" style="text-align:center;padding:40px">No subscriptions in this view.</td></tr>') + '</tbody>' +
         '</table></div>' +
       '</div>';
-    root.querySelectorAll('#ct-tbody tr[data-id]').forEach((tr) => tr.onclick = () => { location.hash = '#/subscriptions/contracts/' + tr.getAttribute('data-id'); });
+    root.querySelectorAll('#ct-tbody tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('[data-stop]')) return; location.hash = '#/subscriptions/contracts/' + tr.getAttribute('data-id'); });
+    root.querySelectorAll('.ct-view').forEach((el) => el.onclick = (e) => { e.stopPropagation(); location.hash = '#/subscriptions/contracts/' + el.getAttribute('data-view'); });
     root.querySelectorAll('.tab[data-tab]').forEach((t) => t.onclick = () => { LSTC.tab = t.getAttribute('data-tab'); renderContracts(); });
     wireFilter(LSTC, renderContracts);
   }
@@ -940,7 +1023,7 @@
     const id = parts[1];
     if (page === 'plans') return id != null ? renderPlanDetail(id) : renderPlans();
     if (page === 'contracts') return id != null ? renderContractDetail(id) : renderContracts();
-    if (page === 'settings') return renderOverview();   // Settings folded into Overview (dunning) — keep alias for old links
+    if (page === 'settings') return renderOverview();   // dunning now lives in a modal on the Overview — keep alias for old links
     return renderOverview();
   }
 

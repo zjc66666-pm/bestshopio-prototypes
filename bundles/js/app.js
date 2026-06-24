@@ -49,14 +49,17 @@
       '</span></span>';
   };
   // Synthetic variant options for the preview (real PDP would list the product's actual variant titles).
-  const VAR_COLORS = ['Black', 'Dark Gray', 'Navy', 'Olive', 'Sand', 'Off-White'];
+  const VAR_COLORS = ['Grey', 'Black', 'Navy', 'Olive', 'Sand', 'Off-White'];
   const VAR_SIZES = ['S', 'M', 'L', 'XL'];
+  const VAR_LENGTHS = ['Full Length', '7/8 Length', 'Cropped'];
   const variantList = (name, count) => {
     count = Math.max(1, count || 4);
     const out = [];
     for (let i = 0; i < count; i++) { const c = VAR_COLORS[i % VAR_COLORS.length]; out.push(count > VAR_COLORS.length ? c + ' / ' + VAR_SIZES[Math.floor(i / VAR_COLORS.length) % VAR_SIZES.length] : c); }
     return out;
   };
+  // Synthetic labeled option groups for the preview. More SKUs ⇒ more option dimensions (Color → +Size → +Length).
+  const variantGroups = (count) => { count = Math.max(1, count || 1); if (count <= 1) return []; const g = [{ name: 'Color', values: VAR_COLORS }]; if (count >= 3) g.push({ name: 'Size', values: VAR_SIZES }); if (count >= 5) g.push({ name: 'Length', values: VAR_LENGTHS }); return g; };
 
   // ---- badge combobox (focus shows recommended, also free type) ----
   function closeBadgePop() { document.querySelectorAll('.bn-badge-layer').forEach((l) => l.remove()); }
@@ -203,7 +206,7 @@
       const ids = Object.keys(LST.sel).filter((k) => LST.sel[k]);
       if (!ids.length) return;
       if (act === 'delete') {
-        window.UI.confirm({ title: 'Delete bundles', content: 'Delete ' + ids.length + ' bundle' + (ids.length > 1 ? 's' : '') + '? This can\'t be undone.', okText: 'Delete', danger: true, onOk: () => { D.bundles = D.bundles.filter((b) => ids.indexOf(String(b.id)) < 0); LST.sel = {}; toast('Deleted'); renderList(); } });
+        window.UI.confirm({ title: 'Delete bundles', content: 'Delete ' + ids.length + ' bundle' + (ids.length > 1 ? 's' : '') + '? This can\'t be undone.', okText: 'Delete', danger: true, onOk: () => { D.bundles = D.bundles.filter((b) => ids.indexOf(String(b.id)) < 0); LST.sel = {}; toast('Deleted successfully'); renderList(); } });
         return;
       }
       ids.forEach((id) => { const b = byId(id); if (b) b.status = act === 'activate' ? 'active' : 'draft'; });
@@ -454,17 +457,32 @@
       const radio = '<span style="flex:none;width:15px;height:15px;border-radius:50%;border:1.5px solid ' + (on ? bc : 'var(--ctl)') + ';display:inline-grid;place-items:center">' + (on ? '<span style="width:7px;height:7px;border-radius:50%;background:' + bc + '"></span>' : '') + '</span>';
       const variantRows = on ? mains.map((m, mi) => {
         const multi = (m.variants == null || m.variants > 1); // single-variant products have nothing to pick
-        const vcount = (m.variants == null ? 4 : m.variants);
+        const vcount = (m.variants == null ? 6 : m.variants);
         const qty = Math.max(1, m.qty || 1);
+        const groups = multi ? variantGroups(vcount) : [];
         let row = '<div class="flex items-center gap-2" style="margin-top:10px">' + imgBox(compImg(m), 40) +
           '<div style="flex:1;min-width:0;font-size:13px;color:var(--ink)">' + (esc(m.displayName) || esc(m.product) || 'Product') + '</div>' +
           '<span class="muted" style="font-size:13px;white-space:nowrap">&times; ' + qty + '</span></div>';
-        // one variant picker per unit so each can be a different variant (#1, #2, ...)
-        if (multi) { for (let k = 1; k <= qty; k++) row += '<div class="flex items-center gap-2" style="margin-top:6px">' + (qty > 1 ? '<span style="font-size:11.5px;color:var(--ink-muted);width:22px;flex:none">#' + k + '</span>' : '') + variantSel(i + ':' + mi + ':' + k, m.product, vcount) + '</div>'; }
+        // Option-name title (e.g. "Color, Size, Length") + one selectable dropdown per option, per unit (#1, #2, ...).
+        if (groups.length) {
+          row += '<div class="muted" style="font-size:11px;margin-top:8px;font-weight:600">' + groups.map((g) => esc(g.name)).join(', ') + '</div>';
+          for (let k = 1; k <= qty; k++) {
+            row += '<div class="flex items-center gap-2" style="margin-top:5px">' + (qty > 1 ? '<span style="font-size:11.5px;color:var(--ink-muted);width:22px;flex:none">#' + k + '</span>' : '') +
+              '<div style="display:flex;gap:6px;flex:1;min-width:0">' +
+              groups.map((g, gi) => { const key = i + ':' + mi + ':' + k + ':' + gi; const sidx = Math.min(previewVar[key] || 0, g.values.length - 1); return '<select class="bn-vsel" data-vsel="' + key + '" style="flex:1;min-width:0;height:30px;border:1px solid var(--ctl);border-radius:6px;padding:0 6px;font-size:12px;color:var(--ink-body);background:#fff;cursor:pointer">' + g.values.map((v, vi) => '<option' + (vi === sidx ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select>'; }).join('') +
+              '</div></div>';
+          }
+        }
         return row;
       }).join('') : '';
       // Gift rows bleed to the card edges (negative margin cancels the card padding) and round off the bottom corners.
-      const giftRows = gifts.length ? '<div style="margin:10px -12px -12px;border-radius:0 0 6.5px 6.5px;overflow:hidden' + (on ? '' : ';opacity:0.5') + '">' + gifts.map((g, gi) => '<div class="flex items-center gap-2" style="background:' + bc + ';color:#fff;font-size:11.5px;padding:7px 12px' + (gi ? ';border-top:1px solid rgba(255,255,255,0.18)' : '') + '"><span style="width:38px;height:38px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,0.25);flex:none;display:inline-block"><img src="' + compImg(g) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.remove()" /></span><span>+ ' + esc(g.displayName || g.product) + '</span></div>').join('') + '</div>' : '';
+      const giftRows = gifts.length ? '<div style="margin:10px -12px -12px;border-radius:0 0 6.5px 6.5px;overflow:hidden' + (on ? '' : ';opacity:0.5') + '">' + gifts.map((g, gi) => {
+        const gmulti = (g.variants != null && g.variants > 1);   // single-variant gifts have nothing to pick
+        const ggroups = gmulti ? variantGroups(g.variants) : [];
+        // Compact: variant dropdown(s) sit inline on the gift's own row (right-aligned) — no separate title line, so the row stays one line tall.
+        const sel = ggroups.length ? '<div style="display:flex;gap:6px;flex:none;margin-left:auto">' + ggroups.map((gg, ggi) => { const key = 'g:' + i + ':' + gi + ':' + ggi; const sidx = Math.min(previewVar[key] || 0, gg.values.length - 1); return '<select class="bn-vsel" data-vsel="' + key + '" title="' + esc(gg.name) + '" style="height:26px;max-width:128px;border:1px solid rgba(255,255,255,0.55);border-radius:6px;padding:0 6px;font-size:11.5px;color:var(--ink-body);background:#fff;cursor:pointer">' + gg.values.map((v, vi) => '<option' + (vi === sidx ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select>'; }).join('') + '</div>' : '';
+        return '<div class="flex items-center gap-2" style="background:' + bc + ';color:#fff;font-size:11.5px;padding:7px 12px' + (gi ? ';border-top:1px solid rgba(255,255,255,0.18)' : '') + '"><span style="width:38px;height:38px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,0.25);flex:none;display:inline-block"><img src="' + compImg(g) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.remove()" /></span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">+ ' + esc(g.displayName || g.product) + '</span>' + sel + '</div>';
+      }).join('') + '</div>' : '';
       return '<div data-ptier="' + i + '" style="position:relative;border:1.5px solid ' + (on ? bc : 'var(--hair)') + ';border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer">' + badge +
         '<div class="flex items-center justify-between" style="gap:8px">' +
           '<div class="flex items-center gap-2" style="min-width:0">' + radio +
@@ -479,11 +497,11 @@
   function updatePreview() { const el = root.querySelector('#bn-preview'); if (el) { el.innerHTML = previewInner(); wirePreview(); } }
   function wirePreview() {
     root.querySelectorAll('#bn-preview [data-ptier]').forEach((el) => el.onclick = () => { previewSel = +el.getAttribute('data-ptier'); updatePreview(); });
-    root.querySelectorAll('#bn-preview [data-vsel]').forEach((el) => el.onclick = (e) => {
-      e.stopPropagation(); // don't bubble to the tier card (which would switch/re-render)
-      const key = el.getAttribute('data-vsel');
-      const opts = variantList(el.getAttribute('data-vname'), +el.getAttribute('data-vcount'));
-      openVariantPop(el, opts, previewVar[key] || 0, (idx) => { previewVar[key] = idx; updatePreview(); });
+    // Variant dropdowns are interactive <select>s; keep their clicks from bubbling to the tier card (which would re-render), and remember each choice.
+    root.querySelectorAll('#bn-preview .bn-vsel[data-vsel]').forEach((el) => {
+      el.onclick = (e) => e.stopPropagation();
+      el.onmousedown = (e) => e.stopPropagation();
+      el.onchange = (e) => { e.stopPropagation(); previewVar[el.getAttribute('data-vsel')] = el.selectedIndex; };
     });
   }
 
@@ -532,7 +550,7 @@
     // save / delete
     root.querySelectorAll('[data-act="save"]').forEach((b) => b.onclick = () => doSave(isEdit));
     const dscb = root.querySelector('[data-act="discard-bar"]'); if (dscb) dscb.onclick = () => { EDIT = JSON.parse(EDIT_ORIGIN); paintEditor(isEdit); };
-    const del = root.querySelector('[data-act="delete"]'); if (del) del.onclick = () => window.UI.confirm({ title: 'Delete bundle', content: 'Delete this bundle? This can\'t be undone.', okText: 'Delete', danger: true, onOk: () => { const i = D.bundles.findIndex((x) => x.id === EDIT_ID); if (i >= 0) D.bundles.splice(i, 1); toast('Bundle deleted'); location.hash = '#/bundles'; } });
+    const del = root.querySelector('[data-act="delete"]'); if (del) del.onclick = () => window.UI.confirm({ title: 'Delete bundle', content: 'Delete this bundle? This can\'t be undone.', okText: 'Delete', danger: true, onOk: () => { const i = D.bundles.findIndex((x) => x.id === EDIT_ID); if (i >= 0) D.bundles.splice(i, 1); toast('Deleted successfully'); location.hash = '#/bundles'; } });
     root.querySelectorAll('.bn-nup, .bn-ndn').forEach((b) => b.onclick = () => { const inp = b.closest('.bn-num').querySelector('input'); if (!inp) return; const step = parseFloat(inp.step) || 1, min = inp.min !== '' ? parseFloat(inp.min) : -Infinity; let v = (parseFloat(inp.value) || 0) + (b.classList.contains('bn-nup') ? step : -step); if (v < min) v = min; inp.value = (String(step).indexOf('.') >= 0) ? v.toFixed(2) : String(v); inp.dispatchEvent(new Event('input', { bubbles: true })); });
     wirePreview();
     root.oninput = syncUnsaved; root.onchange = syncUnsaved; // dirty-sync after any field change
@@ -542,8 +560,8 @@
   function doSave(isEdit) {
     if (!(EDIT.name || '').trim()) return toast('Enter a bundle name');
     if (!(EDIT.parentProduct || '').trim()) return toast('Select a parent product first');
-    if (isEdit) { const i = D.bundles.findIndex((x) => x.id === EDIT_ID); if (i >= 0) Object.assign(D.bundles[i], { name: EDIT.name, parentProduct: EDIT.parentProduct, template: EDIT.template, status: EDIT.status, tierCount: (EDIT.tiers || []).length }); EDIT_ORIGIN = snapshot(); syncUnsaved(); toast('Bundle saved'); }
-    else { const id = 'BND-' + String(D.bundles.length + 1).padStart(2, '0'); D.bundles.unshift({ id: id, name: EDIT.name, parentProduct: EDIT.parentProduct, template: EDIT.template, status: EDIT.status || 'active', tierCount: (EDIT.tiers || []).length, orders: 0, createdAt: '2026-06-19' }); toast('Bundle created'); location.hash = '#/bundles'; }
+    if (isEdit) { const i = D.bundles.findIndex((x) => x.id === EDIT_ID); if (i >= 0) Object.assign(D.bundles[i], { name: EDIT.name, parentProduct: EDIT.parentProduct, template: EDIT.template, status: EDIT.status, tierCount: (EDIT.tiers || []).length }); EDIT_ORIGIN = snapshot(); syncUnsaved(); toast('Updated successfully'); }
+    else { const id = 'BND-' + String(D.bundles.length + 1).padStart(2, '0'); D.bundles.unshift({ id: id, name: EDIT.name, parentProduct: EDIT.parentProduct, template: EDIT.template, status: EDIT.status || 'active', tierCount: (EDIT.tiers || []).length, orders: 0, createdAt: '2026-06-19' }); toast('Created successfully'); location.hash = '#/bundles'; }
   }
 
   // ================= ROUTER =================

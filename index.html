@@ -17,11 +17,26 @@
   <!-- Single-page app: the shell (sidebar + header) and every module view are rendered by shell.js. -->
   <div id="app" class="flex h-screen overflow-hidden"></div>
 
-  <script src="assets/nav.js?v=20260622l"></script>
+  <script src="assets/nav.js?v=20260623a"></script>
   <!-- Bundle catalog is loaded eagerly so the shared bundle picker (used by Subscriptions → Add plan) always has data,
        even before the Bundles module is visited. Pure data; the lazy module loader re-uses the same cached file. -->
-  <script src="bundles/js/data.js?v=20260622p"></script>
-  <script src="assets/shell.js?v=20260622p"></script>
+  <script src="bundles/js/data.js?v=20260622q"></script>
+  <script src="assets/shell.js?v=20260623a"></script>
   <script src="assets/widgets.js?v=20260622o"></script>
+  <!-- Runtime i18n overlay: engine + shared-chrome dict, then the per-module dictionary.
+       Default language is ZH; the top-right toggle switches and persists. -->
+  <script src="assets/i18n.js?v=20260624a"></script>
+  <script src="assets/i18n/orders-customers.js?v=20260624a"></script>
+  <script src="assets/i18n/products-collections.js?v=20260624a"></script>
+  <script src="assets/i18n/content.js?v=20260624a"></script>
+  <script src="assets/i18n/reviews-discounts-google.js?v=20260624a"></script>
+  <script src="assets/i18n/settings.js?v=20260624a"></script>
+  <script src="assets/i18n/analytics-widgets.js?v=20260624a"></script>
+  <script src="assets/i18n/online-store-apps.js?v=20260624a"></script>
+  <script src="assets/i18n/selling-apps.js?v=20260624a"></script>
+  <!-- QA polish: interpolated templates + split-node fixes from the live preview sweep -->
+  <script src="assets/i18n/zz-polish.js?v=20260624a"></script>
+  <!-- final overrides: cross-module ambiguous-word resolutions (loads last → wins) -->
+  <script src="assets/i18n-dict.js?v=20260624a"></script>
 </body>
 </html>

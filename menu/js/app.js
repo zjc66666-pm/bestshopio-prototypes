@@ -707,7 +707,7 @@
       const handle = CUR.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       D.MENUS.unshift({ id: newId, title: CUR.title, handle, items: stripped });
       D.DETAILS[newId] = { id: newId, title: CUR.title, handle, item: stripped };
-      toast('Menu “' + CUR.title + '” created');
+      toast('Added successfully');
     } else {
       const row = D.MENUS.find((m) => m.id === CUR.id);
       if (row) { row.title = CUR.title; row.items = stripped; }
