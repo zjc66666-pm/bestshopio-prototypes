@@ -20,6 +20,8 @@ window.I18N.extend({
   "Publish": "发布",
   "Publishing…": "发布中…",
   "Publish to storefront": "发布到店铺前台",
+  "Save as template": "另存为模板",
+  "Save the current layout as a new template in the library": "把当前布局另存为模板库里的新模板",
 
   /* ============================================================= ONLINE STORE · 左侧结构树 ============================================================= */
   "Global tokens — every Section & Block inherits from here unless overridden. Edit on the right; the preview updates live.": "全局样式——所有区块和块默认继承这里的设置（除非单独覆盖）。在右侧编辑，预览会实时更新。",
@@ -281,6 +283,29 @@ window.I18N.extend({
   "Collection banner": "系列横幅",
   "Collection list": "系列列表",
   "Collection page": "系列页",
+  "List collections": "全部系列",
+  "Selected collections": "指定系列",
+  "Leave empty to show all active collections. Selected collections display in the chosen order.": "留空则显示全部启用的系列；选择后按所选顺序展示。",
+  "All active collections": "全部启用的系列",
+  "Theme settings are inherited globally; this section only exposes its own overrides.": "主题设置为全局继承，本区块仅暴露自身的覆盖项。",
+  "Collections": "系列",
+  "Advanced": "高级",
+  "Custom CSS": "自定义 CSS",
+  "Basics": "基础",
+  "Show collection image": "显示系列图片",
+  "Collection title size": "系列标题字号",
+  "Image size": "图片尺寸",
+  "Original image ratio": "原始图片比例",
+  "Adapt to screen": "自适应屏幕",
+  "Desktop content position": "桌面端内容位置",
+  "Mobile content position": "移动端内容位置",
+  "Mobile image": "移动端图片",
+  "Small": "小",
+  "Medium": "中",
+  "Large": "大",
+  "Top left": "左上", "Top center": "中上", "Top right": "右上",
+  "Middle left": "左中", "Middle center": "正中", "Middle right": "右中",
+  "Bottom left": "左下", "Bottom center": "中下", "Bottom right": "右下",
 
   /* ============================================================= ONLINE STORE · 区块通用设置项 ============================================================= */
   "Full width": "全宽",
@@ -775,13 +800,13 @@ window.I18N.extend({
 window.I18N.addRules([
   /* online-store · 顶部预览条："Live preview · <页面> · Desktop/Mobile"（单一文本节点，静态+插值同节点）*/
   { re: /^Live preview · (.+) · (Desktop|Mobile)$/, zh: function (m) {
-      var page = { "Home page": "首页", "Collection page": "系列页", "Product page": "商品页" }[m[1]] || m[1];
+      var page = { "Home page": "首页", "Collection page": "系列页", "Collection list": "系列列表", "Product page": "商品页" }[m[1]] || m[1];
       var dev = m[2] === "Desktop" ? "桌面端" : "移动端";
       return "实时预览 · " + page + " · " + dev;
     } },
   /* online-store · 左侧模板分组标题："<页面> Template"（已去掉 page 后缀）*/
   { re: /^(.+) Template$/, zh: function (m) {
-      var map = { "Home": "首页", "Collection": "系列", "Product": "商品" };
+      var map = { "Home": "首页", "Collection": "系列", "Collection list": "系列列表", "Product": "商品" };
       return (map[m[1]] || m[1]) + "模板";
     } },
   /* online-store · 添加区块弹窗底部："12 of 18 section types available" */

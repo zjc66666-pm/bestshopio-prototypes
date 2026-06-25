@@ -90,7 +90,13 @@
   }
   const layoutRadius = (t, which) => { const l = (t && t.layout) || {}; return (which === 'image' ? l.image_border_radius : l.card_border_radius) || 0; };
   const pick = (a, b) => (a == null ? b : a);
-  // shared storefront product card — reads Theme settings › Product cards (with optional per-section overrides)
+  // shared storefront product card — reads Theme settings › Product cards (with optional per-section overrides).
+  // Extra opts (all off/inherit by default, so sections that don't pass them render exactly as before):
+  //   showCustomBadge + p.badge   → manual label (neutral), highest priority
+  //   showCollectionBadge         → product category/vendor label (promo accent)
+  //   showPromoText / promoSource / promoText → one promo line under the title
+  //   enableHover + p.image2      → swap to 2nd image on desktop hover
+  //   swatchType: 'variant-image' → square image-style swatches instead of color dots
   function productCard(p, t, opts) {
     opts = opts || {}; const pc = (t && t.product_cards) || {}, c = (t && t.colors) || {};
     const ratio = { portrait: '3/4', square: '1/1', landscape: '4/3' }[opts.ratio || pc.product_image_ratio] || '3/4';
@@ -100,16 +106,33 @@
     const rad = layoutRadius(t, 'card');
     const sale = p.compareAt && p.compareAt > p.price, pct = sale ? Math.round((1 - p.price / p.compareAt) * 100) : 0;
     const saleColor = c.sale_price_color || '#d92d20';
-    const badge = (sale && pick(opts.showSaleBadge, pc.show_sale_badge_by_default))
-      ? '<span class="oc-badge" style="' + (pc.sale_badge_style === 'outline' ? 'background:transparent;border:1px solid ' + saleColor + ';color:' + saleColor : 'background:' + saleColor + ';color:#fff') + '">-' + pct + '%</span>' : '';
+    const promoColor = c.link_color || '#2563eb';
+    const chip = (txt, style) => '<span class="oc-badge" style="' + style + '">' + esc(txt) + '</span>';
+    // badge priority: custom label > collection/category label > auto sale discount
+    let badge = '';
+    const cat = p.category || p.vendor;
+    if (opts.showCustomBadge && p.badge) badge = chip(p.badge, 'background:' + (c.text_color || '#1a1a1a') + ';color:#fff');
+    else if (opts.showCollectionBadge && cat) badge = chip(cat, 'background:' + promoColor + ';color:#fff');
+    else if (sale && pick(opts.showSaleBadge, pc.show_sale_badge_by_default)) badge = chip('-' + pct + '%', pc.sale_badge_style === 'outline' ? 'background:transparent;border:1px solid ' + saleColor + ';color:' + saleColor : 'background:' + saleColor + ';color:#fff');
+    const hover = (opts.enableHover && p.image2) ? '<div class="oc-img2" style="background-image:url(' + esc(p.image2) + ');background-size:' + fit + '"></div>' : '';
     const quick = pick(opts.showQuickAdd, pc.show_quick_add_by_default) ? '<span class="oc-quick" style="' + btnStyle(t) + ';height:36px;font-size:' + fs(t, 12) + 'px">Quick add</span>' : '';
-    const swatches = (pick(opts.showSwatches, pc.show_color_swatches_by_default) && p.swatches) ? '<div class="oc-sw">' + p.swatches.slice(0, 5).map((s) => '<span style="background:' + s + '"></span>').join('') + '</div>' : '';
+    const viSw = opts.swatchType === 'variant-image';
+    const swatches = (pick(opts.showSwatches, pc.show_color_swatches_by_default) && p.swatches) ? '<div class="oc-sw' + (viSw ? ' vi' : '') + '">' + p.swatches.slice(0, 5).map((s) => '<span style="background:' + s + '"></span>').join('') + '</div>' : '';
     const vendor = (pick(opts.showVendor, pc.show_vendor_by_default) && p.vendor) ? '<div class="oc-vendor" style="color:' + (c.secondary_color || '#777') + '">' + esc(p.vendor) + '</div>' : '';
     const rating = (pick(opts.showRating, pc.show_rating_by_default) && p.rating) ? '<div class="oc-rate"><span style="color:#f5b301">' + I.star + '</span>' + p.rating + (p.reviews ? ' <i>(' + p.reviews + ')</i>' : '') + '</div>' : '';
+    // promo line: custom text, else "Limited-time deal" on sale, else "Trending now" for well-reviewed items
+    let promo = '';
+    if (opts.showPromoText) {
+      let txt = null;
+      if (opts.promoSource === 'custom') txt = (opts.promoText || '').trim() || null;
+      else if (sale) txt = 'Limited-time deal';
+      else if ((p.reviews || 0) >= 150) txt = 'Trending now';
+      if (txt) promo = '<div class="oc-promo" style="color:' + promoColor + '">' + esc(txt) + '</div>';
+    }
     const price = '<div class="oc-price"><span' + (sale ? ' style="color:' + saleColor + '"' : '') + '>' + money(p.price) + '</span>' + (sale ? '<s>' + money(p.compareAt) + '</s>' : '') + '</div>';
     return '<div class="oc-card" style="text-align:' + align + ';font-family:' + bodyFamily(t) + '">' +
-      '<div class="oc-img" style="aspect-ratio:' + ratio + ';border-radius:' + rad + 'px;background-image:url(' + esc(p.image) + ');background-size:' + fit + '">' + badge + quick + '</div>' +
-      swatches + vendor + '<div class="oc-title" style="font-size:' + fs(t, titlePx) + 'px;color:' + (c.text_color || '#1a1a1a') + '">' + esc(p.title) + '</div>' + rating + price + '</div>';
+      '<div class="oc-img" style="aspect-ratio:' + ratio + ';border-radius:' + rad + 'px;background-image:url(' + esc(p.image) + ');background-size:' + fit + '">' + hover + badge + quick + '</div>' +
+      swatches + vendor + '<div class="oc-title" style="font-size:' + fs(t, titlePx) + 'px;color:' + (c.text_color || '#1a1a1a') + '">' + esc(p.title) + '</div>' + promo + rating + price + '</div>';
   }
 
   // ------------------------------------------------------------------ public API for section files
@@ -129,7 +152,7 @@
   let _sectionsP = null;
   function ensureSections() {
     if (_sectionsP) return _sectionsP;
-    const kinds = ['announcement-bar', 'header', 'footer', 'collection-banner', 'collection-list', 'collection-page'];
+    const kinds = ['announcement-bar', 'header', 'footer', 'collection-banner', 'collection-list', 'collection-page', 'list-collections'];
     D.CATALOG.forEach((g) => g.entries.forEach((e) => { if (e.kind && kinds.indexOf(e.kind) < 0) kinds.push(e.kind); }));
     _sectionsP = Promise.all(kinds.map((k) => loadScript(MOD_BASE + 'sections/' + k + '.js?v=' + OS_V).catch(() => { /* not yet ported — skip */ })));
     return _sectionsP;
@@ -250,8 +273,26 @@
   // ==========================================================================
   //  BUILDER  (#/online-store/edit/:handle)
   // ==========================================================================
-  function renderBuilder(handle) {
+  function renderBuilder(handle, page, exitTo, tpl, saved) {
     if (!ED || ED.meta.handle !== handle) startEditor(handle);
+    // One-click checkout template: replace the checkout page's sections with the chosen preset.
+    if (tpl && D.CHECKOUT_TEMPLATES && D.CHECKOUT_TEMPLATES[tpl] && ED.theme.templates.checkout) {
+      ED.theme.templates.checkout.sections = D.CHECKOUT_TEMPLATES[tpl].seeds.map(matSection);
+    }
+    // Load a merchant-saved BestCheckout template (localStorage) into its page.
+    if (saved) {
+      let store; try { store = JSON.parse(localStorage.getItem('bsio_bc_templates') || '{}'); } catch (e) { store = {}; }
+      Object.keys(store).forEach((k) => {
+        const tp = (store[k] || []).filter((x) => x.id === saved)[0];
+        if (tp && tp.sections) { const pg2 = k === 'thankyou' ? 'thank-you' : k; if (ED.theme.templates[pg2]) ED.theme.templates[pg2].sections = tp.sections.map(matSection); }
+      });
+    }
+    if (page && ED.theme.templates[page]) {
+      ED.currentPage = page;
+      const secs0 = ED.theme.templates[page].sections;
+      ED.selection = (secs0 && secs0.length) ? { kind: 'section', sectionId: secs0[0].id } : { kind: 'announcement' };
+    }
+    ED.exitTo = exitTo || null; // where the back button returns (default: theme list)
     closeBuilder(); ensureStyles();
     const b = h('<div class="os-builder" id="os-builder"></div>');
     b.appendChild(topBar());
@@ -292,6 +333,7 @@
         '</div>' +
       '</div>' +
       '<div class="os-top-r">' +
+        ((ED.exitTo && ED.exitTo.indexOf('#/bestcheckout') === 0) ? '<button class="btn btn-default" id="t-saveas" title="Save the current layout as a new template in the library">Save as template</button>' : '') +
         '<button class="btn btn-default" id="t-discard"' + (dirty && !busy ? '' : ' disabled') + '>Discard</button>' +
         '<button class="btn btn-default" id="t-save"' + (dirty && !busy ? '' : ' disabled') + '>' + (busy === 'saving' ? 'Saving…' : 'Save') + '</button>' +
         '<button class="btn ' + (issues.length ? 'btn-warn' : 'btn-primary') + '" id="t-pub"' + (((dirty || draft) && !busy) ? '' : ' disabled') + ' title="' + (issues.length ? issues.length + ' validation issue(s)' : 'Publish to storefront') + '">' +
@@ -301,13 +343,26 @@
   }
   function wireTop() {
     const b = document.getElementById('os-builder');
-    b.querySelector('#t-back').onclick = () => attemptLeave(() => { location.hash = '#/online-store'; });
+    b.querySelector('#t-back').onclick = () => attemptLeave(() => { location.hash = (ED && ED.exitTo) || '#/online-store'; });
     b.querySelectorAll('[data-rail]').forEach((x) => x.onclick = () => { ED.leftMode = x.getAttribute('data-rail'); if (ED.leftMode === 'settings') ED.selection = { kind: 'theme-settings' }; else if (ED.selection.kind === 'theme-settings') ED.selection = { kind: 'header' }; rerender(); });
     b.querySelector('#t-page').onclick = (e) => openPageMenu(e.currentTarget);
     b.querySelectorAll('[data-dev]').forEach((x) => x.onclick = () => { const d = x.getAttribute('data-dev'); if (d !== ED.device) { ED.device = d; refreshTop(); refreshCanvas(); } });
     const dis = b.querySelector('#t-discard'); if (dis && !dis.disabled) dis.onclick = onDiscard;
     const sv = b.querySelector('#t-save'); if (sv && !sv.disabled) sv.onclick = onSave;
     const pb = b.querySelector('#t-pub'); if (pb && !pb.disabled) pb.onclick = onPublish;
+    const sa = b.querySelector('#t-saveas'); if (sa) sa.onclick = saveAsBcTemplate;
+  }
+  // Save the current page's layout as a new merchant template in the BestCheckout library (localStorage).
+  function saveAsBcTemplate() {
+    const page = ED.currentPage;
+    const ptKey = page === 'thank-you' ? 'thankyou' : page;
+    const name = (window.prompt('Save as new template — name:', pageLabel() + ' v2') || '').trim();
+    if (!name) return;
+    let store; try { store = JSON.parse(localStorage.getItem('bsio_bc_templates') || '{}'); } catch (e) { store = {}; }
+    store[ptKey] = store[ptKey] || [];
+    store[ptKey].push({ id: 'saved-' + ptKey + '-' + (store[ptKey].length + 1), name: name, accent: '#1f8f4e', layout: page === 'checkout' ? '2col' : 'solo', sections: clone(ED.theme.templates[page].sections) });
+    try { localStorage.setItem('bsio_bc_templates', JSON.stringify(store)); } catch (e) {}
+    toast('Saved as template: ' + name);
   }
 
   // -------------------------------------------------------------- LEFT (tree / settings groups)
@@ -439,35 +494,53 @@
   function centerPanel() {
     const c = h('<div class="os-center"></div>');
     c.innerHTML = '<div class="os-canvas-bar">Live preview · ' + esc(pageLabel()) + ' · ' + (ED.device === 'desktop' ? 'Desktop' : 'Mobile') + '</div>' +
-      '<div class="os-canvas-scroll" id="os-cscroll"><div class="os-frame ' + ED.device + '" id="os-frame">' + canvasHtml() + '</div></div>';
+      '<div class="os-canvas-scroll" id="os-cscroll"><div class="os-frame i18n-skip ' + ED.device + '" id="os-frame">' + canvasHtml() + '</div></div>';
     return c;
   }
   function canvasHtml() {
     let html = '';
+    const coPage = ED.currentPage === 'checkout' || ED.currentPage === 'thank-you';
+    const visible = pageSections().filter((s) => !s.hidden);
     html += wrapGlobal('announcement', ED.theme.announcement);
-    html += wrapGlobal('header', ED.theme.header);
-    pageSections().filter((s) => !s.hidden).forEach((s) => { html += wrapSection(s); });
+    if (!coPage) html += wrapGlobal('header', ED.theme.header); // checkout / thank-you: no storefront nav header
+    if (ED.currentPage === 'checkout') {
+      // PC = two columns like every real checkout: the FORM (payment) + bundle/add-on are the wide
+      // left; the order summary and right-rail social proof (specialist card, rating) sit in the
+      // 372px sidebar. Reviews / why-us / guarantee stay full-width. Mobile collapses to one column.
+      const COL = { 'checkout-payment': 'main', 'checkout-bundle': 'main', 'checkout-addon': 'main', 'checkout-summary': 'sidebar', 'checkout-endorsement': 'sidebar', 'checkout-rating': 'sidebar' };
+      let mainB = [], sideB = [];
+      const flush = () => {
+        if (mainB.length && sideB.length) html += '<div class="os-co-2col"><div class="os-co-col">' + mainB.join('') + '</div><div class="os-co-col os-co-side">' + sideB.join('') + '</div></div>';
+        else if (sideB.length) html += '<div class="os-co-solo">' + sideB.join('') + '</div>'; // payment with no main column → centered
+        else if (mainB.length) html += mainB.join('');
+        mainB = []; sideB = [];
+      };
+      visible.forEach((s) => { const c = COL[s.kind]; if (c === 'main') mainB.push(wrapSection(s)); else if (c === 'sidebar') sideB.push(wrapSection(s, true)); else { flush(); html += wrapSection(s); } });
+      flush();
+    } else {
+      visible.forEach((s) => { html += wrapSection(s); });
+    }
     html += wrapGlobal('footer', ED.theme.footer);
-    if (!pageSections().filter((s) => !s.hidden).length) html += '<div class="os-empty-canvas">This template has no visible sections.<br>Add one from the left, or switch page type.</div>';
+    if (!visible.length) html += '<div class="os-empty-canvas">This template has no visible sections.<br>Add one from the left, or switch page type.</div>';
     return html;
   }
-  function ctxFor(scope, id, selBool, selBlk) { return { mob: ED.device === 'mobile', tokens: tokens(), scope, sectionId: id, selected: selBool, selectedBlockId: selBlk, sample: D.SAMPLE }; }
+  function ctxFor(scope, id, selBool, selBlk, rail) { return { mob: ED.device === 'mobile', tokens: tokens(), scope, sectionId: id, selected: selBool, selectedBlockId: selBlk, sample: D.SAMPLE, rail: !!rail }; }
   function wrapGlobal(scope, inst) {
     if (inst.hidden) return '';
     const def = SECTIONS[inst.kind]; const sel = ED.selection.kind === scope;
     const inner = def ? safeRender(def, inst, scope, inst.id) : unknown(inst.kind);
     return '<div class="os-sec' + (sel ? ' active' : '') + '" data-csel-global="' + scope + '"><span class="os-sec-tag">' + esc(scope === 'announcement' ? 'Announcement' : scope[0].toUpperCase() + scope.slice(1)) + '</span>' + inner + '</div>';
   }
-  function wrapSection(s) {
+  function wrapSection(s, rail) {
     const def = SECTIONS[s.kind]; const sel = ED.selection.kind === 'section' && ED.selection.sectionId === s.id;
-    const inner = def ? safeRender(def, s, 'section', s.id) : unknown(s.kind);
+    const inner = def ? safeRender(def, s, 'section', s.id, rail) : unknown(s.kind);
     return '<div class="os-sec' + (sel ? ' active' : '') + '" data-csel="' + s.id + '" data-preview-id="section:' + s.id + '"><span class="os-sec-tag">' + esc(sectionLabel(s)) + '</span>' + inner + '</div>';
   }
-  function safeRender(def, inst, scope, id) {
+  function safeRender(def, inst, scope, id, rail) {
     try {
       const selBlk = (ED.selection.kind === 'block' && ED.selection.sectionId === id) ? ED.selection.blockId : null;
       const selBool = (scope === 'section' ? (ED.selection.kind === 'section' && ED.selection.sectionId === id) : ED.selection.kind === scope);
-      return def.render(inst.settings, inst.blocks || [], ctxFor(scope, id, selBool, selBlk));
+      return def.render(inst.settings, inst.blocks || [], ctxFor(scope, id, selBool, selBlk, rail));
     } catch (e) { return '<div class="os-render-err">⚠ ' + esc(def.kind) + ' failed to render: ' + esc(e.message) + '</div>'; }
   }
   function unknown(kind) { return '<div class="os-render-err">Section “' + esc(kind) + '” isn’t available yet.</div>'; }
@@ -579,7 +652,7 @@
         return colorControl(f, val, dk);
       case 'image':
         return '<div class="os-imgf" ' + dk + '>' + (val ? '<div class="os-img-prev" style="background-image:url(' + esc(val) + ')"></div>' : '<div class="os-img-box">' + I.image + ' Paste an image URL</div>') + '<input class="os-input" data-img-url value="' + esc(val) + '" placeholder="https://…"></div>';
-      case 'product': case 'collection': case 'menu': case 'blog': case 'page':
+      case 'product': case 'collection': case 'collections': case 'menu': case 'blog': case 'page':
         return pickerControl(f, val, dk);
       default:
         return '<input class="os-input" ' + dk + ' value="' + esc(val) + '">';
@@ -602,6 +675,7 @@
     const S = D.SAMPLE;
     if (kind === 'product') { if (Array.isArray(val)) return val.length ? val.length + ' products selected' : 'Select products'; const p = S.products.find((x) => x.id === val); return p ? p.title : 'Select a product'; }
     if (kind === 'collection') { const c = S.collections.find((x) => x.id === val); return c ? c.title : 'Select a collection'; }
+    if (kind === 'collections') { return (Array.isArray(val) && val.length) ? val.length + ' collections selected' : 'All active collections'; }
     if (kind === 'menu') { const m = S.menus.find((x) => x.id === val); return m ? m.name : 'Select a menu'; }
     if (kind === 'blog') { const b = S.blogs.find((x) => x.id === val); return b ? b.title : 'Select a blog'; }
     if (kind === 'page') { const p = S.pages.find((x) => x.id === val); return p ? p.title : 'Select a page'; }
@@ -633,7 +707,7 @@
         if (tb) tb.onclick = () => { const on = !tb.classList.contains('on'); tb.classList.toggle('on', on); sw.classList.toggle('tsp', on); if (on) { sw.style.background = ''; hx.value = 'transparent'; onChange(k, 'transparent', false); } else { sw.style.background = '#ffffff'; hx.value = '#FFFFFF'; onChange(k, '#FFFFFF', false); } };
       } else if (ctl === 'image') {
         const u = el.querySelector('[data-img-url]'); u.oninput = () => onChange(k, u.value, false); u.onchange = () => refreshRight();
-      } else if (ctl === 'product' || ctl === 'collection' || ctl === 'menu' || ctl === 'blog' || ctl === 'page') {
+      } else if (ctl === 'product' || ctl === 'collection' || ctl === 'collections' || ctl === 'menu' || ctl === 'blog' || ctl === 'page') {
         el.onclick = () => openPicker(ctl, target[k], (v) => onChange(k, v, true));
       }
     });
@@ -856,7 +930,11 @@
     const showAddPreview = (rw) => {
       pop.querySelectorAll('.os-addrow').forEach((x) => x.classList.remove('hover')); rw.classList.add('hover');
       const ok = !rw.classList.contains('soon'); const kind = rw.getAttribute('data-add-kind');
-      pop.querySelector('#os-addprev').innerHTML = '<div class="os-addprev-art">' + ICON(ok && SECTIONS[kind] ? SECTIONS[kind].icon : 'image') + '</div>' +
+      const wire = sectionWireframe(kind);
+      const art = wire
+        ? '<div class="os-addprev-art wf">' + wire + '</div>'
+        : '<div class="os-addprev-art">' + ICON(ok && SECTIONS[kind] ? SECTIONS[kind].icon : 'image') + '</div>';
+      pop.querySelector('#os-addprev').innerHTML = art +
         '<div class="os-addprev-name">' + esc(rw.getAttribute('data-name')) + '</div>' +
         '<div class="os-addprev-desc">' + esc(rw.getAttribute('data-desc')) + '</div>' +
         (ok ? '<button class="btn btn-primary" data-add-go="' + esc(kind) + '">Add ' + esc(rw.getAttribute('data-name')) + '</button>' : '<div class="os-soon-note">Coming in a later release.</div>');
@@ -867,16 +945,74 @@
     closeOnOutside(pop, anchor);
   }
   function catalogTotal() { let n = 0; D.CATALOG.forEach((g) => n += g.entries.length); return n; }
+  // Abstract gray-block wireframe for the add-section preview (Shopify-style). Each section kind maps
+  // to a layout "shape"; we draw it with a few primitives so the thumbnail suggests the structure
+  // without a real render. Returns inner HTML for the .os-addprev-art.wf box, or null to use the icon.
+  function sectionWireframe(kind) {
+    const b = (st) => '<i class="wfb" style="' + st + '"></i>';
+    const soft = (st) => '<i class="wfb wf-soft" style="' + st + '"></i>';
+    const pill = (w) => '<i class="wf-pill" style="width:' + w + '"></i>';
+    const circ = (d) => '<i class="wf-circle" style="width:' + d + ';height:' + d + '"></i>';
+    const head = (w) => b('height:10px;width:' + (w || '42%'));
+    const lines = (n) => Array.from({ length: n }, (_, i) => soft('height:6px;width:' + (i === n - 1 ? '55%' : '100%'))).join('');
+    const grid = (n, cell) => '<div class="wf-grid" style="grid-template-columns:repeat(' + n + ',1fr)">' + Array.from({ length: n }, cell).join('') + '</div>';
+    const card = () => '<div class="wf-col" style="gap:5px">' + b('height:48px;width:100%') + soft('height:6px;width:80%') + soft('height:6px;width:45%') + '</div>';
+    const col = (inner, st) => '<div class="wf-col" style="' + (st || '') + '">' + inner + '</div>';
+    const row = (inner, st) => '<div class="wf-row" style="' + (st || '') + '">' + inner + '</div>';
+    const panel = (inner, st) => '<div class="wf-panel" style="' + (st || '') + '">' + inner + '</div>';
+
+    const T = {
+      hero: panel(col(b('height:12px;width:50%') + soft('height:6px;width:34%') + pill('58px'), 'align-items:center;gap:7px'), 'justify-content:center;align-items:center;height:100%'),
+      tiles: (n) => col(head('38%') + grid(n, () => b('height:74px')), 'gap:9px'),
+      cards: (n) => col(head('38%') + grid(n, card), 'gap:9px'),
+      productGrid: col(head('38%') + row(pill('26px') + pill('26px') + pill('26px'), 'gap:5px') + grid(4, card), 'gap:8px'),
+      split: row('<div style="flex:1">' + b('height:100%') + '</div>' + col(head('70%') + lines(3) + pill('52px'), 'flex:1;justify-content:center;gap:7px'), 'height:100%'),
+      iconRow: row(Array.from({ length: 4 }, () => col(circ('22px') + soft('height:5px;width:38px'), 'align-items:center;gap:6px')).join(''), 'justify-content:space-around;align-items:center;height:100%'),
+      portrait: row(Array.from({ length: 4 }, () => b('flex:1;height:100%')).join(''), 'height:100%'),
+      compare: '<div style="position:relative;height:100%">' + b('height:100%') + '<i style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;transform:translateX(-50%)"></i>' + '<i class="wf-circle" style="width:20px;height:20px;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;box-shadow:0 0 0 2px #e0e3e9"></i></div>',
+      reviews: col(head('38%') + grid(3, () => col(circ('16px') + lines(3), 'gap:5px')), 'gap:9px'),
+      accordion: col(head('38%') + b('height:13px') + b('height:13px') + b('height:13px') + b('height:13px'), 'gap:7px'),
+      centered: panel(col(b('height:11px;width:42%') + soft('height:6px;width:56%') + row(b('height:18px;width:120px') + pill('46px'), 'gap:6px'), 'align-items:center;gap:8px'), 'justify-content:center;align-items:center;height:100%'),
+      code: panel(col(soft('height:6px;width:72%') + soft('height:6px;width:88%') + soft('height:6px;width:54%') + soft('height:6px;width:76%'), 'gap:6px'), 'justify-content:center;height:100%'),
+      form: col(head('48%') + b('height:16px') + b('height:16px') + b('height:16px') + pill('78px'), 'gap:7px'),
+      summary: col(head('44%') + Array.from({ length: 3 }, () => row(b('width:22px;height:22px') + col(soft('height:5px;width:80%') + soft('height:5px;width:40%'), 'flex:1;gap:4px'), 'align-items:center;gap:6px')).join('') + b('height:1px;background:#dfe3e9') + row(soft('height:7px;width:30%') + soft('height:7px;width:24%'), 'justify-content:space-between'), 'gap:7px'),
+      bundle: col(head('40%') + grid(3, () => b('height:66px')), 'gap:9px'),
+      rows: col(head('40%') + Array.from({ length: 2 }, () => row(b('width:30px;height:30px') + col(soft('height:5px;width:75%') + soft('height:5px;width:45%'), 'flex:1;gap:5px') + pill('34px'), 'align-items:center;gap:7px')).join(''), 'gap:8px'),
+      urgency: panel(row(circ('20px') + col(b('height:7px;width:96px') + soft('height:5px;width:64px'), 'flex:1;gap:4px') + row(b('width:22px;height:22px') + b('width:22px;height:22px') + b('width:22px;height:22px'), 'gap:4px'), 'align-items:center;gap:10px'), 'align-items:center;height:100%'),
+      rating: panel(col(row(b('width:18px;height:18px') + b('width:18px;height:18px') + b('width:18px;height:18px') + b('width:18px;height:18px') + b('width:18px;height:18px'), 'gap:5px') + soft('height:6px;width:54%'), 'align-items:center;gap:9px'), 'justify-content:center;align-items:center;height:100%'),
+      guarantee: panel(row(circ('38px') + col(b('height:7px;width:96px') + soft('height:5px;width:66px'), 'gap:5px'), 'align-items:center;justify-content:center;gap:12px'), 'justify-content:center;align-items:center;height:100%'),
+      tracking: panel(col(row('<i class="wf-circle" style="width:15px;height:15px"></i>' + b('flex:1;height:3px') + '<i class="wf-circle" style="width:15px;height:15px"></i>' + b('flex:1;height:3px') + '<i class="wf-circle" style="width:15px;height:15px"></i>' + b('flex:1;height:3px') + '<i class="wf-circle" style="width:15px;height:15px"></i>', 'align-items:center;gap:4px') + soft('height:6px;width:50%'), 'gap:10px'), 'justify-content:center;height:100%'),
+      endorse: panel(row(circ('40px') + col(b('height:7px;width:70%') + lines(2), 'flex:1;gap:6px'), 'align-items:center;gap:12px'), 'align-items:center;height:100%'),
+      confirm: panel(col(circ('36px') + b('height:10px;width:42%') + soft('height:6px;width:56%'), 'align-items:center;gap:8px'), 'justify-content:center;align-items:center;height:100%'),
+    };
+
+    const MAP = {
+      slideshow: T.hero,
+      'image-link-blocks': T.tiles(3), 'media-grid': T.tiles(4), 'ugc-gallery': T.tiles(5),
+      'feature-cards': T.cards(3), 'blog-posts': T.cards(3),
+      'featured-collection': T.productGrid, 'featured-product': T.split, 'media-with-text': T.split,
+      'text-with-icon': T.iconRow, 'as-seen-in': T.iconRow, 'video-feed': T.portrait,
+      'before-after-image': T.compare, testimonial: T.reviews, faq: T.accordion,
+      newsletter: T.centered, 'custom-html': T.code,
+      'checkout-payment': T.form, 'checkout-summary': T.summary, 'checkout-bundle': T.bundle, 'checkout-addon': T.rows,
+      'checkout-urgency': T.urgency, 'checkout-rating': T.rating, 'checkout-guarantee': T.guarantee, 'checkout-tracking': T.tracking,
+      'checkout-endorsement': T.endorse, 'checkout-confirm': T.confirm,
+      // collection sections (not in catalog today, but keep them ready)
+      'collection-banner': T.split, 'collection-list': T.tiles(4), 'collection-page': T.productGrid, 'list-collections': T.tiles(4),
+    };
+    return MAP[kind] || col(head('40%') + lines(2) + b('height:48px'), 'gap:8px');
+  }
 
   // -------------------------------------------------------------- resource picker (product/collection/menu/blog/page)
   function openPicker(kind, current, onPick) {
-    const S = D.SAMPLE; const multi = kind === 'product';
-    let items = kind === 'product' ? S.products : kind === 'collection' ? S.collections : kind === 'menu' ? S.menus : kind === 'blog' ? S.blogs : S.pages;
+    const S = D.SAMPLE; const multi = kind === 'product' || kind === 'collections';
+    let items = kind === 'product' ? S.products : (kind === 'collection' || kind === 'collections') ? S.collections : kind === 'menu' ? S.menus : kind === 'blog' ? S.blogs : S.pages;
     const nameOf = (it) => it.title || it.name;
     const sel = new Set(multi ? (Array.isArray(current) ? current : []) : (current ? [current] : []));
     const back = h('<div class="modal-backdrop" style="z-index:240"></div>');
     const m = h('<div class="drawer"></div>');
-    m.innerHTML = '<div class="drawer-head">Select ' + esc(kind) + (multi ? 's' : '') + '<span class="drawer-x">' + I.x + '</span></div>' +
+    const headWord = kind === 'collections' ? 'collections' : esc(kind) + (multi ? 's' : '');
+    m.innerHTML = '<div class="drawer-head">Select ' + headWord + '<span class="drawer-x">' + I.x + '</span></div>' +
       '<div class="drawer-body" id="pk-body"></div>' +
       '<div class="drawer-foot"><button class="btn btn-default" data-cancel>Cancel</button><button class="btn btn-primary" data-ok>Done</button></div>';
     back.appendChild(m); document.body.appendChild(back);
@@ -984,7 +1120,7 @@
   function refreshTop() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-top'); const nw = topBar(); old.replaceWith(nw); wireTop(); }
   function refreshTree() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-left'); const nw = leftPanel(); old.replaceWith(nw); wireLeft(); }
   function refreshRight() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-right'); const nw = rightPanel(); old.replaceWith(nw); if (ED.leftMode === 'settings' || ED.selection.kind === 'theme-settings') wireSettings(); else wireRight(); }
-  function refreshCanvas() { const fr = document.getElementById('os-frame'); if (!fr) return; fr.className = 'os-frame ' + ED.device; fr.innerHTML = canvasHtml(); wireCanvas(); applyHighlight(); const bar = document.querySelector('.os-canvas-bar'); if (bar) bar.textContent = 'Live preview · ' + pageLabel() + ' · ' + (ED.device === 'desktop' ? 'Desktop' : 'Mobile'); }
+  function refreshCanvas() { const fr = document.getElementById('os-frame'); if (!fr) return; fr.className = 'os-frame i18n-skip ' + ED.device; fr.innerHTML = canvasHtml(); wireCanvas(); applyHighlight(); const bar = document.querySelector('.os-canvas-bar'); if (bar) bar.textContent = 'Live preview · ' + pageLabel() + ' · ' + (ED.device === 'desktop' ? 'Desktop' : 'Mobile'); }
   function refreshAffectedCanvas() {
     const sel = ED.selection;
     if (sel.kind === 'header' || sel.kind === 'footer' || sel.kind === 'announcement') return refreshCanvas();
@@ -1029,9 +1165,20 @@
   // ==========================================================================
   function route(rest) {
     closePops();
-    const m = (rest || '').match(/^edit\/(.+)$/);
-    if (m) { ensureSections().then(() => renderBuilder(decodeURIComponent(m[1]))); }
-    else renderList();
+    const m = (rest || '').match(/^edit\/([^\/?]+)(?:\/([^?]+))?(?:\?(.*))?$/);
+    if (m) {
+      // No page in the URL → open on Home (the storefront default). Without this the shared editor
+      // state could stay on Checkout after editing it via BestCheckout, hiding the Home template.
+      const pg = m[2] ? decodeURIComponent(m[2]) : 'home';
+      const q = m[3] || '';
+      const tplM = q.match(/(?:^|&)tpl=([^&]+)/);
+      const tpl = tplM ? decodeURIComponent(tplM[1]) : null;
+      const savedM = q.match(/(?:^|&)saved=([^&]+)/);
+      const saved = savedM ? decodeURIComponent(savedM[1]) : null;
+      // from BestCheckout: 装修 is reached from the Templates library / Funnel → return there
+      const exitTo = /(^|&)from=bestcheckout(&|$)/.test(q) ? '#/bestcheckout/templates' : null;
+      ensureSections().then(() => renderBuilder(decodeURIComponent(m[1]), pg, exitTo, tpl, saved));
+    } else renderList();
   }
   window.VIEWS = window.VIEWS || {};
   window.VIEWS['online-store'] = { render: function (el, rest) { root = el; route(rest || ''); }, unmount: function () { closeBuilder(); } };
@@ -1123,6 +1270,13 @@
   .os-canvas-scroll{flex:1;overflow:auto;padding:20px;display:flex;justify-content:center;align-items:flex-start}
   .os-frame{width:100%;max-width:1080px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08);border-radius:4px;overflow:hidden;transition:max-width .2s}
   .os-frame.mobile{max-width:390px}
+  .os-co-2col{display:grid;grid-template-columns:1fr 42%;gap:0;align-items:stretch;padding:0}
+  .os-co-col{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .os-co-side{background:#f9fafb}
+  .os-co-solo{max-width:592px;margin:0 auto;padding:10px 32px 28px}
+  .os-frame.mobile .os-co-2col{grid-template-columns:1fr;padding:8px 14px 16px;gap:16px}
+  .os-frame.mobile .os-co-side{position:static}
+  .os-frame.mobile .os-co-solo{padding:8px 14px 16px}
   .os-sec{position:relative;outline:2px solid transparent;outline-offset:-2px;cursor:pointer;transition:outline-color .12s}
   .os-sec:hover{outline-color:#b9d2ff}.os-sec.active{outline-color:var(--brand)}
   .os-sec-tag{position:absolute;top:0;left:0;z-index:4;background:var(--brand);color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-bottom-right-radius:6px;opacity:0;pointer-events:none;transition:opacity .12s;letter-spacing:.02em}
@@ -1190,6 +1344,10 @@
   .os-set-n{font-size:11px;color:var(--ink-muted);flex:none}
   .os-set-body{padding:8px 10px 10px}
 
+  /* popovers (page menu / block-kind / add-section) must clear the full-screen builder (z-index:140);
+     the shared admin CSS gives .pop-layer z-index:80, which renders it BEHIND the builder so real
+     clicks land on the canvas instead of the menu options. */
+  .pop-layer{z-index:200 !important}
   /* add-section popover */
   .os-addpop{position:fixed;z-index:61;background:#fff;border:1px solid var(--hair);border-radius:12px;box-shadow:var(--float-shadow);display:flex;flex-direction:column;overflow:hidden;pointer-events:auto;max-height:470px}
   .os-addpop-search{padding:12px;border-bottom:1px solid var(--hair)}
@@ -1205,6 +1363,15 @@
   .os-soon{font-size:10px;color:#9aa3b0;border:1px solid var(--hair);border-radius:4px;padding:0 4px;margin-left:4px;font-weight:500}
   .os-addprev-art{height:120px;border-radius:8px;background:var(--panel);display:grid;place-items:center;color:#c4cad3}
   .os-addprev-art svg{width:34px;height:34px}
+  .os-addprev-art.wf{display:block;height:150px;background:#fff;border:1px dashed var(--ctl,#d9dde3);border-radius:8px;padding:12px;place-items:initial;overflow:hidden}
+  .os-addprev-art.wf .wf-col{display:flex;flex-direction:column;gap:7px;height:100%}
+  .os-addprev-art.wf .wf-row{display:flex;gap:7px}
+  .os-addprev-art.wf .wf-grid{display:grid;gap:7px}
+  .os-addprev-art.wf .wf-panel{display:flex;background:#eef1f6;border-radius:6px;padding:12px}
+  .os-addprev-art.wf .wfb{display:block;background:#c7ced8;border-radius:3px}
+  .os-addprev-art.wf .wf-soft{background:#d8dde5}
+  .os-addprev-art.wf .wf-pill{display:block;height:12px;background:#bcc4cf;border-radius:999px}
+  .os-addprev-art.wf .wf-circle{display:block;background:#cad1db;border-radius:50%;flex:none}
   .os-addprev-name{font-size:15px;font-weight:600;color:var(--ink)}
   .os-addprev-desc{font-size:12.5px;color:var(--ink-body);line-height:1.5}
   .os-soon-note{font-size:12px;color:var(--ink-muted)}
@@ -1231,10 +1398,14 @@
   .oc-card{min-width:0}
   .oc-img{position:relative;background-position:center;background-repeat:no-repeat;background-color:#f1f2f4;margin-bottom:10px;overflow:hidden}
   .oc-badge{position:absolute;top:8px;left:8px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;z-index:2}
-  .oc-quick{position:absolute;left:10px;right:10px;bottom:10px;display:flex;align-items:center;justify-content:center;border-radius:6px;opacity:0;transition:opacity .15s}
+  .oc-quick{position:absolute;left:10px;right:10px;bottom:10px;display:flex;align-items:center;justify-content:center;border-radius:6px;opacity:0;transition:opacity .15s;z-index:3}
   .oc-card:hover .oc-quick{opacity:1}
+  .oc-img2{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;opacity:0;transition:opacity .35s;z-index:1}
+  .oc-card:hover .oc-img2{opacity:1}
+  .oc-promo{font-size:11.5px;font-weight:600;margin-bottom:4px}
   .oc-sw{display:flex;gap:5px;margin-bottom:6px;justify-content:inherit}
   .oc-sw span{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
+  .oc-sw.vi span{width:17px;height:21px;border-radius:4px}
   .oc-vendor{font-size:11px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px}
   .oc-title{font-weight:500;line-height:1.35;margin-bottom:4px}
   .oc-rate{display:flex;align-items:center;gap:4px;font-size:12px;color:#444;margin-bottom:4px;justify-content:inherit}

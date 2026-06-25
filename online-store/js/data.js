@@ -40,9 +40,14 @@
 
   // ---------- page-type templates (theme-editor PAGE_OPTIONS) ----------
   const PAGE_OPTIONS = [
-    { value: 'home',       label: 'Home page' },
-    { value: 'collection', label: 'Collection page' },
-    { value: 'product',    label: 'Product page' },
+    { value: 'home',        label: 'Home page' },
+    { value: 'collection',  label: 'Collection page' },
+    { value: 'collections', label: 'Collection list' },
+    { value: 'product',     label: 'Product page' },
+    { value: 'checkout',   label: 'Checkout' },
+    { value: 'thank-you',  label: 'Thank you' },
+    { value: 'upsell',     label: 'Upsell' },
+    { value: 'downsell',   label: 'Downsell' },
   ];
 
   // ---------- Add-Section catalog (Shopify-style popover; 5 groups) ----------
@@ -74,6 +79,19 @@
       { kind: 'faq', name: 'FAQ', desc: 'Accordion questions + support panel' },
       { kind: 'newsletter', name: 'Newsletter', desc: 'Email capture block' },
       { kind: 'custom-html', name: 'Custom HTML', desc: 'Raw HTML embed' },
+    ] },
+    { id: 'checkout', label: 'Checkout', entries: [
+      { kind: 'checkout-payment', name: 'Payment section', desc: 'Express + contact / delivery / card (shared core)' },
+      { kind: 'checkout-summary', name: 'Order summary', desc: 'Cart line items + coupon + totals (CART source core)' },
+      { kind: 'checkout-urgency', name: 'Urgency bar', desc: 'Countdown / limited-stock scarcity bar' },
+      { kind: 'checkout-endorsement', name: 'Specialist endorsement', desc: 'Doctor / expert approval card' },
+      { kind: 'checkout-rating', name: 'Rating bar', desc: 'Trustpilot-style rating strip' },
+      { kind: 'checkout-guarantee', name: 'Guarantee badge', desc: 'Money-back guarantee reassurance' },
+      { kind: 'checkout-addon', name: 'Upsell add-on', desc: 'Customers-also-grabbed cross-sell' },
+      { kind: 'checkout-bundle', name: 'Offer / Bundle picker', desc: 'Single-page funnel (Offer source) · P1' },
+      { kind: 'checkout-confirm', name: 'Order confirmation', desc: 'Thank-you hero with check' },
+      { kind: 'checkout-postpurchase', name: 'Post-purchase upsell', desc: 'Thank-you one-click add-to-order' },
+      { kind: 'checkout-tracking', name: 'Shipment tracking', desc: 'Post-purchase tracking bar' },
     ] },
   ];
 
@@ -195,12 +213,12 @@
   // ---------- sample platform resources (drive product/collection/menu/blog/page pickers) ----------
   const SAMPLE = {
     products: [
-      { id: 'p1', title: 'Linen-feel wide pants', vendor: 'Aura Studio', price: 32.99, compareAt: 45.0, rating: 4.8, reviews: 214, image: IMG.p1, swatches: ['#2b2f36', '#c8b6a6', '#d9d2c5'] },
-      { id: 'p2', title: 'Soft rib tee', vendor: 'Aura Studio', price: 18.99, compareAt: 26.0, rating: 4.6, reviews: 98, image: IMG.p2, swatches: ['#1b3a2b', '#eae3d6'] },
-      { id: 'p3', title: 'Editorial shell dress', vendor: 'Aura Studio', price: 41.5, compareAt: 58.0, rating: 4.9, reviews: 176, image: IMG.p3, swatches: ['#3a3f4a', '#9fb0a0', '#d8c3a5'] },
-      { id: 'p4', title: 'Street denim jacket', vendor: 'Aura Studio', price: 54.0, compareAt: 72.0, rating: 4.7, reviews: 132, image: IMG.p4, swatches: ['#33415c', '#1b1f24'] },
-      { id: 'p5', title: 'Crewneck sweater', vendor: 'Aura Studio', price: 44.0, compareAt: 0, rating: 4.5, reviews: 64, image: IMG.p5, swatches: ['#6b705c', '#cb997e'] },
-      { id: 'p6', title: 'Pleated midi skirt', vendor: 'Aura Studio', price: 38.0, compareAt: 49.0, rating: 4.4, reviews: 51, image: IMG.p6, swatches: ['#1b1f24', '#b08968'] },
+      { id: 'p1', title: 'Linen-feel wide pants', vendor: 'Aura Studio', category: 'Bottoms', badge: 'Best seller', price: 32.99, compareAt: 45.0, rating: 4.8, reviews: 214, image: IMG.p1, image2: IMG.p4, swatches: ['#2b2f36', '#c8b6a6', '#d9d2c5'] },
+      { id: 'p2', title: 'Soft rib tee', vendor: 'Aura Studio', category: 'Tops', price: 18.99, compareAt: 26.0, rating: 4.6, reviews: 98, image: IMG.p2, image2: IMG.p5, swatches: ['#1b3a2b', '#eae3d6'] },
+      { id: 'p3', title: 'Editorial shell dress', vendor: 'Aura Studio', category: 'Dresses', badge: 'New', price: 41.5, compareAt: 58.0, rating: 4.9, reviews: 176, image: IMG.p3, image2: IMG.p6, swatches: ['#3a3f4a', '#9fb0a0', '#d8c3a5'] },
+      { id: 'p4', title: 'Street denim jacket', vendor: 'Aura Studio', category: 'Outerwear', price: 54.0, compareAt: 72.0, rating: 4.7, reviews: 132, image: IMG.p4, image2: IMG.p1, swatches: ['#33415c', '#1b1f24'] },
+      { id: 'p5', title: 'Crewneck sweater', vendor: 'Aura Studio', category: 'Tops', price: 44.0, compareAt: 0, rating: 4.5, reviews: 64, image: IMG.p5, image2: IMG.p2, swatches: ['#6b705c', '#cb997e'] },
+      { id: 'p6', title: 'Pleated midi skirt', vendor: 'Aura Studio', category: 'Bottoms', price: 38.0, compareAt: 49.0, rating: 4.4, reviews: 51, image: IMG.p6, image2: IMG.p3, swatches: ['#1b1f24', '#b08968'] },
     ],
     collections: [
       { id: 'best-sellers', title: 'Best sellers', image: IMG.cat1, count: 48 },
@@ -280,11 +298,70 @@
         { id: 'sec-col-list', kind: 'collection-list' },
         { id: 'sec-col-page', kind: 'collection-page' },
       ] },
+      // Collection list page (demo: "Collection list" / collections template) — the all-collections
+      // directory at /collections. One auto-listing section that shows every active collection.
+      collections: { sections: [
+        { id: 'sec-collections-grid', kind: 'list-collections' },
+      ] },
       product: { sections: [
         { id: 'sec-prod-iwt', kind: 'media-with-text' },
+      ] },
+      // BestCheckout pages — same engine/global theme as the storefront. 1.0 checkout = CART source:
+      // the order summary is the core (NO Offer/Bundle picker — that's the single-page funnel, P1).
+      checkout: { sections: [
+        { id: 'sec-co-urg',     kind: 'checkout-urgency' },
+        { id: 'sec-co-pay',     kind: 'checkout-payment' },
+        { id: 'sec-co-sum',     kind: 'checkout-summary' },
+        { id: 'sec-co-rate',    kind: 'checkout-rating' },
+        { id: 'sec-co-reviews', kind: 'testimonial' },
+      ] },
+      // Thank-you = order confirmation + post-purchase one-click upsell (in 1.0) + summary + tracking + reviews.
+      'thank-you': { sections: [
+        { id: 'sec-ty-confirm',  kind: 'checkout-confirm' },
+        { id: 'sec-ty-postp',    kind: 'checkout-postpurchase' },
+        { id: 'sec-ty-summary',  kind: 'checkout-summary', settings: { show_coupon: false } },
+        { id: 'sec-ty-tracking', kind: 'checkout-tracking' },
+        { id: 'sec-ty-reviews',  kind: 'testimonial' },
+      ] },
+      // Post-purchase one-click offer pages (funnel nodes). Upsell = YES→thank-you / NO→downsell.
+      upsell: { sections: [
+        { id: 'sec-up-postp', kind: 'checkout-postpurchase' },
+        { id: 'sec-up-rev',   kind: 'testimonial' },
+      ] },
+      downsell: { sections: [
+        { id: 'sec-down-postp', kind: 'checkout-postpurchase', settings: { tag: 'Last chance', heading: 'Wait — take 50% off instead', sub: 'Not ready for the full bundle? Add a single unit at half price — one click, no re-entering payment.', cta: 'Add at 50% off', badge: '50% OFF', price: '$14.95', compare: '$29.90' } },
       ] },
     },
   };
 
-  window.OS_DATA = { THEMES, PAGE_OPTIONS, CATALOG, SETTINGS_GROUPS, SAMPLE, DEFAULT_THEME };
+  // ---------- Checkout TEMPLATES (one-click presets the gallery applies) ----------
+  // Each is a thin section seed list (same shape as DEFAULT_THEME.templates.checkout); the engine
+  // materialises settings from each section's defaults(), then applies the per-seed `settings` here.
+  // 1.0 = CART source: the order summary is the checkout core. The Offer/Bundle picker is the
+  // single-page-funnel (Offer) source — P1, intentionally NOT used in these templates. Column
+  // placement decided in app.js. (cart summary ↔ offer picker are mutually exclusive, never both.)
+  const CHECKOUT_TEMPLATES = {
+    // Conversion (GetJacked-style, CART) — form (left) with every funnel extra turned ON;
+    // summary + specialist + rating (right rail); reviews + value props full-width below.
+    'express-funnel': { seeds: [
+      { id: 'co-urg',  kind: 'checkout-urgency',     settings: { style: 'reserve', message: 'Due to high demand your order is reserved for:', time: '02:45' } },
+      { id: 'co-pay',  kind: 'checkout-payment',     settings: { paypal: true, applepay: true, gpay: false, show_rating: true, newsletter: true, show_insurance: true, name_on_card: true, billing_row: true } },
+      { id: 'co-sum',  kind: 'checkout-summary',     settings: { subtotal: '$43.90', shipping: '$3.95', discount: '$0.00', total: '$47.85' }, blocks: [
+        { kind: 'line', settings: { label: 'Cayenne Softgels — BUY 1 GET 1 FREE', amount: '$39.95' } },
+        { kind: 'line', settings: { label: '+ FREE E-Book: How To Last Longer', amount: 'FREE' } },
+        { kind: 'line', settings: { label: 'Shipping Insurance', amount: '$3.95' } },
+      ] },
+      { id: 'co-end',  kind: 'checkout-endorsement' },
+      { id: 'co-rate', kind: 'checkout-rating' },
+      { id: 'co-rev',  kind: 'testimonial' },
+      { id: 'co-why',  kind: 'text-with-icon' },
+    ] },
+    // Standard — the BestVoy production checkout: clean form (left) + order summary (right), nothing else.
+    'standard': { seeds: [
+      { id: 'co-pay', kind: 'checkout-payment' },
+      { id: 'co-sum', kind: 'checkout-summary', settings: { subtotal: '$9.32', shipping: '$8.99', discount: '$0.00', total: '$18.31' } },
+    ] },
+  };
+
+  window.OS_DATA = { THEMES, PAGE_OPTIONS, CATALOG, SETTINGS_GROUPS, SAMPLE, DEFAULT_THEME, CHECKOUT_TEMPLATES };
 })();
