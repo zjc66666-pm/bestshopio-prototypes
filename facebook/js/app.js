@@ -56,7 +56,7 @@
     '.fb-mhint .ck{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#22c55e;color:#fff;flex:none}' +
     '.fb-mcta{margin-top:16px;display:flex;align-items:center;gap:10px}' +
     '.fb-mcta .btn{padding:6px 16px;font-size:13px}' +
-    '.fb-msoon{color:var(--ink-muted);font-size:12.5px;font-weight:500}' +
+    /* (fb-msoon removed — workspace home "Coming soon" now uses the shared .fb-soonpill below) */
     '.fb-millu{flex:none;width:240px;height:140px}' +
     '.fb-millu svg{display:block;width:100%;height:100%}' +
 
@@ -107,7 +107,8 @@
     '.fb-unauth-l b{color:var(--ink);font-weight:600;font-size:13.5px}' +
     '.fb-pill-gray{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:6px;background:#f1f2f5;color:#6b7280;font-size:12px;font-weight:500}' +
     '.fb-pill-gray::before{content:"";width:6px;height:6px;border-radius:50%;background:#9ca3af}' +
-    '.fb-soonpill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:6px;background:#f2f2f4;color:#7c8194;font-size:11.5px;font-weight:600;letter-spacing:.02em;text-transform:uppercase}';
+    /* "Coming soon" pill — shared across workspace home + sub-page placeholders */
+    '.fb-soonpill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}';
 
   // Generic paint
   function paint(html) {
@@ -145,7 +146,7 @@
         // Shop only has a Setup button (no Learn more on Shopline)
         cta = '<button class="btn btn-primary" data-soon style="padding:6px 16px;font-size:13px">Setup</button>';
       } else {
-        cta = '<span class="fb-msoon">Coming soon</span>';
+        cta = '<span class="fb-soonpill">Coming soon</span>';
       }
       return '<div class="fb-mcard">' +
         '<div class="fb-mhead">' + titleIcon + '<span class="fb-mhead-t">' + esc(m.title) + '</span>' + badge + '</div>' +

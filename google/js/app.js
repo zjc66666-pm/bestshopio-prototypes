@@ -932,7 +932,8 @@
     '.gw-card-sub{font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px}' +
     '.gw-card-desc{font-size:12.5px;color:var(--ink-muted);line-height:1.55}' +
     '.gw-card-cta{flex:none;margin-left:8px;align-self:center}' +
-    '.gw-card-soon{color:var(--ink-muted);font-size:11.5px;font-weight:500;white-space:nowrap}' +
+    /* "Coming soon" pill — matches the unified badge style across all channel workspaces */
+    '.gw-card-soon{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}' +
     '.gw-note{display:flex;gap:10px;align-items:flex-start;background:#f7f8fb;border-radius:8px;padding:14px 16px;margin-bottom:18px}' +
     '.gw-note-ico{color:#4285F4;flex:none;display:inline-flex}' +
     '.gw-note-bd{font-size:12.5px;line-height:1.55;color:var(--ink-muted)}' +
