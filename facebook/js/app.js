@@ -136,8 +136,11 @@
         cta = '<button class="btn btn-primary" data-go="' + esc(m.id) + '">Setup</button>' +
               '<button class="btn btn-default" data-info style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:13px">' + I.info + 'Learn more</button>';
       } else if (m.ctaText) {
-        // Advertising-style: shows a soft outline button labeled "Original ad tools"
-        cta = '<button class="btn btn-default" data-soon style="padding:6px 14px;font-size:13px">' + esc(m.ctaText) + '</button>';
+        // Advertising-style: deep-link to Meta's own Ads Manager (no in-app build).
+        // External target so the merchant lands in their own Meta Business account.
+        cta = m.ctaUrl
+          ? '<a class="btn btn-default" href="' + esc(m.ctaUrl) + '" target="_blank" rel="noreferrer" style="padding:6px 14px;font-size:13px;display:inline-flex;align-items:center;gap:5px;text-decoration:none">' + esc(m.ctaText) + I.external + '</a>'
+          : '<button class="btn btn-default" data-soon style="padding:6px 14px;font-size:13px">' + esc(m.ctaText) + '</button>';
       } else if (m.id === 'shop') {
         // Shop only has a Setup button (no Learn more on Shopline)
         cta = '<button class="btn btn-primary" data-soon style="padding:6px 16px;font-size:13px">Setup</button>';

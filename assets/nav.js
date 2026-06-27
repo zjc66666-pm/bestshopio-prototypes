@@ -40,7 +40,7 @@ window.NAV_MENU = [
   ] },
   { id: 'online-store', label: 'Online store', icon: 'globe',        route: '#/online-store', desc: 'Theme list and the visual store builder.' },
   { id: 'google',       label: 'Google',       icon: 'google',       route: '#/google',       desc: 'Tracking pixels (GA4 / Google Ads), domain verification and Merchant Center product sync.' },
-  { id: 'facebook',     label: 'Facebook & Instagram', icon: 'facebook', route: '#/facebook', desc: 'Meta Pixel + Conversion API, domain verification, FB & IG Shop, and ad management.' },
+  { id: 'facebook',     label: 'Facebook',     icon: 'facebook', route: '#/facebook', desc: 'Meta Pixel + Conversion API, domain verification, FB & IG Shop, and ad management.' },
 ];
 
 window.NAV_SETTINGS = [
