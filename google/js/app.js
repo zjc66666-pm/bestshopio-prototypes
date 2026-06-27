@@ -1062,6 +1062,11 @@
     '.gw-evtable th{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--hair)}' +
     '.gw-evtable td{padding:12px 14px;border-bottom:1px solid var(--hair);vertical-align:top}' +
     '.gw-evtable tr:last-child td{border-bottom:none}' +
+    /* Collapsed events panel — chip-style toggle on the right, arrow rotates when open */
+    '.gw-events summary::-webkit-details-marker{display:none}' +
+    '.gw-evtoggle{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:6px;background:#f7f8fb;color:var(--ink-muted);font-size:12px;font-weight:500;flex:none;white-space:nowrap}' +
+    '.gw-evarrow{display:inline-block;transition:transform .15s}' +
+    'details[open] .gw-evarrow{transform:rotate(180deg)}' +
     '.gw-evtable .ev-name{font-weight:500;color:var(--ink)}' +
     '.gw-evtable .ev-fires{font-size:11.5px;color:var(--ink-muted);margin-top:2px}' +
     '.gw-evtable .ev-vn{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--ink-body)}' +
@@ -1197,13 +1202,13 @@
               '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (gaLinked ? 'Measurement ID: ' + esc(g.measurementId) + (g.apiSecret ? ' · API secret set' : '') : 'Not connected yet') + '</div></div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(gaLinked) +
-            '<div class="gw-sw' + (g.enabled ? ' on' : '') + '" data-toggle="ga4-enable" aria-label="Enable"><span class="gw-sw-k"></span></div>' +
+            '<div class="gw-sw' + (g.enabled ? ' on' : '') + '" data-toggle="ga4-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
           '</div>' +
         '</div>' +
         wField('Measurement ID', g.measurementId, 'G-XXXXXXXXXX', { learnMore: g.docs }) +
         wField('API secret (Measurement Protocol)', g.apiSecret, 'gtm_…', { secret: true, hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' }) +
         '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="ga4" style="background:#4285F4;border-color:#4285F4">Save</button>' +
-          (gaLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ga4">Disconnect</button>' : '') +
+          (gaLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ga4" title="Clears Measurement ID and API secret">Disconnect</button>' : '') +
         '</div>' +
       '</div>' +
 
@@ -1217,14 +1222,14 @@
               '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (adsLinked ? 'Conversion ID: ' + esc(a.conversionId) : 'Not connected yet') + '</div></div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(adsLinked) +
-            '<div class="gw-sw' + (a.enabled ? ' on' : '') + '" data-toggle="ads-enable" aria-label="Enable"><span class="gw-sw-k"></span></div>' +
+            '<div class="gw-sw' + (a.enabled ? ' on' : '') + '" data-toggle="ads-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
           '</div>' +
         '</div>' +
         wField('Conversion ID', a.conversionId, 'AW-123456789', { learnMore: a.docs }) +
         wField('Purchase conversion label', a.purchaseLabel, 'abcDEFghi_jKlMnoPqr', { hint: 'Google Ads → Tools → Conversions → your Purchase action → Tag setup → Use Google Tag Manager.' }) +
         wField('Lead conversion label', a.leadLabel, '', { optional: true, hint: 'Optional — fired when a lead form is submitted (not used by the core checkout funnel).' }) +
         '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="ads" style="background:#4285F4;border-color:#4285F4">Save</button>' +
-          (adsLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ads">Disconnect</button>' : '') +
+          (adsLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ads" title="Clears Conversion ID and labels">Disconnect</button>' : '') +
         '</div>' +
       '</div>' +
 
@@ -1238,7 +1243,7 @@
               '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (gtmLinked ? 'Container ID: ' + esc(t.containerId) + ' · ' + esc(t.containerVersion) : 'Not connected yet') + '</div></div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(gtmLinked) +
-            '<div class="gw-sw' + (t.enabled ? ' on' : '') + '" data-toggle="gtm-enable" aria-label="Enable"><span class="gw-sw-k"></span></div>' +
+            '<div class="gw-sw' + (t.enabled ? ' on' : '') + '" data-toggle="gtm-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
           '</div>' +
         '</div>' +
         wField('Container ID', t.containerId, 'GTM-XXXXXX', { learnMore: t.docs, hint: 'Tag Manager → workspace → top-right header shows GTM-XXXXXX.' }) +
@@ -1252,42 +1257,47 @@
           '<div class="muted" style="font-size:11.5px;margin-top:4px">Optional — pin to a specific published version. Default uses the latest published.</div>' +
         '</div>' +
         '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="gtm" style="background:#4285F4;border-color:#4285F4">Save</button>' +
-          (gtmLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="gtm">Disconnect</button>' : '') +
+          (gtmLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="gtm" title="Clears Container ID and version">Disconnect</button>' : '') +
         '</div>' +
       '</div>' +
 
-      // ---- Google Remarketing (P1 placeholder) ----
+      // ---- Google Remarketing (P1 placeholder — kept light, all P1 cards look the same) ----
       '<div class="panel card-pad mb-4">' +
         '<div class="card-title">Google Remarketing</div>' +
-        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Build remarketing audiences from your storefront traffic so Google Ads can re-target browsers who didn\'t buy. Requires a connected Google Ads account (above) before this can be configured.</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Build remarketing audiences from your storefront traffic so Google Ads can re-target browsers who didn\'t buy.</div>' +
         '<div class="gw-row">' +
-          '<div style="display:flex;align-items:center;gap:12px"><span style="color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#34A853;padding:5px 9px">RMK</span>' +
-            '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Audience list</div>' +
-              '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">Not configured yet</div></div>' +
-          '</div>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
+            '<b style="color:var(--ink);font-weight:600;font-size:13.5px">Remarketing audience</b>' +
             '<span class="pill pill-gray"><span class="dot"></span>Unauthorized</span>' +
-            '<span class="gw-card-soon">Coming soon</span>' +
           '</div>' +
+          '<span class="gw-card-soon">Coming soon</span>' +
         '</div>' +
       '</div>' +
 
-      // ---- Events matrix ----
-      '<div class="panel mb-4">' +
-        '<div class="card-pad" style="padding-bottom:0">' +
-          '<div class="card-title">Events sent automatically</div>' +
-          '<div class="muted" style="font-size:12.5px;margin-top:2px">BestShopio fires these events client-side (gtag.js) and server-side (Measurement Protocol / Google Ads conversions). You don\'t install any tracking code per app.</div>' +
-        '</div>' +
-        '<div style="overflow-x:auto;padding:16px"><table class="gw-evtable">' +
+      // ---- Events matrix (collapsed by default — informational, not configurable) ----
+      '<details class="panel mb-4 gw-events" style="overflow:hidden">' +
+        '<summary class="card-pad" style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:14px">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="card-title">Events sent automatically</div>' +
+            '<div class="muted" style="font-size:12.5px;margin-top:2px">BestShopio fires these events client-side (gtag.js) and server-side (Measurement Protocol / Google Ads conversions). You don\'t install any tracking code per app.</div>' +
+          '</div>' +
+          '<span class="gw-evtoggle">' + W_EVENTS.length + ' events <span class="gw-evarrow">▾</span></span>' +
+        '</summary>' +
+        '<div style="overflow-x:auto;padding:0 16px 16px"><table class="gw-evtable">' +
           '<thead><tr><th style="min-width:280px">Event</th><th>GA4 event name</th><th>Google Ads</th></tr></thead>' +
           '<tbody>' + W_EVENTS.map(evRow).join('') + '</tbody>' +
         '</table></div>' +
-      '</div>'
+      '</details>'
     );
 
     const back = root.querySelector('[data-back]'); if (back) back.onclick = () => { location.hash = '#/google'; };
     root.querySelectorAll('[data-save]').forEach((b) => b.onclick = () => toast('Saved successfully'));
-    root.querySelectorAll('[data-disc]').forEach((b) => b.onclick = () => toast('Disconnected'));
+    // Disconnect is destructive — confirm before clearing credentials.
+    root.querySelectorAll('[data-disc]').forEach((b) => b.onclick = () => {
+      if (window.confirm('Disconnecting will clear the saved credentials (Measurement ID / Conversion ID / Container ID). You\'ll need to re-enter them to reconnect. Continue?')) {
+        toast('Disconnected');
+      }
+    });
   }
 
   // `rest` is the hash tail after the `google` segment (e.g. '', 'products',
