@@ -880,10 +880,15 @@
     products: svg('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/>', 22), // package
     ads:      svg('<path d="M3 11h6l4-7v15l-4-4H3z"/><path d="M17 9a4 4 0 0 1 0 6"/>', 22),               // megaphone
   };
-  // GA4 + Google Ads credentials (was DATA_SETTINGS.pixels.platforms.ga4 / googleAds)
+  // GA4 + Google Ads + GTM + Remarketing credentials (per-tool cards on Data tracking).
+  // Splitting GTM into its own card (instead of leaving a "GTM container ID" field
+  // on the GA4 card) matches Shopline's separation — different setup contexts.
+  // Remarketing is a P1 placeholder slot (audience pixel — needs Ads account first).
   const W_TRACKING = {
-    ga4: { enabled: true, measurementId: 'G-AB12CD34EF', apiSecret: 'gtm_•••••••••', gtmId: '', docs: 'https://developers.google.com/analytics/devguides/collection/ga4' },
-    ads: { enabled: false, conversionId: '', purchaseLabel: '', leadLabel: '', docs: 'https://support.google.com/google-ads/answer/6095821' },
+    ga4:         { enabled: true,  measurementId: 'G-AB12CD34EF', apiSecret: 'gtm_•••••••••', docs: 'https://developers.google.com/analytics/devguides/collection/ga4' },
+    ads:         { enabled: false, conversionId: '', purchaseLabel: '', leadLabel: '', docs: 'https://support.google.com/google-ads/answer/6095821' },
+    gtm:         { enabled: false, containerId: '', containerVersion: 'latest', docs: 'https://support.google.com/tagmanager/answer/6103696' },
+    remarketing: { enabled: false, audienceListId: '' }, // P1 placeholder
   };
   // Unified event catalog mapped to Google vendor names (GA4 / Google Ads).
   const W_EVENTS = [
@@ -1007,8 +1012,11 @@
   function renderWsTracking() {
     const g = W_TRACKING.ga4;
     const a = W_TRACKING.ads;
+    const t = W_TRACKING.gtm;
+    const r = W_TRACKING.remarketing;
     const gaLinked = !!g.measurementId;
     const adsLinked = !!a.conversionId;
+    const gtmLinked = !!t.containerId;
 
     const evRow = (e) =>
       '<tr><td><div class="ev-name">' + esc(e.name) + '</div>' +
@@ -1032,7 +1040,7 @@
       // ---- GA4 connector ----
       '<div class="panel card-pad mb-4">' +
         '<div class="card-title">Google Analytics 4</div>' +
-        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Stream events to GA4 via gtag.js (browser) + Measurement Protocol (server-side). GTM container ID is optional.</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Stream events to GA4 via gtag.js (browser) and the Measurement Protocol (server-side). Both fire with a shared event_id so GA4 dedupes automatically.</div>' +
         '<div class="gw-row" style="margin-bottom:18px">' +
           '<div style="display:flex;align-items:center;gap:12px"><span style="color:#F9AB00;font-weight:700;font-size:13px;border-radius:6px;background:#fff8e1;padding:5px 9px">GA4</span>' +
             '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Google Analytics 4</div>' +
@@ -1044,7 +1052,6 @@
         '</div>' +
         wField('Measurement ID', g.measurementId, 'G-XXXXXXXXXX', { learnMore: g.docs }) +
         wField('API secret (Measurement Protocol)', g.apiSecret, 'gtm_…', { secret: true, hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' }) +
-        wField('GTM container ID', g.gtmId, 'GTM-XXXXXX', { optional: true, hint: 'Optional — install a GTM container instead of gtag.js direct.' }) +
         '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="ga4" style="background:#4285F4;border-color:#4285F4">Save</button>' +
           (gaLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ga4">Disconnect</button>' : '') +
         '</div>' +
@@ -1068,6 +1075,50 @@
         wField('Lead conversion label', a.leadLabel, '', { optional: true, hint: 'Optional — fired when a lead form is submitted (not used by the core checkout funnel).' }) +
         '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="ads" style="background:#4285F4;border-color:#4285F4">Save</button>' +
           (adsLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ads">Disconnect</button>' : '') +
+        '</div>' +
+      '</div>' +
+
+      // ---- GTM connector ----
+      '<div class="panel card-pad mb-4">' +
+        '<div class="card-title">Google Tag Manager</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Install a GTM container instead of writing tags inline. Useful when you also run third-party pixels (TikTok, Reddit, Snap) through one tag manager.</div>' +
+        '<div class="gw-row" style="margin-bottom:18px">' +
+          '<div style="display:flex;align-items:center;gap:12px"><span style="color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#246fdb;padding:5px 9px">GTM</span>' +
+            '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Google Tag Manager</div>' +
+              '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (gtmLinked ? 'Container ID: ' + esc(t.containerId) + ' · ' + esc(t.containerVersion) : 'Not connected yet') + '</div></div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(gtmLinked) +
+            '<div class="gw-sw' + (t.enabled ? ' on' : '') + '" data-toggle="gtm-enable" aria-label="Enable"><span class="gw-sw-k"></span></div>' +
+          '</div>' +
+        '</div>' +
+        wField('Container ID', t.containerId, 'GTM-XXXXXX', { learnMore: t.docs, hint: 'Tag Manager → workspace → top-right header shows GTM-XXXXXX.' }) +
+        '<div style="margin-bottom:14px">' +
+          '<div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Container version <span style="color:var(--ink-muted);font-weight:400">(optional)</span></div>' +
+          '<select class="input" style="width:100%">' +
+            '<option value="latest"' + (t.containerVersion === 'latest' ? ' selected' : '') + '>Latest published</option>' +
+            '<option value="staging"' + (t.containerVersion === 'staging' ? ' selected' : '') + '>Staging (workspace preview)</option>' +
+            '<option value="v1"' + (t.containerVersion === 'v1' ? ' selected' : '') + '>v1</option>' +
+          '</select>' +
+          '<div class="muted" style="font-size:11.5px;margin-top:4px">Optional — pin to a specific published version. Default uses the latest published.</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="gtm" style="background:#4285F4;border-color:#4285F4">Save</button>' +
+          (gtmLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="gtm">Disconnect</button>' : '') +
+        '</div>' +
+      '</div>' +
+
+      // ---- Google Remarketing (P1 placeholder) ----
+      '<div class="panel card-pad mb-4">' +
+        '<div class="card-title">Google Remarketing</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Build remarketing audiences from your storefront traffic so Google Ads can re-target browsers who didn\'t buy. Requires a connected Google Ads account (above) before this can be configured.</div>' +
+        '<div class="gw-row">' +
+          '<div style="display:flex;align-items:center;gap:12px"><span style="color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#34A853;padding:5px 9px">RMK</span>' +
+            '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Audience list</div>' +
+              '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">Not configured yet</div></div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<span class="pill pill-gray"><span class="dot"></span>Unauthorized</span>' +
+            '<span class="gw-card-soon">Coming soon</span>' +
+          '</div>' +
         '</div>' +
       '</div>' +
 
