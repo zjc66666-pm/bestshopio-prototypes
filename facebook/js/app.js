@@ -194,7 +194,7 @@
         '<div class="fb-sec-r">' +
           '<div class="fb-r-card">' +
             '<div class="fb-tip"><span class="ic">' + I.info + '</span>' +
-              '<div>Don\'t duplicate Pixels. You can check for duplicates with <a href="' + esc(D.pixelHelperLearnUrl) + '" target="_blank" rel="noreferrer" class="lnk" style="color:#1877F2;text-decoration:underline">Meta Pixel Helper</a>.</div>' +
+              '<div>Don\'t duplicate Pixels. You can check for duplicates with <a href="' + esc(D.pixelHelperUrl) + '" target="_blank" rel="noreferrer" class="lnk" style="color:#1877F2;text-decoration:underline">Meta Pixel Helper</a>.</div>' +
             '</div>' +
             '<div class="fb-r-titlebar">' +
               '<div class="fb-r-title">Authorizing Pixel and Conversion API <span class="q" title="Pixel events fire both client-side and via server-side CAPI with a shared event_id for dedup.">' + I.question + '</span></div>' +
@@ -204,7 +204,7 @@
               '</div>' +
             '</div>' +
             '<div class="fb-r-desc">Add Pixel ID and access token to send all events through Facebook Pixel and Conversions API. This will enhance your marketing ability.<br>' +
-              'To connect, your BM needs shared access from the ad account owner <a href="#" class="lnk">Learn how to set this up</a>. Please do not select \'Instagram Account\' during authorization.</div>' +
+              'To connect, your BM needs shared access from the ad account owner <a href="' + esc(D.setupHelpUrl) + '" target="_blank" rel="noreferrer" class="lnk">Learn how to set this up</a>. Please do not select \'Instagram Account\' during authorization.</div>' +
             // Pixel table
             '<table class="fb-ptbl"><thead><tr>' +
               '<th>Facebook pixel</th><th>Conversion API Access Token</th><th>Create source</th><th style="text-align:right">Action</th>' +

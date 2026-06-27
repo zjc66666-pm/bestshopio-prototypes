@@ -210,8 +210,8 @@
     offlineAuth: { authorized: false },
     messagingAuth: { authorized: false },
 
-    // External help link — Meta Pixel Helper Chrome extension
-    pixelHelperUrl: 'https://chromewebstore.google.com/detail/meta-pixel-helper/fdgfkebogiimcoedlicjlajpkdmockpc',
-    pixelHelperLearnUrl: 'https://www.facebook.com/business/help/198406697184833', // duplicate-pixels help
+    // External help links
+    pixelHelperUrl: 'https://chromewebstore.google.com/detail/meta-pixel-helper/fdgfkebogiimcoedlicjlajpkdmockpc', // Chrome extension
+    setupHelpUrl:   'https://www.facebook.com/business/help/408759743051505?id=2190812977867143',                 // BM shared-access setup guide
   };
 })();
