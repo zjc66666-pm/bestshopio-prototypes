@@ -107,6 +107,12 @@
     '.fb-unauth-l b{color:var(--ink);font-weight:600;font-size:13.5px}' +
     '.fb-pill-gray{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:6px;background:#f1f2f5;color:#6b7280;font-size:12px;font-weight:500}' +
     '.fb-pill-gray::before{content:"";width:6px;height:6px;border-radius:50%;background:#9ca3af}' +
+    /* Row "..." popover menu */
+    '.fb-rowmenu{position:fixed;z-index:200;min-width:120px;background:#fff;border:1px solid var(--hair);border-radius:8px;box-shadow:var(--float-shadow);padding:4px}' +
+    '.fb-rowmenu-item{display:block;width:100%;text-align:left;padding:7px 10px;border:none;background:transparent;font-size:13px;color:var(--ink-body);border-radius:6px;cursor:pointer}' +
+    '.fb-rowmenu-item:hover{background:var(--panel)}' +
+    '.fb-rowmenu-item.danger{color:var(--err)}' +
+    '.fb-rowmenu-item.danger:hover{background:#fee}' +
     /* "Coming soon" pill — shared across workspace home + sub-page placeholders */
     '.fb-soonpill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}';
 
@@ -278,40 +284,116 @@
     '</tr>';
   }
   function wirePixelRows() {
-    root.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => toast('Edit pixel — coming soon'));
-    root.querySelectorAll('[data-more]').forEach((b) => b.onclick = () => toast('Delete / Re-verify — coming soon'));
+    root.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => {
+      var idx = parseInt(b.getAttribute('data-edit'), 10);
+      openPixelModal(idx);
+    });
+    root.querySelectorAll('[data-more]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      var idx = parseInt(b.getAttribute('data-more'), 10);
+      openRowMenu(idx, b);
+    });
+  }
+
+  // Re-render the pixel table body in-place after add/edit/delete.
+  function refreshPixelRows() {
+    const tbody = document.getElementById('fb-prows');
+    if (tbody) {
+      tbody.innerHTML = D.pixels.map(pixelRow).join('');
+      wirePixelRows();
+    }
+  }
+
+  // Row "..." menu — pops a small floating list anchored to the trigger.
+  // Currently has only "Delete" (more entries — Re-verify etc. — can be added).
+  function openRowMenu(idx, anchorBtn) {
+    // Close any open menu first.
+    document.querySelectorAll('.fb-rowmenu').forEach((m) => m.remove());
+    const rect = anchorBtn.getBoundingClientRect();
+    const menu = h('<div class="fb-rowmenu"></div>');
+    menu.innerHTML =
+      '<button class="fb-rowmenu-item danger" data-delete>Delete</button>';
+    // Anchor below-right of the trigger; flip up if it would go off-screen.
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.left = (rect.right - 120) + 'px';
+    document.body.appendChild(menu);
+
+    menu.querySelector('[data-delete]').onclick = () => {
+      menu.remove();
+      const pixelId = (D.pixels[idx] || {}).pixelId || '';
+      // Lightweight prototype confirm — the real admin should use a styled modal.
+      if (!window.confirm('Delete Pixel ' + pixelId + '? This cannot be undone.')) return;
+      D.pixels.splice(idx, 1);
+      refreshPixelRows();
+      toast('Pixel deleted');
+    };
+
+    // Dismiss on outside click / scroll.
+    setTimeout(() => {
+      const dismiss = (ev) => {
+        if (menu.contains(ev.target)) return;
+        menu.remove();
+        document.removeEventListener('click', dismiss, true);
+        document.removeEventListener('scroll', dismiss, true);
+      };
+      document.addEventListener('click', dismiss, true);
+      document.addEventListener('scroll', dismiss, true);
+    }, 0);
   }
 
   // ============================================================================
-  // ADD PIXEL MODAL — mirrors Shopline "New FB Pixel and Conversion API tracking event"
+  // ADD / EDIT PIXEL MODAL — mirrors Shopline "New FB Pixel and Conversion API
+  // tracking event". Pass idx >= 0 to edit an existing row; omit (or -1) for new.
   // ============================================================================
-  function openAddPixelModal() {
+  function openPixelModal(idx) {
+    const isEdit = typeof idx === 'number' && idx >= 0 && D.pixels[idx];
+    const existing = isEdit ? D.pixels[idx] : null;
+    const title = isEdit ? 'Edit FB Pixel and Conversion API tracking event'
+                         : 'New FB Pixel and Conversion API tracking event';
+    openPixelModalImpl(idx, isEdit, existing, title);
+  }
+  // Backwards-compat alias for the original entry point.
+  function openAddPixelModal() { openPixelModal(-1); }
+
+  function openPixelModalImpl(idx, isEdit, existing, title) {
     const backdrop = h('<div class="modal-backdrop"></div>');
     const m = h('<div class="modal" style="width:540px"></div>');
 
     const eventOpts = D.trackingEvents.map((e) => '<option value="' + esc(e.value) + '">' + esc(e.label) + '</option>').join('');
     const pageOpts  = D.pageTypes.map((e) => '<option value="' + esc(e.value) + '">' + esc(e.label) + '</option>').join('');
 
+    // Prefill values when editing (token is masked in storage — show as-is rather than
+    // re-prompting for a fresh token; the merchant clears + re-enters to rotate).
+    const prePixelId = isEdit ? existing.pixelId : '';
+    const preToken   = isEdit ? existing.capiToken : '';
+    const preEvent   = isEdit ? (existing.trackingEvent || 'page_view') : 'page_view';
+    const prePage    = isEdit ? (existing.pageType || 'online_store') : 'online_store';
+
+    const eventOptsSel = D.trackingEvents.map((e) => '<option value="' + esc(e.value) + '"' + (e.value === preEvent ? ' selected' : '') + '>' + esc(e.label) + '</option>').join('');
+    const pageOptsSel  = D.pageTypes.map((e) => '<option value="' + esc(e.value) + '"' + (e.value === prePage ? ' selected' : '') + '>' + esc(e.label) + '</option>').join('');
+
     m.innerHTML =
-      '<div class="modal-head flex items-center justify-between"><span>New FB Pixel and Conversion API tracking event</span>' +
+      '<div class="modal-head flex items-center justify-between"><span>' + esc(title) + '</span>' +
         '<span class="drawer-x" data-x style="cursor:pointer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>' +
       '</div>' +
       '<div class="modal-body" style="max-height:70vh;overflow:auto">' +
         '<div style="margin-bottom:14px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Select tracking event</div>' +
-          '<select class="input" style="width:100%">' + eventOpts + '</select></div>' +
+          '<select class="input" style="width:100%">' + eventOptsSel + '</select></div>' +
         '<div style="margin-bottom:14px">' +
           '<div class="ctrl-label" style="text-transform:none;margin-bottom:4px">Facebook pixel</div>' +
           '<div class="muted" style="font-size:11.5px;margin-bottom:6px">It\'s usually a JavaScript code snippet obtainable on the Meta platform. <a href="#" class="lnk" style="color:var(--brand)">Learn more ↗</a></div>' +
-          '<input class="input" placeholder="Paste your Facebook pixel, e.g.: 212313338444699" style="width:100%" /></div>' +
+          '<input class="input" value="' + esc(prePixelId) + '" placeholder="Paste your Facebook pixel, e.g.: 212313338444699" style="width:100%" /></div>' +
         '<div style="margin-bottom:14px">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
             '<div class="ctrl-label" style="text-transform:none">Access Token</div>' +
             '<div style="font-size:12px;color:var(--ink-muted)">' +
               '<a href="#" class="lnk" style="color:var(--brand)">What is Verification</a><span style="margin:0 6px;color:var(--ctl)">|</span><a href="#" class="lnk" style="color:var(--brand)">Need help?</a>' +
             '</div></div>' +
-          '<input class="input" type="password" placeholder="Paste your access token" style="width:100%" /></div>' +
+          '<input class="input" value="' + esc(preToken) + '" type="password" placeholder="Paste your access token" style="width:100%" />' +
+          (isEdit ? '<div class="muted" style="font-size:11.5px;margin-top:4px">Existing token shown masked — clear and re-enter to rotate.</div>' : '') +
+        '</div>' +
         '<div style="margin-bottom:4px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Tracking Pages Type</div>' +
-          '<select class="input" style="width:100%">' + pageOpts + '</select></div>' +
+          '<select class="input" style="width:100%">' + pageOptsSel + '</select></div>' +
       '</div>' +
       '<div class="modal-foot" style="justify-content:flex-end">' +
         '<div class="flex gap-2">' +
@@ -326,20 +408,29 @@
     m.querySelector('[data-cancel]').onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
     m.querySelector('[data-ok]').onclick = () => {
-      const inputs = m.querySelectorAll('input');
+      const selects = m.querySelectorAll('select');
+      const inputs  = m.querySelectorAll('input');
       const pixelId = inputs[0].value.trim();
-      const token = inputs[1].value.trim();
+      const token   = inputs[1].value.trim();
+      const tEvent  = selects[0].value;
+      const tPage   = selects[1].value;
       if (!pixelId) { toast('Please enter Facebook pixel'); return; }
-      // optimistic in-memory append — prototype only
-      D.pixels.push({ pixelId, capiToken: token ? token.slice(0, 3) + '*****' + token.slice(-3) : '—', createSource: 'Add manually', status: token ? 'verified' : 'pending' });
+      // Mask token at storage boundary — never persist plaintext in prototype state.
+      const maskedToken = token
+        ? (/[•*]/.test(token) ? token : token.slice(0, 3) + '*****' + token.slice(-3))
+        : '—';
+      const row = {
+        pixelId,
+        capiToken: maskedToken,
+        createSource: isEdit ? existing.createSource : 'Add manually',
+        status: maskedToken === '—' ? 'pending' : 'verified',
+        trackingEvent: tEvent,
+        pageType: tPage,
+      };
+      if (isEdit) D.pixels[idx] = row; else D.pixels.push(row);
       close();
-      toast('Saved successfully');
-      // re-render the rows
-      const tbody = document.getElementById('fb-prows');
-      if (tbody) {
-        tbody.innerHTML = D.pixels.map(pixelRow).join('');
-        wirePixelRows();
-      }
+      toast(isEdit ? 'Saved successfully' : 'Saved successfully');
+      refreshPixelRows();
     };
   }
 
