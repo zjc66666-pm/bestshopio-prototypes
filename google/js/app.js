@@ -1270,16 +1270,7 @@
             '<div class="gw-sw' + (t.enabled ? ' on' : '') + '" data-toggle="gtm-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
           '</div>' +
         '</div>' +
-        wField('Container ID', t.containerId, 'GTM-XXXXXX', { learnMore: t.docs, hint: 'Tag Manager → workspace → top-right header shows GTM-XXXXXX.' }) +
-        '<div style="margin-bottom:14px">' +
-          '<div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Container version <span style="color:var(--ink-muted);font-weight:400">(optional)</span></div>' +
-          '<select class="input" style="width:100%">' +
-            '<option value="latest"' + (t.containerVersion === 'latest' ? ' selected' : '') + '>Latest published</option>' +
-            '<option value="staging"' + (t.containerVersion === 'staging' ? ' selected' : '') + '>Staging (workspace preview)</option>' +
-            '<option value="v1"' + (t.containerVersion === 'v1' ? ' selected' : '') + '>v1</option>' +
-          '</select>' +
-          '<div class="muted" style="font-size:11.5px;margin-top:4px">Optional — pin to a specific published version. Default uses the latest published.</div>' +
-        '</div>' +
+        wField('Container ID', t.containerId, 'GTM-XXXXXX', { learnMore: t.docs, hint: 'Tag Manager → workspace → top-right header shows GTM-XXXXXX. Latest published container version is loaded automatically.' }) +
         '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="gtm" style="background:#4285F4;border-color:#4285F4">Save</button>' +
           (gtmLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="gtm" title="Clears Container ID and version">Disconnect</button>' : '') +
         '</div>' +
