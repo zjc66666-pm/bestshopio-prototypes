@@ -75,7 +75,13 @@
     /* Title row inside right card (with action buttons) */
     '.fb-r-titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}' +
     '.fb-r-title{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;color:var(--ink)}' +
-    '.fb-r-title .q{color:var(--ink-muted);cursor:help;display:inline-flex}' +
+    /* Dark hover tooltip — reused pattern from bestcheckout rule editor (.rb-hint / .rb-tip).
+       Pure-CSS hover popover that anchors below the trigger; arrow points up. */
+    '.fb-hint{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#e6e9ee;color:#6e7682;font-size:10px;font-weight:700;cursor:help;position:relative;vertical-align:middle}' +
+    '.fb-hint:hover,.fb-hint:focus{background:#1877F2;color:#fff;outline:none}' +
+    '.fb-hint .fb-tip{display:none;position:absolute;top:calc(100% + 9px);left:50%;transform:translateX(-50%);background:#3a3f4a;color:#fff;padding:9px 12px;border-radius:6px;font-size:12px;font-weight:400;line-height:1.55;width:280px;text-align:left;letter-spacing:0;z-index:200;box-shadow:0 4px 14px rgba(20,30,50,.22);white-space:normal;pointer-events:none}' +
+    '.fb-hint .fb-tip::after{content:"";position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:#3a3f4a}' +
+    '.fb-hint:hover .fb-tip,.fb-hint:focus .fb-tip{display:block}' +
     '.fb-r-desc{font-size:13px;color:var(--ink-muted);line-height:1.6;margin-bottom:14px}' +
     '.fb-r-desc .lnk{color:var(--brand);text-decoration:underline;text-underline-offset:2px}' +
     '.fb-r-actions{display:flex;gap:8px;flex:none}' +
@@ -201,7 +207,7 @@
               '<div>Don\'t duplicate Pixels. You can check for duplicates with <a href="' + esc(D.pixelHelperUrl) + '" target="_blank" rel="noreferrer" class="lnk" style="color:#1877F2;text-decoration:underline">Meta Pixel Helper</a>.</div>' +
             '</div>' +
             '<div class="fb-r-titlebar">' +
-              '<div class="fb-r-title">Authorizing Pixel and Conversion API <span class="q" title="Pixel events fire both client-side and via server-side CAPI with a shared event_id for dedup.">' + I.question + '</span></div>' +
+              '<div class="fb-r-title">Authorizing Pixel and Conversion API <span class="fb-hint" tabindex="0">?<span class="fb-tip">Pixel events fire from <b>both</b> the storefront browser (Pixel) <b>and</b> our server-side Conversion API with a shared event_id — Meta dedupes automatically, so attribution survives iOS 14+ tracking blocks.</span></span></div>' +
               '<div class="fb-r-actions">' +
                 '<button class="btn btn-default" data-authorize>Authorize</button>' +
                 '<button class="btn btn-primary" data-add-pixel>Add</button>' +
