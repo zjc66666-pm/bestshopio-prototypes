@@ -1147,7 +1147,7 @@
       blurb: 'Stream events to GA4 via gtag.js (browser) and the Measurement Protocol (server-side). Both fire with a shared event_id so GA4 dedupes automatically.',
       linked: !!g.measurementId,
       fields: [
-        wField('Measurement ID', g.measurementId, 'G-XXXXXXXXXX', { learnMore: g.docs }),
+        wField('Measurement ID', g.measurementId, 'G-XXXXXXXXXX'),
         wField('API secret (Measurement Protocol)', g.apiSecret, 'gtm_…', { secret: true, hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' }),
       ].join(''),
       discHint: 'Clears Measurement ID and API secret',
@@ -1157,7 +1157,7 @@
       blurb: 'Fire the Purchase conversion to Google Ads. Get Conversion ID + Purchase label from Google Ads → Tools → Conversions → your Purchase action.',
       linked: !!a.conversionId,
       fields: [
-        wField('Conversion ID', a.conversionId, 'AW-123456789', { learnMore: a.docs }),
+        wField('Conversion ID', a.conversionId, 'AW-123456789'),
         wField('Purchase conversion label', a.purchaseLabel, 'abcDEFghi_jKlMnoPqr', { hint: 'Google Ads → Tools → Conversions → your Purchase action → Tag setup → Use Google Tag Manager.' }),
         wField('Lead conversion label', a.leadLabel, '', { optional: true, hint: 'Optional — fired when a lead form is submitted (not used by the core checkout funnel).' }),
       ].join(''),
@@ -1167,7 +1167,7 @@
       title: 'Google Tag Manager',
       blurb: 'Install a GTM container instead of writing tags inline. Useful when you also run third-party pixels (TikTok, Reddit, Snap) through one tag manager.',
       linked: !!t.containerId,
-      fields: wField('Container ID', t.containerId, 'GTM-XXXXXX', { learnMore: t.docs, hint: 'Tag Manager → workspace → top-right header shows GTM-XXXXXX. Latest published container version is loaded automatically.' }),
+      fields: wField('Container ID', t.containerId, 'GTM-XXXXXX', { hint: 'Tag Manager → workspace → top-right header shows GTM-XXXXXX. Latest published container version is loaded automatically.' }),
       discHint: 'Clears Container ID',
     };
     return null;
