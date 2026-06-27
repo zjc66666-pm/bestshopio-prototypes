@@ -1017,8 +1017,11 @@
       '</tr>';
 
     wsPaint(
-      '<button class="gw-back" data-back>' + W_ICON_BACK + 'Google</button>' +
-      '<div class="gw-head" style="margin-top:6px"><span class="gw-head-mark">' + GOOGLE_MARK + '</span>Data tracking</div>' +
+      // Header: circle back-button + page-title in one row (matches Orders detail page convention)
+      '<div class="flex items-center gap-3" style="margin-bottom:18px">' +
+        '<button class="back-btn" data-back title="Back">' + W_ICON_BACK + '</button>' +
+        '<span class="page-title" style="font-size:22px">Data tracking</span>' +
+      '</div>' +
 
       '<div class="gw-note">' +
         '<span class="gw-note-ico">' + W_ICON_INFO + '</span>' +

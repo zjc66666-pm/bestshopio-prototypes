@@ -178,9 +178,12 @@
   // ============================================================================
   function renderPixel() {
     paint(
-      '<button class="fb-back" data-back>' + I.arrowLeft + 'Facebook</button>' +
-      '<div class="fb-head" style="margin-top:6px"><span class="fb-head-mark">' + META_MARK + '</span>Data tracking</div>' +
-      '<div class="muted" style="font-size:13px;margin:-10px 0 22px;line-height:1.55">Send conversion issue reports back to Meta with Pixel and Conversion API to better manage your ad performance.</div>' +
+      // Header: circle back-button + page-title in one row (matches Orders detail page convention)
+      '<div class="flex items-center gap-3" style="margin-bottom:6px">' +
+        '<button class="back-btn" data-back title="Back">' + I.arrowLeft + '</button>' +
+        '<span class="page-title" style="font-size:22px">Data tracking</span>' +
+      '</div>' +
+      '<div class="muted" style="font-size:13px;margin:0 0 24px 44px;line-height:1.55">Send conversion issue reports back to Meta with Pixel and Conversion API to better manage your ad performance.</div>' +
 
       // ---------- Section 1: Website data reporting ----------
       '<div class="fb-sec">' +
