@@ -56,7 +56,7 @@
 
   // ---- Page-scoped styles ----
   const STYLES =
-    '.fb-narrow{width:980px;max-width:100%;margin:0 auto;padding:0 4px}' +
+    '.fb-narrow{width:100%;max-width:1280px;margin:0 auto;padding:0 12px}' +
 
     /* Page head */
     '.fb-head{display:flex;align-items:center;gap:10px;margin:0 0 18px;font-size:22px;font-weight:600;color:var(--ink)}' +
@@ -65,7 +65,7 @@
     '.fb-back:hover{background:var(--panel);color:var(--ink)}' +
 
     /* Workspace cards (home grid) — compact 2-col layout */
-    '.fb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px;margin-bottom:14px}' +
+    '.fb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:14px}' +
     '.fb-card{display:flex;gap:14px;align-items:flex-start;background:#fff;border:1px solid var(--hair);border-radius:12px;padding:16px 18px;transition:border-color .15s,box-shadow .15s}' +
     '.fb-card.active{cursor:pointer}' +
     '.fb-card.active:hover{border-color:var(--brand);box-shadow:0 1px 4px rgba(24,119,242,.08)}' +
@@ -124,19 +124,15 @@
   function renderHome() {
     const card = (m) => {
       const ico = M_ICONS[m.id] || M_ICONS.pixel;
-      const bdgCls = m.badge === 'P0' ? 'fb-bdg-p0' : 'fb-bdg-p1';
       const cta = m.enabled
         ? '<button class="btn btn-primary" data-go="' + esc(m.id) + '" style="padding:5px 14px;font-size:12.5px">Set up</button>'
-        : '<span class="fb-card-soon">Coming soon · P1</span>';
+        : '<span class="fb-card-soon">Coming soon</span>';
       const cls = 'fb-card' + (m.enabled ? ' active' : ' disabled');
       const clickAttr = m.enabled ? ' data-card-go="' + esc(m.id) + '"' : '';
       return '<div class="' + cls + '"' + clickAttr + '>' +
         '<div class="fb-card-ico">' + ico + '</div>' +
         '<div class="fb-card-bd">' +
-          '<div class="fb-card-h">' +
-            '<span class="fb-card-t">' + esc(m.title) + '</span>' +
-            (m.badge ? '<span class="fb-bdg ' + bdgCls + '">' + esc(m.badge) + '</span>' : '') +
-          '</div>' +
+          '<div class="fb-card-h"><span class="fb-card-t">' + esc(m.title) + '</span></div>' +
           '<div class="fb-card-sub">' + esc(m.subtitle) + '</div>' +
           '<div class="fb-card-desc">' + esc(m.desc) + '</div>' +
         '</div>' +

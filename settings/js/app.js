@@ -242,14 +242,19 @@
       '</div>';
 
     const a = b.analytics;
+    // Data analysis moved to Channel → Google workspace (Tracking pixels architecture
+    // unified per platform). This card is kept as a quick-status entry that deep-links
+    // into the Google workspace; credentials are edited there, not in a local modal.
     const analyticsCard =
-      '<div class="panel card-pad mb-4">' + sectionTitle('Data analysis', 'After connecting, customers can log in to the online store through their social media accounts.') +
+      '<div class="panel card-pad mb-4">' + sectionTitle('Data analysis',
+        'Google Analytics 4 (and other platform pixels) are now managed per channel. Visit the Google workspace to edit credentials.') +
         '<div class="mt-2">' + block(
           '<div class="flex items-center justify-between" style="padding:12px 0">' +
             '<div class="flex items-center gap-3">' + I.globe +
               '<span class="text-sm" style="font-weight:600;color:var(--ink)">' + esc(a.name) + '</span>' + linkedPill(a.linked) +
+              (a.linked ? '<span class="muted" style="font-size:12px">' + esc(a.measurementId) + '</span>' : '') +
             '</div>' +
-            '<button class="btn btn-gray" data-act="ga4">' + (a.linked ? 'Edit' : 'Link') + '</button>' +
+            '<a class="btn btn-gray" href="#/google/tracking" data-go-ga style="text-decoration:none">Manage in Google workspace →</a>' +
           '</div>'
         ) + '</div>' +
       '</div>';
@@ -267,7 +272,7 @@
     const addFont = root.querySelector('[data-act="add-font"]'); if (addFont) addFont.onclick = () => openAddFontModal();
     root.querySelectorAll('[data-font]').forEach((x) => x.onclick = () => toast('Removed font ' + x.getAttribute('data-font')));
     root.querySelectorAll('[data-social]').forEach((b2) => b2.onclick = () => openLoginModal(b2.getAttribute('data-social')));
-    const ga = root.querySelector('[data-act="ga4"]'); if (ga) ga.onclick = () => openAnalyticsModal();
+    // Data analysis "Manage in Google workspace" link is a plain hash href — no wiring needed.
     const pfx = root.querySelector('#ord-prefix');
     if (pfx) pfx.oninput = () => { const v = pfx.value || ''; const eg = root.querySelector('#ord-prefix-eg'); if (eg) eg.textContent = v + '1001, ' + v + '1002, ' + v + '1003...'; };
   }
@@ -311,15 +316,6 @@
       extraLeft: s.linked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc>Cancel connection</button>' : '',
       onExtra: (m, close) => { close(); toast('Cancelled connection successfully'); } });
   }
-  function openAnalyticsModal() {
-    const a = D.base.analytics;
-    modal({ title: a.modalTitle, width: 620, okText: 'Save',
-      body: '<div class="muted mb-4" style="font-size:13px">' + esc(a.blurb) + '</div>' + field('Measurement Id', a.measurementId, 'Please enter Measurement Id'),
-      onOk: (m, close) => { close(); toast('Connected successfully'); },
-      extraLeft: a.linked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc>Cancel connection</button>' : '',
-      onExtra: (m, close) => { close(); toast('Cancelled connection successfully'); } });
-  }
-
   // ===========================================================================
   // TAB 2 — PAYMENTS  ("Payments", centered w-860)
   //   render.tsx: "Card Payments & Express Checkout" card (processor radio +

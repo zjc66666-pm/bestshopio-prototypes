@@ -912,12 +912,12 @@
 
   // Workspace-only styles (prefix .gw-) — same compact pattern as facebook/, brand recolored to Google blue (#4285F4).
   const WS_STYLES =
-    '.gw-narrow{width:980px;max-width:100%;margin:0 auto;padding:0 4px}' +
+    '.gw-narrow{width:100%;max-width:1280px;margin:0 auto;padding:0 12px}' +
     '.gw-head{display:flex;align-items:center;gap:10px;margin:0 0 18px;font-size:22px;font-weight:600;color:var(--ink)}' +
     '.gw-head-mark{display:inline-flex;align-items:center}' +
     '.gw-back{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border-radius:7px;color:var(--ink-muted);cursor:pointer;font-size:13px;font-weight:500;text-decoration:none;background:transparent;border:none}' +
     '.gw-back:hover{background:var(--panel);color:var(--ink)}' +
-    '.gw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px;margin-bottom:14px}' +
+    '.gw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:14px}' +
     '.gw-card{display:flex;gap:14px;align-items:flex-start;background:#fff;border:1px solid var(--hair);border-radius:12px;padding:16px 18px;transition:border-color .15s,box-shadow .15s}' +
     '.gw-card.active{cursor:pointer}' +
     '.gw-card.active:hover{border-color:#4285F4;box-shadow:0 1px 4px rgba(66,133,244,.08)}' +
@@ -978,18 +978,16 @@
   function renderWsHome() {
     const card = (m) => {
       const ico = W_MOD_ICONS[m.id] || W_MOD_ICONS.tracking;
-      const bdgCls = m.badge === 'P0' ? 'gw-bdg-p0' : 'gw-bdg-p1';
       const goHash = m.id === 'products' ? '#/google/products' : '#/google/' + m.id;
       const cta = m.enabled
         ? '<button class="btn btn-primary" data-go="' + esc(goHash) + '" style="padding:5px 14px;font-size:12.5px;background:#4285F4;border-color:#4285F4">Set up</button>'
-        : '<span class="gw-card-soon">Coming soon · P1</span>';
+        : '<span class="gw-card-soon">Coming soon</span>';
       const cls = 'gw-card' + (m.enabled ? ' active' : ' disabled');
       const clickAttr = m.enabled ? ' data-card-go="' + esc(goHash) + '"' : '';
       return '<div class="' + cls + '"' + clickAttr + '>' +
         '<div class="gw-card-ico">' + ico + '</div>' +
         '<div class="gw-card-bd">' +
-          '<div class="gw-card-h"><span class="gw-card-t">' + esc(m.title) + '</span>' +
-            (m.badge ? '<span class="gw-bdg ' + bdgCls + '">' + esc(m.badge) + '</span>' : '') + '</div>' +
+          '<div class="gw-card-h"><span class="gw-card-t">' + esc(m.title) + '</span></div>' +
           '<div class="gw-card-sub">' + esc(m.subtitle) + '</div>' +
           '<div class="gw-card-desc">' + esc(m.desc) + '</div>' +
         '</div>' +
