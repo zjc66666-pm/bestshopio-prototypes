@@ -1189,7 +1189,9 @@
 
       '<div class="gw-note">' +
         '<span class="gw-note-ico">' + W_ICON_INFO + '</span>' +
-        '<div class="gw-note-bd">Events fire from <b>both</b> the storefront browser (gtag.js) <b>and</b> our server-side Measurement Protocol with a shared <code>event_id</code> — GA4 dedupes automatically, so attribution survives iOS 14+ tracking blocks (which would otherwise eat 30–50% of client-side events).</div>' +
+        // Single text node so the i18n overlay can match and translate the whole sentence
+        // (any inline <b> / <code> would split it into untranslatable fragments).
+        '<div class="gw-note-bd">Events fire from the storefront browser (gtag.js) and our server-side Measurement Protocol with a shared event_id — GA4 dedupes automatically, so attribution survives iOS 14+ tracking blocks (which would otherwise eat 30–50% of client-side events).</div>' +
       '</div>' +
 
       // ---- GA4 connector ----

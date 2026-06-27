@@ -18,6 +18,9 @@ window.I18N.extend({
   "Open accounts, configure campaigns, track performance, and reconcile finance from one place. Google Ads is the native ad tool for Search, Shopping, and YouTube.": "一站完成账户开通、广告配置、效果跟踪、财务对账。Google Ads 是 Search、Shopping、YouTube 的原生广告工具。",
 
   // ============================== Data tracking sub-page ==============================
+  // Top tip banner — kept as a single text node in google/app.js so the whole sentence matches.
+  "Events fire from the storefront browser (gtag.js) and our server-side Measurement Protocol with a shared event_id — GA4 dedupes automatically, so attribution survives iOS 14+ tracking blocks (which would otherwise eat 30–50% of client-side events).": "事件在店面浏览器（gtag.js）和服务器端 Measurement Protocol 同时上报（共享 event_id），GA4 自动去重，归因不受 iOS 14+ 拦截影响（否则浏览器端事件会丢失 30–50%）。",
+
   // GA4 connector card
   "Stream events to GA4 via gtag.js (browser) and the Measurement Protocol (server-side). Both fire with a shared event_id so GA4 dedupes automatically.": "通过 gtag.js（浏览器端）+ Measurement Protocol（服务器端）将事件回传到 GA4。两侧共享 event_id，GA4 自动去重。",
   "Measurement ID": "Measurement ID",

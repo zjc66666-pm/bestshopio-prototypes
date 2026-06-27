@@ -115,11 +115,22 @@ window.I18N.extend({
   "? This cannot be undone.": "？此操作无法撤销。",
 
   // ============================== ? tooltip body ==============================
-  // Pixel + Conversion API title tooltip — appears below the round "?" hint.
-  // Translation matches the surrounding "Authorizing Pixel and Conversion API" copy.
-  "Pixel events fire from": "Pixel 事件由",
-  "the storefront browser (Pixel)": "店面浏览器（Pixel）",
-  "our server-side Conversion API with a shared event_id — Meta dedupes automatically, so attribution survives iOS 14+ tracking blocks.": "服务器端 Conversion API（共享 event_id）同时上报——Meta 自动去重，归因不受 iOS 14+ 拦截影响。",
+  // Tooltip kept as a single text node in app.js so the whole sentence matches.
+  "Pixel events fire from the storefront browser (Pixel) and our server-side Conversion API with a shared event_id — Meta dedupes automatically, so attribution survives iOS 14+ tracking blocks.": "Pixel 事件在店面浏览器（Pixel）和服务器端 Conversion API 同时上报（共享 event_id），Meta 自动去重，归因不受 iOS 14+ 拦截影响。",
+
+  // ============================== Website data reporting card ==============================
+  // NOTE: i18n tr() trims the raw text before lookup, so keys must NOT include
+  // trailing spaces — surrounding whitespace from the source text node is
+  // re-applied automatically (see i18n.js tr() lead/trail handling).
+  // Blue tip banner — text nodes around the inline <a>Meta Pixel Helper</a>:
+  //   [Don't duplicate Pixels...with] + [Meta Pixel Helper] + [.]
+  "Don't duplicate Pixels. You can check for duplicates with": "请注意不要重复添加 Pixel，您可以通过",
+
+  // Authorization description — text nodes split by inline <a>Learn how to set this up</a> + <br>:
+  //   [Add Pixel ID...marketing ability.]<br>[To connect, your BM... ad account owner][Learn how to set this up][. Please do not select 'Instagram Account' during authorization.]
+  "Add Pixel ID and access token to send all events through Facebook Pixel and Conversions API. This will enhance your marketing ability.": "添加 Pixel ID 和访问令牌，把所有事件通过 Facebook Pixel 和 Conversion API 上报到 Meta，提升你的营销能力。",
+  "To connect, your BM needs shared access from the ad account owner": "请确保你的 BM 已获得广告账号拥有者共享的权限（",
+  ". Please do not select 'Instagram Account' during authorization.": "），授权时不要勾选 'Instagram 主页'，否则可能授权失败。",
 
   // ============================== Hover hints (title attributes) ==============================
   "Edit": "编辑",

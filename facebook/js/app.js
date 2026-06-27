@@ -207,7 +207,8 @@
               '<div>Don\'t duplicate Pixels. You can check for duplicates with <a href="' + esc(D.pixelHelperUrl) + '" target="_blank" rel="noreferrer" class="lnk" style="color:#1877F2;text-decoration:underline">Meta Pixel Helper</a>.</div>' +
             '</div>' +
             '<div class="fb-r-titlebar">' +
-              '<div class="fb-r-title">Authorizing Pixel and Conversion API <span class="fb-hint" tabindex="0">?<span class="fb-tip">Pixel events fire from <b>both</b> the storefront browser (Pixel) <b>and</b> our server-side Conversion API with a shared event_id — Meta dedupes automatically, so attribution survives iOS 14+ tracking blocks.</span></span></div>' +
+              // tooltip body kept as a single text node so i18n overlay can match the full sentence
+              '<div class="fb-r-title">Authorizing Pixel and Conversion API <span class="fb-hint" tabindex="0">?<span class="fb-tip">Pixel events fire from the storefront browser (Pixel) and our server-side Conversion API with a shared event_id — Meta dedupes automatically, so attribution survives iOS 14+ tracking blocks.</span></span></div>' +
               '<div class="fb-r-actions">' +
                 '<button class="btn btn-default" data-authorize>Authorize</button>' +
                 '<button class="btn btn-primary" data-add-pixel>Add</button>' +
