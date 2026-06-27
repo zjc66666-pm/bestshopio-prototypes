@@ -423,169 +423,10 @@
       onExtra: (m, close) => { close(); toast('Cancelled connection successfully'); } });
   }
 
-  // ===========================================================================
-  // TRACKING PIXELS  — five connectors (Meta / GA4 / TikTok / Google Ads /
-  //   Custom) + the standard event map.  BestShopio fires every event on BOTH
-  //   the storefront browser AND server-side Conversion API with a shared
-  //   event_id — platforms dedupe, so iOS 14+ doesn't eat the attribution.
-  //   Each connector card mirrors the Payments .prov-block layout: brand badge
-  //   + ID summary + Connect/Edit. The events table is read-only — merchants
-  //   don't pick events, the platform maps a unified internal event to each
-  //   vendor's name.
-  // ===========================================================================
-  function renderPixels() {
-    const pix = D.pixels;
-    const ps = pix.platforms;
-
-    // brand badge: coloured tile + monogram (no image assets needed)
-    const BRAND = {
-      meta:      { bg: '#1877F2', label: 'f' },
-      ga4:       { bg: '#F9AB00', label: 'GA4' },
-      tiktok:    { bg: '#000000', label: 'TT' },
-      googleAds: { bg: '#4285F4', label: 'Ads' },
-      custom:    { bg: '#5b6473', label: '&lt;/&gt;' },
-    };
-
-    const isLinked = (key) => {
-      const c = ps[key];
-      if (key === 'meta')      return !!c.pixelId;
-      if (key === 'ga4')       return !!c.measurementId;
-      if (key === 'tiktok')    return !!c.pixelId;
-      if (key === 'googleAds') return !!c.conversionId;
-      if (key === 'custom')    return !!(c.headScript || c.bodyScript);
-      return false;
-    };
-
-    // one-line ID summary shown on the linked card (no plaintext secrets)
-    const summary = (key) => {
-      const c = ps[key];
-      if (key === 'meta')      return c.pixelId ? 'Pixel ID: ' + esc(c.pixelId) + (c.capiToken ? ' · CAPI token set' : '') : '';
-      if (key === 'ga4')       return c.measurementId ? 'Measurement ID: ' + esc(c.measurementId) + (c.apiSecret ? ' · API secret set' : '') : '';
-      if (key === 'tiktok')    return c.pixelId ? 'Pixel ID: ' + esc(c.pixelId) + (c.accessToken ? ' · Access token set' : '') : '';
-      if (key === 'googleAds') return c.conversionId ? 'Conversion ID: ' + esc(c.conversionId) + (c.purchaseLabel ? ' · Purchase label set' : '') : '';
-      if (key === 'custom')    return (c.headScript || c.bodyScript) ? 'Scripts injected on storefront' : '';
-      return '';
-    };
-
-    const pixBlock = (key) => {
-      const c = ps[key];
-      const b = BRAND[key];
-      const linked = isLinked(key);
-      const sumLine = summary(key);
-      return '<div class="prov-block">' +
-        '<div class="prov-logo" style="margin-bottom:14px;align-items:center">' +
-          '<div class="pix-badge" style="background:' + b.bg + '">' + b.label + '</div>' +
-          '<div style="margin-left:12px;flex:1">' +
-            '<div style="font-weight:600;color:var(--ink);font-size:14px">' + esc(c.name) + '</div>' +
-            '<div class="muted" style="font-size:12.5px;margin-top:1px">' + esc(c.vendor) + '</div>' +
-          '</div>' +
-          toggle(c.enabled, c.name + ' enabled') +
-        '</div>' +
-        '<div class="pay-bc" style="border-radius:8px">' +
-          '<div>' +
-            (sumLine ? '<div style="font-size:13px;color:var(--ink);margin-bottom:8px">' + sumLine + '</div>' : '') +
-            linkedPill(linked) +
-          '</div>' +
-          '<button class="btn btn-gray" data-pix="' + key + '">' + (linked ? 'Edit' : 'Connect') + '</button>' +
-        '</div>' +
-      '</div>';
-    };
-
-    const platformsCard =
-      '<div class="panel card-pad mb-4">' + sectionTitle('Connected platforms') +
-        '<div class="mt-4">' +
-          ['meta', 'ga4', 'tiktok', 'googleAds', 'custom'].map(pixBlock).join('') +
-        '</div>' +
-      '</div>';
-
-    // event matrix — read-only: 6 unified events × 4 destination columns
-    const evtRow = (e) =>
-      '<tr><td><div style="font-weight:500;color:var(--ink)">' + esc(e.name) + '</div>' +
-        '<div class="muted" style="font-size:11.5px;margin-top:2px">' + esc(e.fires) + '</div></td>' +
-        '<td class="muted">' + esc(e.meta) + '</td>' +
-        '<td class="muted">' + esc(e.ga4) + '</td>' +
-        '<td class="muted">' + esc(e.tiktok) + '</td>' +
-        '<td class="muted">' + esc(e.gads) + '</td>' +
-      '</tr>';
-    const evtCard =
-      '<div class="panel mb-4">' +
-        '<div class="card-pad" style="padding-bottom:0">' +
-          sectionTitle('Events sent automatically',
-            'BestShopio fires these events both client-side and server-side (CAPI). You don\'t install any tracking code per app.') +
-        '</div>' +
-        '<div style="overflow-x:auto;padding:16px"><table class="tbl">' +
-          '<thead><tr><th style="min-width:260px">Event</th><th>Meta</th><th>GA4</th><th>TikTok</th><th>Google Ads</th></tr></thead>' +
-          '<tbody>' + pix.events.map(evtRow).join('') + '</tbody>' +
-        '</table></div>' +
-      '</div>';
-
-    paint(
-      pageHead('Tracking pixels', 'Connect ad platforms and analytics. Server-side Conversion API (CAPI) is recommended — iOS 14+ blocks 30–50% of client-side events.') +
-      '<div class="set-note mb-4" style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--brand);flex:none;display:inline-flex">' + I.info + '</span>' +
-        '<div class="muted" style="font-size:12.5px;line-height:1.5">Each pixel fires from <b>both</b> the storefront browser <b>and</b> our server-side Conversion API with a shared <code>event_id</code> — platforms dedupe automatically, so attribution survives iOS 14+ tracking blocks.</div></div>' +
-      platformsCard +
-      evtCard,
-      true
-    );
-
-    root.querySelectorAll('[data-pix]').forEach((b2) => b2.onclick = () => openPixelModal(b2.getAttribute('data-pix')));
-  }
-
-  function openPixelModal(key) {
-    const c = D.pixels.platforms[key];
-    const linked = (key === 'meta' && c.pixelId) ||
-                   (key === 'ga4' && c.measurementId) ||
-                   (key === 'tiktok' && c.pixelId) ||
-                   (key === 'googleAds' && c.conversionId) ||
-                   (key === 'custom' && (c.headScript || c.bodyScript));
-
-    // per-platform blurb explains what gets sent + where to find the token
-    const BLURBS = {
-      meta:      'Send PageView, ViewContent, AddToCart, InitiateCheckout, AddPaymentInfo and Purchase to Meta. CAPI access token enables server-side de-duped events post-iOS 14.',
-      ga4:       'Stream events to GA4 via gtag.js (browser) + Measurement Protocol (server-side). GTM container ID is optional.',
-      tiktok:    'Forward events to the TikTok Pixel and TikTok Events API (server-side CAPI).',
-      googleAds: 'Fire the Purchase conversion to Google Ads. Get Conversion ID + Purchase label from Google Ads → Tools → Conversions → your Purchase action.',
-      custom:    'Inject raw JavaScript into the storefront <head> or before </body>. Use when there isn\'t a built-in platform integration (e.g. Pinterest, Snapchat, Reddit).',
-    };
-    let body = '<div class="muted mb-4" style="font-size:13px;line-height:1.55">' + esc(BLURBS[key]) + '</div>';
-
-    if (key === 'meta') {
-      body += field('Pixel ID', c.pixelId, 'e.g. 102938475610293', { learnMore: c.docs });
-      body += field('CAPI access token', c.capiToken, 'EAA…', { secret: true, hint: 'Events Manager → Settings → Conversions API → Generate access token.' });
-      body += field('Test event code', c.testEventCode, 'TEST12345', { optional: true, hint: 'Optional — see live events in Events Manager → Test events.' });
-      body += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px;padding:10px 0">' +
-        '<div><div class="text-sm" style="font-weight:600;color:var(--ink)">Advanced matching</div>' +
-        '<div class="muted" style="font-size:11.5px;margin-top:2px">Hash and send email/phone with each event for stronger attribution. PII is hashed (SHA-256) before leaving our server.</div></div>' +
-        toggle(c.advMatching, 'Advanced matching') + '</div>';
-    } else if (key === 'ga4') {
-      body += field('Measurement ID', c.measurementId, 'G-XXXXXXXXXX', { learnMore: c.docs });
-      body += field('API secret (Measurement Protocol)', c.apiSecret, 'gtm_…', { secret: true, hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' });
-      body += field('GTM container ID', c.gtmId, 'GTM-XXXXXX', { optional: true, hint: 'Optional — install a GTM container instead of gtag.js direct.' });
-    } else if (key === 'tiktok') {
-      body += field('Pixel ID', c.pixelId, 'e.g. C4ABCDEF1234567', { learnMore: c.docs });
-      body += field('Access token (Events API)', c.accessToken, '', { secret: true, hint: 'TikTok Events Manager → Settings → Events API → Generate access token.' });
-      body += field('Test event code', c.testCode, '', { optional: true, hint: 'Optional — surface test events in TikTok Events Manager → Test event.' });
-    } else if (key === 'googleAds') {
-      body += field('Conversion ID', c.conversionId, 'AW-123456789', { learnMore: c.docs });
-      body += field('Purchase conversion label', c.purchaseLabel, 'abcDEFghi_jKlMnoPqr', { hint: 'Google Ads → Tools → Conversions → your Purchase action → Tag setup → Use Google Tag Manager.' });
-      body += field('Lead conversion label', c.leadLabel, '', { optional: true, hint: 'Optional — fired when a lead form is submitted (not used by the core checkout funnel).' });
-    } else if (key === 'custom') {
-      body += '<div style="margin-bottom:14px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Head script</div>' +
-        '<textarea class="input" rows="6" placeholder="&lt;script&gt;…&lt;/script&gt;" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;width:100%;line-height:1.5;resize:vertical">' + esc(c.headScript) + '</textarea>' +
-        '<div class="muted" style="font-size:11.5px;margin-top:4px">Injected into <code>&lt;head&gt;</code> of every storefront page.</div></div>';
-      body += '<div style="margin-bottom:4px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Body script</div>' +
-        '<textarea class="input" rows="6" placeholder="&lt;script&gt;…&lt;/script&gt;" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;width:100%;line-height:1.5;resize:vertical">' + esc(c.bodyScript) + '</textarea>' +
-        '<div class="muted" style="font-size:11.5px;margin-top:4px">Injected before <code>&lt;/body&gt;</code>. Use for tracking pixels without a server-side API (Pinterest, Snapchat, Reddit, etc.).</div></div>';
-    }
-
-    const { m } = modal({ title: (linked ? 'Edit ' : 'Connect ') + c.name, width: 620, okText: 'Save',
-      body,
-      onOk: (mm, close) => { close(); toast(linked ? 'Saved successfully' : 'Connected successfully'); },
-      extraLeft: linked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc>Disconnect</button>' : '',
-      onExtra: (mm, close) => { close(); toast('Disconnected'); } });
-    // wire any toggle inside the modal body (Advanced matching etc.)
-    m.querySelectorAll('[data-toggle]').forEach((el) => el.onclick = () => el.classList.toggle('on'));
-  }
+  // NOTE: Tracking pixels (Meta / GA4 / TikTok / Google Ads / Custom) moved out
+  //   of Settings — Pixel + CAPI now lives in each platform's Channel workspace:
+  //   #/facebook (Meta) and #/google (GA4 + Google Ads). Aligns with BestShopio
+  //   Channel architecture.
 
   // ===========================================================================
   // TAB 3 — CURRENCY  ("Currency", full width)
@@ -2372,7 +2213,6 @@
     base: renderBase,
     domains: renderDomains,
     payments: renderPayments,
-    pixels: renderPixels,
     currency: renderCurrency,
     checkout: renderCheckout,
     metafields: renderMetafields,
@@ -2463,8 +2303,6 @@
   .prov-logo { display: flex; align-items: center; margin-bottom: 16px; }
   .prov-logo img { display: block; width: auto; object-fit: contain; }
 
-  /* pixels — coloured brand badge in lieu of image asset */
-  .pix-badge { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; color: #fff; font-weight: 700; font-size: 14px; letter-spacing: -.02em; flex: none; }
   .pay-bc { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f7f8fb; border-radius: 8px 8px 0 0; padding: 16px; }
   .pay-icons { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
   .pay-ico { height: 24px; width: auto; object-fit: contain; display: block; }

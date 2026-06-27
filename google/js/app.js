@@ -857,11 +857,248 @@
   function goVariantEdit(unique) { location.hash = '#/google/variants/' + encodeURIComponent(unique); }
   function goVariantRaw(unique) { location.hash = '#/google/variants/' + encodeURIComponent(unique) + '/raw'; }
 
+  // =========================================================================
+  // CHANNEL WORKSPACE — Google hub (mirrors Shopline's per-channel sales channel
+  //   workspace). Home is a compact card grid linking to feature sub-pages:
+  //   Domain verification (P1) / Data tracking (P0) / Product sync (existing
+  //   Merchant Center) / Ad management (P1).
+  //   Data tracking holds GA4 + Google Ads + GTM credentials and the auto-event
+  //   matrix BestShopio fires both client-side and server-side via Measurement
+  //   Protocol — shared event_id, so iOS 14+ tracking blocks don't kill attribution.
+  // =========================================================================
+  const GOOGLE_MARK = '<svg viewBox="0 0 24 24" width="22" height="22">' +
+    '<path fill="#4285F4" d="M22.5 12.27c0-.81-.07-1.59-.2-2.34H12.18v4.43h5.78c-.25 1.34-1.01 2.48-2.16 3.24v2.7h3.5c2.05-1.88 3.2-4.66 3.2-8.03z"/>' +
+    '<path fill="#34A853" d="M12.18 23c2.91 0 5.35-.96 7.13-2.62l-3.5-2.7c-.97.65-2.21 1.04-3.63 1.04-2.79 0-5.16-1.88-6-4.42H2.6v2.78A11 11 0 0 0 12.18 23z"/>' +
+    '<path fill="#FBBC05" d="M6.18 14.3a6.62 6.62 0 0 1 0-4.2V7.32H2.6a11 11 0 0 0 0 9.76l3.58-2.78z"/>' +
+    '<path fill="#EA4335" d="M12.18 5.67c1.58 0 2.99.54 4.1 1.6l3.1-3.1C17.52 2.4 15.08 1.4 12.18 1.4 7.93 1.4 4.27 3.84 2.6 7.32l3.58 2.78c.84-2.54 3.21-4.43 6-4.43z"/></svg>';
+
+  const W_ICON_BACK = svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', 18);
+  const W_ICON_INFO = svg('<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>', 16);
+  const W_MOD_ICONS = {
+    domain:   svg('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>', 22), // verified shield
+    tracking: svg('<path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/>', 22),                              // trending up
+    products: svg('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/>', 22), // package
+    ads:      svg('<path d="M3 11h6l4-7v15l-4-4H3z"/><path d="M17 9a4 4 0 0 1 0 6"/>', 22),               // megaphone
+  };
+  // GA4 + Google Ads credentials (was DATA_SETTINGS.pixels.platforms.ga4 / googleAds)
+  const W_TRACKING = {
+    ga4: { enabled: true, measurementId: 'G-AB12CD34EF', apiSecret: 'gtm_•••••••••', gtmId: '', docs: 'https://developers.google.com/analytics/devguides/collection/ga4' },
+    ads: { enabled: false, conversionId: '', purchaseLabel: '', leadLabel: '', docs: 'https://support.google.com/google-ads/answer/6095821' },
+  };
+  // Unified event catalog mapped to Google vendor names (GA4 / Google Ads).
+  const W_EVENTS = [
+    { id: 'page_view',      name: 'Page view',                    ga4: 'page_view',         gads: '—',                     fires: 'Every storefront page load' },
+    { id: 'view_item',      name: 'View product / offer',         ga4: 'view_item',         gads: '—',                     fires: 'Product page, upsell offer, downsell offer' },
+    { id: 'add_to_cart',    name: 'Add to cart / accept upsell',  ga4: 'add_to_cart',       gads: '—',                     fires: 'Cart add + one-click upsell accept' },
+    { id: 'begin_checkout', name: 'Begin checkout',               ga4: 'begin_checkout',    gads: '—',                     fires: 'Buyer lands on the checkout page' },
+    { id: 'add_payment',    name: 'Payment info added',           ga4: 'add_payment_info',  gads: '—',                     fires: 'Buyer fills payment method' },
+    { id: 'purchase',       name: 'Purchase',                     ga4: 'purchase',          gads: 'Conversion (Purchase)', fires: 'Order written back (Thank-you / order_create webhook)' },
+  ];
+  // P0 = the one we ship; P1 = placeholder with "Coming soon".
+  const W_MODULES = [
+    { id: 'domain',   title: 'Domain verification', subtitle: 'Verify your store domain with Google',
+      desc: 'Verified ownership is required for Merchant Center listings, conversion tracking and to claim ad assets.',
+      enabled: false, badge: 'P1' },
+    { id: 'tracking', title: 'Data tracking',       subtitle: 'GA4 + Google Ads + Google Tag Manager',
+      desc: 'Stream events to GA4 via gtag.js + Measurement Protocol (server-side) and fire Purchase conversions to Google Ads.',
+      enabled: true,  badge: 'P0' },
+    { id: 'products', title: 'Product sync',        subtitle: 'Google Merchant Center',
+      desc: 'Sync products and variants to Merchant Center for Shopping Ads and Free Listings; monitor approval status per destination.',
+      enabled: true },
+    { id: 'ads',      title: 'Ad management',       subtitle: 'Run Google Ads campaigns',
+      desc: 'Open accounts, configure campaigns, track performance and reconcile finance. Google Ads is the native ad tool.',
+      enabled: false, badge: 'P1' },
+  ];
+
+  // Workspace-only styles (prefix .gw-) — same compact pattern as facebook/, brand recolored to Google blue (#4285F4).
+  const WS_STYLES =
+    '.gw-narrow{width:980px;max-width:100%;margin:0 auto;padding:0 4px}' +
+    '.gw-head{display:flex;align-items:center;gap:10px;margin:0 0 18px;font-size:22px;font-weight:600;color:var(--ink)}' +
+    '.gw-head-mark{display:inline-flex;align-items:center}' +
+    '.gw-back{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border-radius:7px;color:var(--ink-muted);cursor:pointer;font-size:13px;font-weight:500;text-decoration:none;background:transparent;border:none}' +
+    '.gw-back:hover{background:var(--panel);color:var(--ink)}' +
+    '.gw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px;margin-bottom:14px}' +
+    '.gw-card{display:flex;gap:14px;align-items:flex-start;background:#fff;border:1px solid var(--hair);border-radius:12px;padding:16px 18px;transition:border-color .15s,box-shadow .15s}' +
+    '.gw-card.active{cursor:pointer}' +
+    '.gw-card.active:hover{border-color:#4285F4;box-shadow:0 1px 4px rgba(66,133,244,.08)}' +
+    '.gw-card.disabled{opacity:.72}' +
+    '.gw-card-ico{flex:none;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#e8f0fe 0%,#cee0fc 100%);display:grid;place-items:center;color:#4285F4}' +
+    '.gw-card-bd{flex:1;min-width:0}' +
+    '.gw-card-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}' +
+    '.gw-card-t{font-size:14px;font-weight:600;color:var(--ink)}' +
+    '.gw-bdg{display:inline-flex;align-items:center;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase}' +
+    '.gw-bdg-p0{background:#e8f0fe;color:#1a73e8}' +
+    '.gw-bdg-p1{background:#f2f2f4;color:#7c8194}' +
+    '.gw-card-sub{font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px}' +
+    '.gw-card-desc{font-size:12.5px;color:var(--ink-muted);line-height:1.55}' +
+    '.gw-card-cta{flex:none;margin-left:8px;align-self:center}' +
+    '.gw-card-soon{color:var(--ink-muted);font-size:11.5px;font-weight:500;white-space:nowrap}' +
+    '.gw-note{display:flex;gap:10px;align-items:flex-start;background:#f7f8fb;border-radius:8px;padding:14px 16px;margin-bottom:18px}' +
+    '.gw-note-ico{color:#4285F4;flex:none;display:inline-flex}' +
+    '.gw-note-bd{font-size:12.5px;line-height:1.55;color:var(--ink-muted)}' +
+    '.gw-stitle{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:2px}' +
+    '.gw-ssub{font-size:12.5px;color:var(--ink-muted)}' +
+    '.gw-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-radius:10px;background:#f7f8fb}' +
+    '.gw-sw{display:inline-flex;align-items:center;width:40px;height:22px;border-radius:9999px;background:var(--ctl);cursor:pointer;transition:background .15s;flex:none;padding:2px}' +
+    '.gw-sw.on{background:#4285F4}' +
+    '.gw-sw-k{width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}' +
+    '.gw-sw.on .gw-sw-k{transform:translateX(18px)}' +
+    '.gw-evtable{width:100%;border-collapse:collapse;font-size:13px}' +
+    '.gw-evtable th{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--hair)}' +
+    '.gw-evtable td{padding:12px 14px;border-bottom:1px solid var(--hair);vertical-align:top}' +
+    '.gw-evtable tr:last-child td{border-bottom:none}' +
+    '.gw-evtable .ev-name{font-weight:500;color:var(--ink)}' +
+    '.gw-evtable .ev-fires{font-size:11.5px;color:var(--ink-muted);margin-top:2px}' +
+    '.gw-evtable .ev-vn{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--ink-body)}' +
+    '.gw-section-title{font-size:14px;font-weight:600;color:var(--ink);margin:18px 0 4px}';
+
+  // Field builder (mirrors settings/app.js .field())
+  const wField = (label, value, placeholder, opts) => {
+    opts = opts || {};
+    const v = value || '';
+    const req = opts.optional ? '' : ' <span style="color:var(--err)">*</span>';
+    const learn = opts.learnMore ? '<a class="lnk" href="' + esc(opts.learnMore) + '" target="_blank" rel="noreferrer" style="font-weight:400;float:right">Learn more</a>' : '';
+    return '<div style="margin-bottom:14px">' +
+      '<div class="ctrl-label" style="text-transform:none;margin-bottom:6px">' + esc(label) + req + learn + '</div>' +
+      '<input class="input" value="' + esc(v) + '" placeholder="' + esc(placeholder || '') + '" />' +
+      (opts.secret && v ? '<div class="muted" style="font-size:11.5px;margin-top:4px">Stored securely · value is masked</div>' : '') +
+      (opts.hint ? '<div class="muted" style="font-size:11.5px;margin-top:4px">' + esc(opts.hint) + '</div>' : '') +
+      '</div>';
+  };
+  const wLinkedPill = (linked) => linked
+    ? '<span class="pill pill-green"><span class="dot"></span>Linked</span>'
+    : '<span class="pill pill-gray"><span class="dot"></span>Not linked</span>';
+
+  function wsPaint(html) {
+    root.innerHTML = '<style>' + WS_STYLES + '</style><div class="gw-narrow">' + html + '</div>';
+    root.querySelectorAll('[data-toggle]').forEach((el) => el.onclick = () => el.classList.toggle('on'));
+    if (root && root.parentElement) root.parentElement.scrollTop = 0;
+  }
+
+  function renderWsHome() {
+    const card = (m) => {
+      const ico = W_MOD_ICONS[m.id] || W_MOD_ICONS.tracking;
+      const bdgCls = m.badge === 'P0' ? 'gw-bdg-p0' : 'gw-bdg-p1';
+      const goHash = m.id === 'products' ? '#/google/products' : '#/google/' + m.id;
+      const cta = m.enabled
+        ? '<button class="btn btn-primary" data-go="' + esc(goHash) + '" style="padding:5px 14px;font-size:12.5px;background:#4285F4;border-color:#4285F4">Set up</button>'
+        : '<span class="gw-card-soon">Coming soon · P1</span>';
+      const cls = 'gw-card' + (m.enabled ? ' active' : ' disabled');
+      const clickAttr = m.enabled ? ' data-card-go="' + esc(goHash) + '"' : '';
+      return '<div class="' + cls + '"' + clickAttr + '>' +
+        '<div class="gw-card-ico">' + ico + '</div>' +
+        '<div class="gw-card-bd">' +
+          '<div class="gw-card-h"><span class="gw-card-t">' + esc(m.title) + '</span>' +
+            (m.badge ? '<span class="gw-bdg ' + bdgCls + '">' + esc(m.badge) + '</span>' : '') + '</div>' +
+          '<div class="gw-card-sub">' + esc(m.subtitle) + '</div>' +
+          '<div class="gw-card-desc">' + esc(m.desc) + '</div>' +
+        '</div>' +
+        '<div class="gw-card-cta">' + cta + '</div>' +
+      '</div>';
+    };
+    wsPaint(
+      '<div class="gw-head"><span class="gw-head-mark">' + GOOGLE_MARK + '</span>Google</div>' +
+      '<div class="gw-grid">' + W_MODULES.map(card).join('') + '</div>'
+    );
+    const go = (h) => { location.hash = h; };
+    root.querySelectorAll('[data-go]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); go(b.getAttribute('data-go')); });
+    root.querySelectorAll('[data-card-go]').forEach((c) => c.onclick = () => go(c.getAttribute('data-card-go')));
+  }
+
+  function renderWsTracking() {
+    const g = W_TRACKING.ga4;
+    const a = W_TRACKING.ads;
+    const gaLinked = !!g.measurementId;
+    const adsLinked = !!a.conversionId;
+
+    const evRow = (e) =>
+      '<tr><td><div class="ev-name">' + esc(e.name) + '</div>' +
+        '<div class="ev-fires">' + esc(e.fires) + '</div></td>' +
+        '<td class="ev-vn">' + esc(e.ga4) + '</td>' +
+        '<td class="ev-vn">' + esc(e.gads) + '</td>' +
+      '</tr>';
+
+    wsPaint(
+      '<button class="gw-back" data-back>' + W_ICON_BACK + 'Google</button>' +
+      '<div class="gw-head" style="margin-top:6px"><span class="gw-head-mark">' + GOOGLE_MARK + '</span>Data tracking</div>' +
+
+      '<div class="gw-note">' +
+        '<span class="gw-note-ico">' + W_ICON_INFO + '</span>' +
+        '<div class="gw-note-bd">Events fire from <b>both</b> the storefront browser (gtag.js) <b>and</b> our server-side Measurement Protocol with a shared <code>event_id</code> — GA4 dedupes automatically, so attribution survives iOS 14+ tracking blocks (which would otherwise eat 30–50% of client-side events).</div>' +
+      '</div>' +
+
+      // ---- GA4 connector ----
+      '<div class="panel card-pad mb-4">' +
+        '<div class="card-title">Google Analytics 4</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Stream events to GA4 via gtag.js (browser) + Measurement Protocol (server-side). GTM container ID is optional.</div>' +
+        '<div class="gw-row" style="margin-bottom:18px">' +
+          '<div style="display:flex;align-items:center;gap:12px"><span style="color:#F9AB00;font-weight:700;font-size:13px;border-radius:6px;background:#fff8e1;padding:5px 9px">GA4</span>' +
+            '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Google Analytics 4</div>' +
+              '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (gaLinked ? 'Measurement ID: ' + esc(g.measurementId) + (g.apiSecret ? ' · API secret set' : '') : 'Not connected yet') + '</div></div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(gaLinked) +
+            '<div class="gw-sw' + (g.enabled ? ' on' : '') + '" data-toggle="ga4-enable" aria-label="Enable"><span class="gw-sw-k"></span></div>' +
+          '</div>' +
+        '</div>' +
+        wField('Measurement ID', g.measurementId, 'G-XXXXXXXXXX', { learnMore: g.docs }) +
+        wField('API secret (Measurement Protocol)', g.apiSecret, 'gtm_…', { secret: true, hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' }) +
+        wField('GTM container ID', g.gtmId, 'GTM-XXXXXX', { optional: true, hint: 'Optional — install a GTM container instead of gtag.js direct.' }) +
+        '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="ga4" style="background:#4285F4;border-color:#4285F4">Save</button>' +
+          (gaLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ga4">Disconnect</button>' : '') +
+        '</div>' +
+      '</div>' +
+
+      // ---- Google Ads connector ----
+      '<div class="panel card-pad mb-4">' +
+        '<div class="card-title">Google Ads Conversion</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Fire the Purchase conversion to Google Ads. Get Conversion ID + Purchase label from Google Ads → Tools → Conversions → your Purchase action.</div>' +
+        '<div class="gw-row" style="margin-bottom:18px">' +
+          '<div style="display:flex;align-items:center;gap:12px"><span style="color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#4285F4;padding:5px 9px">Ads</span>' +
+            '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Google Ads</div>' +
+              '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (adsLinked ? 'Conversion ID: ' + esc(a.conversionId) : 'Not connected yet') + '</div></div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(adsLinked) +
+            '<div class="gw-sw' + (a.enabled ? ' on' : '') + '" data-toggle="ads-enable" aria-label="Enable"><span class="gw-sw-k"></span></div>' +
+          '</div>' +
+        '</div>' +
+        wField('Conversion ID', a.conversionId, 'AW-123456789', { learnMore: a.docs }) +
+        wField('Purchase conversion label', a.purchaseLabel, 'abcDEFghi_jKlMnoPqr', { hint: 'Google Ads → Tools → Conversions → your Purchase action → Tag setup → Use Google Tag Manager.' }) +
+        wField('Lead conversion label', a.leadLabel, '', { optional: true, hint: 'Optional — fired when a lead form is submitted (not used by the core checkout funnel).' }) +
+        '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="ads" style="background:#4285F4;border-color:#4285F4">Save</button>' +
+          (adsLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ads">Disconnect</button>' : '') +
+        '</div>' +
+      '</div>' +
+
+      // ---- Events matrix ----
+      '<div class="panel mb-4">' +
+        '<div class="card-pad" style="padding-bottom:0">' +
+          '<div class="card-title">Events sent automatically</div>' +
+          '<div class="muted" style="font-size:12.5px;margin-top:2px">BestShopio fires these events client-side (gtag.js) and server-side (Measurement Protocol / Google Ads conversions). You don\'t install any tracking code per app.</div>' +
+        '</div>' +
+        '<div style="overflow-x:auto;padding:16px"><table class="gw-evtable">' +
+          '<thead><tr><th style="min-width:280px">Event</th><th>GA4 event name</th><th>Google Ads</th></tr></thead>' +
+          '<tbody>' + W_EVENTS.map(evRow).join('') + '</tbody>' +
+        '</table></div>' +
+      '</div>'
+    );
+
+    const back = root.querySelector('[data-back]'); if (back) back.onclick = () => { location.hash = '#/google'; };
+    root.querySelectorAll('[data-save]').forEach((b) => b.onclick = () => toast('Saved successfully'));
+    root.querySelectorAll('[data-disc]').forEach((b) => b.onclick = () => toast('Disconnected'));
+  }
+
   // `rest` is the hash tail after the `google` segment (e.g. '', 'products',
-  // 'variants', 'variants?product=5', 'variants/<id>', 'variants/<id>/raw').
+  // 'variants', 'variants?product=5', 'variants/<id>', 'variants/<id>/raw',
+  // 'tracking', 'domain', 'ads').
   function route(rest) {
     rest = rest || '';
     const scrollTop = () => { if (root && root.parentElement) root.parentElement.scrollTop = 0; };
+
+    // workspace home (default) + Data tracking sub-page (new channel hub)
+    if (rest === '') { renderWsHome(); scrollTop(); return; }
+    if (rest === 'tracking') { renderWsTracking(); scrollTop(); return; }
+    // placeholder modules — bounce back to home until they ship
+    if (rest === 'domain' || rest === 'ads') { renderWsHome(); scrollTop(); return; }
 
     let m;
     if ((m = rest.match(/^variants\/([^/]+)\/raw$/))) { renderVariantRaw(decodeURIComponent(m[1])); scrollTop(); return; }
@@ -872,7 +1109,7 @@
       if (pid !== VL.productId) { VL.productId = pid; VL.tab = 0; VL.kw = ''; VL.kwApplied = ''; VL.priceApplied = null; VL.invApplied = null; VL.page = 1; VL.selected = {}; VL.allInProduct = false; }
       renderVariants(); scrollTop(); return;
     }
-    // default: products list (rest === '' or 'products')
+    // Merchant Center products list (rest === 'products')
     renderProducts(); scrollTop();
   }
 

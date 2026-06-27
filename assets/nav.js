@@ -39,7 +39,8 @@ window.NAV_MENU = [
     { id: 'analytics-live',    label: 'Live View', route: '#/analytics/live' },
   ] },
   { id: 'online-store', label: 'Online store', icon: 'globe',        route: '#/online-store', desc: 'Theme list and the visual store builder.' },
-  { id: 'google',       label: 'Google',       icon: 'google',       route: '#/google',       desc: 'Google Merchant Center product / variant sync.' },
+  { id: 'google',       label: 'Google',       icon: 'google',       route: '#/google',       desc: 'Tracking pixels (GA4 / Google Ads), domain verification and Merchant Center product sync.' },
+  { id: 'facebook',     label: 'Facebook & Instagram', icon: 'facebook', route: '#/facebook', desc: 'Meta Pixel + Conversion API, domain verification, FB & IG Shop, and ad management.' },
 ];
 
 window.NAV_SETTINGS = [
@@ -48,7 +49,6 @@ window.NAV_SETTINGS = [
   { id: 'currency',            label: 'Currency',       icon: 'coin',     route: '#/settings/currency' },
   { id: 'checkout',            label: 'Checkout',       icon: 'cart',     route: '#/settings/checkout' },
   { id: 'notifications',       label: 'Notifications',  icon: 'bell',     route: '#/settings/notifications' },
-  { id: 'pixels',              label: 'Tracking pixels',icon: 'analytics',route: '#/settings/pixels' },
   { id: 'domains',             label: 'Domains',        icon: 'globe',    route: '#/settings/domains' },
   { id: 'metafields',          label: 'Metafields',     icon: 'code',     route: '#/settings/metafields' },
   { id: 'shippable-locations', label: 'Ship locations', icon: 'pin',      route: '#/settings/shippable-locations' },
@@ -122,7 +122,7 @@ window.ROUTE_MODULE = {
   home: 'home', orders: 'orders', products: 'products', collections: 'collections',
   reviews: 'reviews', customers: 'customers', discounts: 'discounts',
   blog: 'blog', page: 'page', menu: 'menu', analytics: 'analytics',
-  'online-store': 'online-store', google: 'google', settings: 'settings',
+  'online-store': 'online-store', google: 'google', facebook: 'facebook', settings: 'settings',
   apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles', bestcheckout: 'bestcheckout',
 };
 
