@@ -880,6 +880,116 @@
     products: svg('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/>', 22), // package
     ads:      svg('<path d="M3 11h6l4-7v15l-4-4H3z"/><path d="M17 9a4 4 0 0 1 0 6"/>', 22),               // megaphone
   };
+
+  // === Illustrations — lightweight inline SVG (240×140) for the workspace home cards.
+  // Soft Google-blue radial bg + a concept shape per module. Self-contained, no CDN deps.
+  function gwBg(idSuffix) {
+    var id = 'gwI-bg-' + idSuffix;
+    return '<defs>' +
+      '<radialGradient id="' + id + '" cx="50%" cy="50%" r="60%">' +
+        '<stop offset="0%" stop-color="#e8f0fe"/>' +
+        '<stop offset="100%" stop-color="#e8f0fe" stop-opacity="0"/>' +
+      '</radialGradient></defs>' +
+      '<circle cx="120" cy="70" r="65" fill="url(#' + id + ')"/>';
+  }
+  // Inline mini Google G for the illustration accent — same multi-colour pattern as GOOGLE_MARK.
+  var GOOGLE_G_MINI =
+    '<path fill="#4285F4" d="M22.5 12.27c0-.81-.07-1.59-.2-2.34H12.18v4.43h5.78c-.25 1.34-1.01 2.48-2.16 3.24v2.7h3.5c2.05-1.88 3.2-4.66 3.2-8.03z"/>' +
+    '<path fill="#34A853" d="M12.18 23c2.91 0 5.35-.96 7.13-2.62l-3.5-2.7c-.97.65-2.21 1.04-3.63 1.04-2.79 0-5.16-1.88-6-4.42H2.6v2.78A11 11 0 0 0 12.18 23z"/>' +
+    '<path fill="#FBBC05" d="M6.18 14.3a6.62 6.62 0 0 1 0-4.2V7.32H2.6a11 11 0 0 0 0 9.76l3.58-2.78z"/>' +
+    '<path fill="#EA4335" d="M12.18 5.67c1.58 0 2.99.54 4.1 1.6l3.1-3.1C17.52 2.4 15.08 1.4 12.18 1.4 7.93 1.4 4.27 3.84 2.6 7.32l3.58 2.78c.84-2.54 3.21-4.43 6-4.43z"/>';
+  function googleAccent(x, y, size) {
+    var s = size || 22;
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + (s / 24) + ')">' + GOOGLE_G_MINI + '</g>';
+  }
+
+  const GW_ILLU = {
+    // Domain verification — page card + green check seal + Google accent
+    domain:
+      '<svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">' + gwBg('d') +
+        '<rect x="62" y="28" width="116" height="84" rx="8" fill="#fff" stroke="#cfddff" stroke-width="1.2"/>' +
+        '<rect x="74" y="42" width="44" height="4" rx="2" fill="#cfddff"/>' +
+        '<rect x="74" y="52" width="92" height="3" rx="1.5" fill="#dfe7f7"/>' +
+        '<rect x="74" y="60" width="74" height="3" rx="1.5" fill="#dfe7f7"/>' +
+        '<rect x="74" y="72" width="92" height="28" rx="4" fill="#f0f4fc"/>' +
+        '<circle cx="178" cy="36" r="14" fill="#34A853"/>' +
+        '<path d="m172 36 4.5 4.5L186 31" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+        googleAccent(38, 92, 22) +
+      '</svg>',
+
+    // Data tracking — chart card with ascending line + multi-coloured data dots + Google accent
+    tracking:
+      '<svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">' + gwBg('t') +
+        '<rect x="70" y="34" width="120" height="76" rx="8" fill="#fff" stroke="#cfddff" stroke-width="1.2"/>' +
+        '<line x1="82" y1="98" x2="178" y2="98" stroke="#e6ecf7" stroke-width="1"/>' +
+        '<line x1="82" y1="82" x2="178" y2="82" stroke="#e6ecf7" stroke-width="1"/>' +
+        '<line x1="82" y1="66" x2="178" y2="66" stroke="#e6ecf7" stroke-width="1"/>' +
+        '<polyline points="82,94 100,86 122,76 144,68 164,58 178,52" fill="none" stroke="#4285F4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+        // Multi-coloured data dots (mirroring Google brand palette)
+        '<circle cx="100" cy="86" r="2.8" fill="#FBBC05"/>' +
+        '<circle cx="122" cy="76" r="2.8" fill="#34A853"/>' +
+        '<circle cx="144" cy="68" r="2.8" fill="#EA4335"/>' +
+        '<circle cx="164" cy="58" r="2.8" fill="#4285F4"/>' +
+        // Side user-segment chips
+        '<rect x="32" y="48" width="32" height="10" rx="5" fill="#fff" stroke="#cfddff"/>' +
+        '<circle cx="38" cy="53" r="2.5" fill="#4285F4"/>' +
+        '<rect x="32" y="76" width="36" height="10" rx="5" fill="#fff" stroke="#cfddff"/>' +
+        '<circle cx="38" cy="81" r="2.5" fill="#34A853"/>' +
+        '<rect x="32" y="104" width="28" height="10" rx="5" fill="#fff" stroke="#cfddff"/>' +
+        '<circle cx="38" cy="109" r="2.5" fill="#FBBC05"/>' +
+        googleAccent(192, 96, 22) +
+      '</svg>',
+
+    // Product sync — 3 product cards + circular sync arrows + Google accent
+    products:
+      '<svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">' + gwBg('p') +
+        // Central cards
+        '<rect x="44" y="34" width="50" height="68" rx="6" fill="#fff" stroke="#cfddff" stroke-width="1.2"/>' +
+        '<rect x="52" y="42" width="34" height="32" rx="3" fill="#e8f0fe"/>' +
+        '<circle cx="69" cy="58" r="7" fill="#4285F4" opacity=".6"/>' +
+        '<rect x="52" y="80" width="26" height="3" rx="1.5" fill="#cfddff"/>' +
+        '<rect x="52" y="88" width="18" height="3" rx="1.5" fill="#dfe7f7"/>' +
+
+        '<rect x="100" y="34" width="50" height="68" rx="6" fill="#fff" stroke="#cfddff" stroke-width="1.2"/>' +
+        '<rect x="108" y="42" width="34" height="32" rx="3" fill="#fef3e0"/>' +
+        '<rect x="116" y="50" width="18" height="16" rx="2" fill="#FBBC05" opacity=".6"/>' +
+        '<rect x="108" y="80" width="26" height="3" rx="1.5" fill="#cfddff"/>' +
+        '<rect x="108" y="88" width="18" height="3" rx="1.5" fill="#dfe7f7"/>' +
+
+        '<rect x="156" y="34" width="50" height="68" rx="6" fill="#fff" stroke="#cfddff" stroke-width="1.2"/>' +
+        '<rect x="164" y="42" width="34" height="32" rx="3" fill="#e8f5e9"/>' +
+        '<path d="M173 64h16v-4l-4-4h-8l-4 4z" fill="#34A853" opacity=".7"/>' +
+        '<rect x="164" y="80" width="26" height="3" rx="1.5" fill="#cfddff"/>' +
+        '<rect x="164" y="88" width="18" height="3" rx="1.5" fill="#dfe7f7"/>' +
+
+        // Sync arrows (circular)
+        '<path d="M120 116 A30 12 0 0 1 95 110" stroke="#4285F4" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+        '<path d="m93 113 2-4 4 2" stroke="#4285F4" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M120 116 A30 12 0 0 0 155 122" stroke="#34A853" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+        '<path d="m157 119-2 4-4-2" stroke="#34A853" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+        googleAccent(212, 16, 22) +
+      '</svg>',
+
+    // Ad management — product card + Ad tag + growth indicator + Google accent
+    ads:
+      '<svg viewBox="0 0 240 140" xmlns="http://www.w3.org/2000/svg">' + gwBg('a') +
+        '<rect x="58" y="22" width="92" height="96" rx="8" fill="#fff" stroke="#cfddff" stroke-width="1.2"/>' +
+        '<rect x="68" y="32" width="72" height="50" rx="5" fill="#e8f0fe"/>' +
+        '<circle cx="92" cy="56" r="9" fill="none" stroke="#4285F4" stroke-width="2"/>' +
+        '<circle cx="116" cy="56" r="9" fill="none" stroke="#EA4335" stroke-width="2"/>' +
+        '<rect x="68" y="90" width="48" height="4" rx="2" fill="#cfddff"/>' +
+        '<rect x="68" y="100" width="32" height="3" rx="1.5" fill="#dfe7f7"/>' +
+        // Ad badge (Google Ads yellow)
+        '<rect x="132" y="14" width="28" height="18" rx="4" fill="#FBBC05"/>' +
+        '<text x="146" y="26" text-anchor="middle" font-family="-apple-system,system-ui" font-size="9" font-weight="700" fill="#3c2c00">Ad</text>' +
+        // Growth chip
+        '<g transform="translate(150,90)">' +
+          '<rect x="0" y="0" width="56" height="22" rx="6" fill="#fff" stroke="#34A853" stroke-width="1.6"/>' +
+          '<text x="16" y="15" text-anchor="middle" font-family="-apple-system,system-ui" font-size="10" font-weight="700" fill="#16a34a">+58%</text>' +
+          '<path d="m40 8 6-4 6 4" stroke="#34A853" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</g>' +
+      '</svg>',
+  };
   // GA4 + Google Ads + GTM + Remarketing credentials (per-tool cards on Data tracking).
   // Splitting GTM into its own card (instead of leaving a "GTM container ID" field
   // on the GA4 card) matches Shopline's separation — different setup contexts.
@@ -901,18 +1011,19 @@
   ];
   // P0 = the one we ship; P1 = placeholder with "Coming soon".
   const W_MODULES = [
-    { id: 'domain',   title: 'Domain verification', subtitle: 'Verify your store domain with Google',
-      desc: 'Verified ownership is required for Merchant Center listings, conversion tracking and to claim ad assets.',
-      enabled: false, badge: 'P1' },
-    { id: 'tracking', title: 'Data tracking',       subtitle: 'GA4 + Google Ads + Google Tag Manager',
-      desc: 'Stream events to GA4 via gtag.js + Measurement Protocol (server-side) and fire Purchase conversions to Google Ads.',
-      enabled: true,  badge: 'P0' },
-    { id: 'products', title: 'Product sync',        subtitle: 'Google Merchant Center',
-      desc: 'Sync products and variants to Merchant Center for Shopping Ads and Free Listings; monitor approval status per destination.',
-      enabled: true },
-    { id: 'ads',      title: 'Ad management',       subtitle: 'Run Google Ads campaigns',
-      desc: 'Open accounts, configure campaigns, track performance and reconcile finance. Google Ads is the native ad tool.',
-      enabled: false, badge: 'P1' },
+    { id: 'domain',   title: 'Domain verification', sub: 'Verify your store domain with Google',
+      desc: 'Verified domain ownership is required for Merchant Center listings, conversion tracking, and to claim ad assets across your Google Ads and YouTube placements.',
+      enabled: false, illu: GW_ILLU.domain },
+    { id: 'tracking', title: 'Data tracking',       sub: 'GA4 + Google Ads + Google Tag Manager',
+      desc: 'Stream conversion events to GA4 via gtag.js (browser) and the Measurement Protocol (server-side); fire Purchase conversions to Google Ads; optionally install a GTM container.',
+      enabled: true,  illu: GW_ILLU.tracking },
+    { id: 'products', title: 'Product sync',        sub: 'Sync products to Google Merchant Center',
+      desc: 'Send your products and variants to Merchant Center for Shopping Ads and Free Listings. Monitor approval status per destination and re-submit rejected items in one click.',
+      enabled: true,  illu: GW_ILLU.products },
+    { id: 'ads',      title: 'Ad management',       sub: 'Run Google Ads campaigns',
+      desc: 'Open accounts, configure campaigns, track performance, and reconcile finance from one place. Google Ads is the native ad tool for Search, Shopping, and YouTube.',
+      enabled: false, illu: GW_ILLU.ads,
+      ctaText: 'Original ad tools', ctaUrl: 'https://ads.google.com/intl/en/home/' },
   ];
 
   // Workspace-only styles (prefix .gw-) — same compact pattern as facebook/, brand recolored to Google blue (#4285F4).
@@ -922,21 +1033,19 @@
     '.gw-head-mark{display:inline-flex;align-items:center}' +
     '.gw-back{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border-radius:7px;color:var(--ink-muted);cursor:pointer;font-size:13px;font-weight:500;text-decoration:none;background:transparent;border:none}' +
     '.gw-back:hover{background:var(--panel);color:var(--ink)}' +
-    '.gw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:14px}' +
-    '.gw-card{display:flex;gap:14px;align-items:flex-start;background:#fff;border:1px solid var(--hair);border-radius:12px;padding:16px 18px;transition:border-color .15s,box-shadow .15s}' +
-    '.gw-card.active{cursor:pointer}' +
-    '.gw-card.active:hover{border-color:#4285F4;box-shadow:0 1px 4px rgba(66,133,244,.08)}' +
-    '.gw-card.disabled{opacity:.72}' +
-    '.gw-card-ico{flex:none;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#e8f0fe 0%,#cee0fc 100%);display:grid;place-items:center;color:#4285F4}' +
-    '.gw-card-bd{flex:1;min-width:0}' +
-    '.gw-card-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}' +
-    '.gw-card-t{font-size:14px;font-weight:600;color:var(--ink)}' +
-    '.gw-bdg{display:inline-flex;align-items:center;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase}' +
-    '.gw-bdg-p0{background:#e8f0fe;color:#1a73e8}' +
-    '.gw-bdg-p1{background:#f2f2f4;color:#7c8194}' +
-    '.gw-card-sub{font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px}' +
-    '.gw-card-desc{font-size:12.5px;color:var(--ink-muted);line-height:1.55}' +
-    '.gw-card-cta{flex:none;margin-left:8px;align-self:center}' +
+    /* Workspace home — single-column big-card stack (Shopline-style sales-channel workspace) */
+    '.gw-mcard{background:#fff;border:1px solid var(--hair);border-radius:14px;padding:24px 28px;margin-bottom:16px;overflow:hidden}' +
+    '.gw-mhead{display:flex;align-items:center;gap:10px;margin-bottom:18px}' +
+    '.gw-mhead-mark{display:inline-flex;align-items:center}' +
+    '.gw-mhead-t{font-size:17px;font-weight:600;color:var(--ink)}' +
+    '.gw-mrow{display:flex;align-items:center;justify-content:space-between;gap:24px}' +
+    '.gw-mtext{flex:1;min-width:0}' +
+    '.gw-msub{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:8px;line-height:1.5}' +
+    '.gw-mdesc{font-size:13px;color:var(--ink-muted);line-height:1.6}' +
+    '.gw-mcta{margin-top:16px;display:flex;align-items:center;gap:10px}' +
+    '.gw-mcta .btn{padding:6px 16px;font-size:13px}' +
+    '.gw-millu{flex:none;width:240px;height:140px}' +
+    '.gw-millu svg{display:block;width:100%;height:100%}' +
     /* "Coming soon" pill — matches the unified badge style across all channel workspaces */
     '.gw-card-soon{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}' +
     '.gw-note{display:flex;gap:10px;align-items:flex-start;background:#f7f8fb;border-radius:8px;padding:14px 16px;margin-bottom:18px}' +
@@ -981,7 +1090,48 @@
     if (root && root.parentElement) root.parentElement.scrollTop = 0;
   }
 
+  // Inline Google "G" line-style accent used in each card's title row (matches Facebook's META_INF pattern).
+  const GOOGLE_G_LINE = '<svg viewBox="0 0 24 24" width="20" height="20">' + GOOGLE_G_MINI + '</svg>';
+
   function renderWsHome() {
+    // Single-column big-card stack — mirrors the Facebook workspace home (renderHome) layout.
+    const card = (m) => {
+      const goHash = m.id === 'products' ? '#/google/products' : '#/google/' + m.id;
+      let cta;
+      if (m.enabled) {
+        cta = '<button class="btn btn-primary" data-go="' + esc(goHash) + '" style="padding:6px 16px;font-size:13px;background:#4285F4;border-color:#4285F4">Set up</button>';
+      } else if (m.ctaText) {
+        // Deep-link to Google's own Ads tool (no in-app build); external target.
+        cta = m.ctaUrl
+          ? '<a class="btn btn-default" href="' + esc(m.ctaUrl) + '" target="_blank" rel="noreferrer" style="padding:6px 14px;font-size:13px;display:inline-flex;align-items:center;gap:5px;text-decoration:none">' + esc(m.ctaText) + svg('<path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/>', 13) + '</a>'
+          : '<button class="btn btn-default" data-soon style="padding:6px 14px;font-size:13px">' + esc(m.ctaText) + '</button>';
+      } else {
+        cta = '<span class="gw-card-soon">Coming soon</span>';
+      }
+      return '<div class="gw-mcard">' +
+        '<div class="gw-mhead">' + GOOGLE_G_LINE + '<span class="gw-mhead-t">' + esc(m.title) + '</span></div>' +
+        '<div class="gw-mrow">' +
+          '<div class="gw-mtext">' +
+            '<div class="gw-msub">' + esc(m.sub) + '</div>' +
+            '<div class="gw-mdesc">' + esc(m.desc) + '</div>' +
+            '<div class="gw-mcta">' + cta + '</div>' +
+          '</div>' +
+          '<div class="gw-millu">' + m.illu + '</div>' +
+        '</div>' +
+      '</div>';
+    };
+    wsPaint(
+      '<div class="gw-head"><span class="gw-head-mark">' + GOOGLE_MARK + '</span>Google</div>' +
+      W_MODULES.map(card).join('')
+    );
+    const go = (h) => { location.hash = h; };
+    root.querySelectorAll('[data-go]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); go(b.getAttribute('data-go')); });
+    root.querySelectorAll('[data-soon]').forEach((b) => b.onclick = () => toast('Coming soon'));
+  }
+
+  // The old compact-grid card builder is kept here as a stub stub for reference
+  // (renderWsHome above replaces it). Delete in a follow-up cleanup once stable.
+  function _legacyCardGrid_unused() {
     const card = (m) => {
       const ico = W_MOD_ICONS[m.id] || W_MOD_ICONS.tracking;
       const goHash = m.id === 'products' ? '#/google/products' : '#/google/' + m.id;
@@ -994,7 +1144,7 @@
         '<div class="gw-card-ico">' + ico + '</div>' +
         '<div class="gw-card-bd">' +
           '<div class="gw-card-h"><span class="gw-card-t">' + esc(m.title) + '</span></div>' +
-          '<div class="gw-card-sub">' + esc(m.subtitle) + '</div>' +
+          '<div class="gw-card-sub">' + esc(m.sub) + '</div>' +
           '<div class="gw-card-desc">' + esc(m.desc) + '</div>' +
         '</div>' +
         '<div class="gw-card-cta">' + cta + '</div>' +
