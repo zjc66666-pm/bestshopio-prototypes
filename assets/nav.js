@@ -48,6 +48,7 @@ window.NAV_SETTINGS = [
   { id: 'currency',            label: 'Currency',       icon: 'coin',     route: '#/settings/currency' },
   { id: 'checkout',            label: 'Checkout',       icon: 'cart',     route: '#/settings/checkout' },
   { id: 'notifications',       label: 'Notifications',  icon: 'bell',     route: '#/settings/notifications' },
+  { id: 'pixels',              label: 'Tracking pixels',icon: 'analytics',route: '#/settings/pixels' },
   { id: 'domains',             label: 'Domains',        icon: 'globe',    route: '#/settings/domains' },
   { id: 'metafields',          label: 'Metafields',     icon: 'code',     route: '#/settings/metafields' },
   { id: 'shippable-locations', label: 'Ship locations', icon: 'pin',      route: '#/settings/shippable-locations' },
@@ -92,10 +93,8 @@ window.PLUGGABLE_APPS = [
     // App workspace with a second-level menu (like Subscriptions / Analytics): parent = Overview, children below.
     menu: { id: 'bestcheckout', label: 'BestCheckout', icon: 'card', route: '#/bestcheckout', desc: 'External high-converting checkout, payment routing & post-purchase for a connected Shopify store.',
       children: [
-        { id: 'bestcheckout-checkout',      label: 'Checkout design',  route: '#/bestcheckout/checkout' },
-        { id: 'bestcheckout-thankyou',      label: 'Thank-you design', route: '#/bestcheckout/thankyou' },
-        { id: 'bestcheckout-post-purchase', label: 'Post-purchase',    route: '#/bestcheckout/post-purchase' },
-        { id: 'bestcheckout-connect',       label: 'Connection',       route: '#/bestcheckout/connect' },
+        { id: 'bestcheckout-funnel',     label: 'Funnel',     route: '#/bestcheckout/funnel' },
+        { id: 'bestcheckout-connect',    label: 'Connection', route: '#/bestcheckout/connect' },
       ] },
   },
   { id: 'loyalty',   name: 'Loyalty & Rewards', icon: 'badgePercent', builtin: true, category: 'Marketing', status: 'coming_soon', tagline: 'Points, rewards and a loyalty program.' },
