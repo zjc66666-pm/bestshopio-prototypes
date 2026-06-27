@@ -2033,12 +2033,29 @@
     );
     root.querySelectorAll('[data-cn]').forEach((b) => b.onclick = () => { const el = root.querySelector('#cn-' + b.getAttribute('data-cn')); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     root.querySelectorAll('[data-resync]').forEach((b) => b.onclick = () => toast(t('Queued a full re-sync')));
-    // Disconnecting Shopify breaks the entire bridge (sync + order write-back) —
-    // make the merchant confirm before tearing it down. Native confirm() so the
-    // dialog can't be swatted away accidentally.
+    // Disconnecting Shopify breaks the entire bridge (sync + order write-back).
+    // Styled confirm modal (matches admin visual language + i18n-translatable).
     root.querySelectorAll('[data-disc]').forEach((b) => b.onclick = () => {
-      if (!window.confirm('Disconnect Shopify?\n\nThis will stop all data sync (products / discounts / shipping / customers) and order write-back. You will need to re-authorize to reconnect.')) return;
-      setBcConnected(false); CF.step = 'store'; toast(t('Disconnected — reconnect from the start')); location.hash = '#/bestcheckout'; renderOverview();
+      const backdrop = h('<div class="modal-backdrop"></div>');
+      const mm = h('<div class="modal" style="width:460px"></div>');
+      mm.innerHTML =
+        '<div class="modal-head flex items-center justify-between"><span>' + t('Disconnect Shopify') + '</span>' +
+          '<span class="drawer-x" data-x style="cursor:pointer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>' +
+        '</div>' +
+        '<div class="modal-body" style="padding:18px 22px;font-size:13.5px;line-height:1.6;color:var(--ink-body)">' + t('This will stop all data sync (products / discounts / shipping / customers) and order write-back. You will need to re-authorize to reconnect.') + '</div>' +
+        '<div class="modal-foot" style="justify-content:flex-end"><div class="flex gap-2">' +
+          '<button class="btn btn-default" data-cancel>' + t('Cancel') + '</button>' +
+          '<button class="btn" style="background:var(--err);color:#fff" data-ok>' + t('Disconnect') + '</button>' +
+        '</div></div>';
+      backdrop.appendChild(mm); document.body.appendChild(backdrop);
+      const close = () => backdrop.remove();
+      mm.querySelector('[data-x]').onclick = close;
+      mm.querySelector('[data-cancel]').onclick = close;
+      backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+      mm.querySelector('[data-ok]').onclick = () => {
+        close();
+        setBcConnected(false); CF.step = 'store'; toast(t('Disconnected — reconnect from the start')); location.hash = '#/bestcheckout'; renderOverview();
+      };
     });
     const ra = root.querySelector('[data-reauth]'); if (ra) ra.onclick = () => bcModal(t('Re-authorize'),
       '<div class="fab-note">' + t('Re-opens the Shopify OAuth consent screen to refresh the access token and scopes. Your store stays connected — nothing is removed.') + '</div>' +

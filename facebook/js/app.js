@@ -302,6 +302,31 @@
     });
   }
 
+  // Styled confirm modal — replaces native window.confirm() so it matches admin
+  // visual language AND can be i18n-translated (native confirm body is browser
+  // chrome the overlay can't reach).
+  function fbConfirm(opts) {
+    const backdrop = h('<div class="modal-backdrop"></div>');
+    const m = h('<div class="modal" style="width:440px"></div>');
+    const okBtnStyle = opts.danger ? 'background:var(--err);color:#fff' : '';
+    const okBtnCls   = opts.danger ? 'btn' : 'btn btn-primary';
+    m.innerHTML =
+      '<div class="modal-head flex items-center justify-between"><span>' + esc(opts.title || 'Confirm') + '</span>' +
+        '<span class="drawer-x" data-x style="cursor:pointer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>' +
+      '</div>' +
+      '<div class="modal-body" style="padding:18px 22px;font-size:13.5px;line-height:1.6;color:var(--ink-body)">' + esc(opts.body || '') + '</div>' +
+      '<div class="modal-foot" style="justify-content:flex-end"><div class="flex gap-2">' +
+        '<button class="btn btn-default" data-cancel>Cancel</button>' +
+        '<button class="' + okBtnCls + '"' + (okBtnStyle ? ' style="' + okBtnStyle + '"' : '') + ' data-ok>' + esc(opts.okText || 'Confirm') + '</button>' +
+      '</div></div>';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    m.querySelector('[data-x]').onclick = close;
+    m.querySelector('[data-cancel]').onclick = close;
+    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    m.querySelector('[data-ok]').onclick = () => { close(); opts.onOk && opts.onOk(); };
+  }
+
   // Re-render the pixel table body in-place after add/edit/delete.
   function refreshPixelRows() {
     const tbody = document.getElementById('fb-prows');
@@ -327,12 +352,19 @@
 
     menu.querySelector('[data-delete]').onclick = () => {
       menu.remove();
-      const pixelId = (D.pixels[idx] || {}).pixelId || '';
-      // Lightweight prototype confirm — the real admin should use a styled modal.
-      if (!window.confirm('Delete Pixel ' + pixelId + '? This cannot be undone.')) return;
-      D.pixels.splice(idx, 1);
-      refreshPixelRows();
-      toast('Pixel deleted');
+      // Styled modal (not native confirm) — matches the rest of the admin and is i18n-translatable.
+      // Static body text (no Pixel ID interpolation) so the i18n overlay can match the whole sentence.
+      fbConfirm({
+        title: 'Delete Pixel',
+        body: 'Delete this Pixel? This cannot be undone.',
+        okText: 'Delete',
+        danger: true,
+        onOk: () => {
+          D.pixels.splice(idx, 1);
+          refreshPixelRows();
+          toast('Pixel deleted');
+        },
+      });
     };
 
     // Dismiss on outside click / scroll.

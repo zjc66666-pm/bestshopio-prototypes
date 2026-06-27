@@ -136,4 +136,11 @@ window.I18N.extend({
   "Edit": "编辑",
   "More": "更多",
   "Back": "返回",
+
+  // ============================== Styled confirm modals ==============================
+  "Confirm":            "确认",
+  "Cancel":             "取消",
+  "Delete Pixel":       "删除 Pixel",
+  "Delete this Pixel? This cannot be undone.": "确认删除这个 Pixel？此操作无法撤销。",
+  "Delete":             "删除",
 });

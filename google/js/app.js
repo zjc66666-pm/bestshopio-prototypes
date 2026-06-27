@@ -1089,6 +1089,28 @@
     ? '<span class="pill pill-green"><span class="dot"></span>Linked</span>'
     : '<span class="pill pill-gray"><span class="dot"></span>Not linked</span>';
 
+  // Styled confirm modal — replaces native window.confirm() (same impl as facebook).
+  function gwConfirm(opts) {
+    const backdrop = h('<div class="modal-backdrop"></div>');
+    const m = h('<div class="modal" style="width:440px"></div>');
+    const okBtnStyle = opts.danger ? 'background:var(--err);color:#fff' : 'background:#4285F4;border-color:#4285F4';
+    m.innerHTML =
+      '<div class="modal-head flex items-center justify-between"><span>' + esc(opts.title || 'Confirm') + '</span>' +
+        '<span class="drawer-x" data-x style="cursor:pointer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>' +
+      '</div>' +
+      '<div class="modal-body" style="padding:18px 22px;font-size:13.5px;line-height:1.6;color:var(--ink-body)">' + esc(opts.body || '') + '</div>' +
+      '<div class="modal-foot" style="justify-content:flex-end"><div class="flex gap-2">' +
+        '<button class="btn btn-default" data-cancel>Cancel</button>' +
+        '<button class="btn"' + ' style="' + okBtnStyle + (opts.danger ? '' : ';color:#fff') + '" data-ok>' + esc(opts.okText || 'Confirm') + '</button>' +
+      '</div></div>';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    m.querySelector('[data-x]').onclick = close;
+    m.querySelector('[data-cancel]').onclick = close;
+    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    m.querySelector('[data-ok]').onclick = () => { close(); opts.onOk && opts.onOk(); };
+  }
+
   function wsPaint(html) {
     root.innerHTML = '<style>' + WS_STYLES + '</style><div class="gw-narrow">' + html + '</div>';
     root.querySelectorAll('[data-toggle]').forEach((el) => el.onclick = () => el.classList.toggle('on'));
@@ -1294,11 +1316,15 @@
 
     const back = root.querySelector('[data-back]'); if (back) back.onclick = () => { location.hash = '#/google'; };
     root.querySelectorAll('[data-save]').forEach((b) => b.onclick = () => toast('Saved successfully'));
-    // Disconnect is destructive — confirm before clearing credentials.
+    // Disconnect is destructive — styled confirm before clearing credentials.
     root.querySelectorAll('[data-disc]').forEach((b) => b.onclick = () => {
-      if (window.confirm('Disconnecting will clear the saved credentials (Measurement ID / Conversion ID / Container ID). You\'ll need to re-enter them to reconnect. Continue?')) {
-        toast('Disconnected');
-      }
+      gwConfirm({
+        title: 'Disconnect',
+        body: 'Disconnecting will clear the saved credentials (Measurement ID / Conversion ID / Container ID). You\'ll need to re-enter them to reconnect.',
+        okText: 'Disconnect',
+        danger: true,
+        onOk: () => toast('Disconnected'),
+      });
     });
   }
 

@@ -95,4 +95,10 @@ window.I18N.extend({
   "Clears Measurement ID and API secret":     "清除 Measurement ID 和 API secret",
   "Clears Conversion ID and labels":          "清除 Conversion ID 和 labels",
   "Clears Container ID and version":          "清除 Container ID 和版本",
+
+  // Styled confirm modal
+  "Confirm":            "确认",
+  "Cancel":             "取消",
+  "Disconnect":         "断开连接",
+  "Disconnecting will clear the saved credentials (Measurement ID / Conversion ID / Container ID). You'll need to re-enter them to reconnect.": "断开后将清除已保存的凭据（Measurement ID / Conversion ID / Container ID）。重新连接时需要重新粘贴。",
 });
