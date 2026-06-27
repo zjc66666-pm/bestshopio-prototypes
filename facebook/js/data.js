@@ -191,20 +191,9 @@
       { pixelId: '1665673578033672', capiToken: 'EAA*****DZD', createSource: 'Add manually', status: 'verified' },
     ],
 
-    // tracking event dropdown options (Add Pixel modal)
-    trackingEvents: [
-      { value: 'page_view',      label: 'A customer visits any webpage of the online store' },
-      { value: 'view_item',      label: 'A customer views a product or offer page' },
-      { value: 'add_to_cart',    label: 'A customer adds a product to cart' },
-      { value: 'begin_checkout', label: 'A customer lands on the checkout page' },
-      { value: 'add_payment',    label: 'A customer fills in payment information' },
-      { value: 'purchase',       label: 'A customer completes a purchase' },
-    ],
-    pageTypes: [
-      { value: 'online_store', label: 'Online store' },
-      { value: 'checkout',     label: 'Checkout' },
-      { value: 'thank_you',    label: 'Thank-you page' },
-    ],
+    // NOTE: trackingEvents / pageTypes dropdown data removed — BestShopio fires all
+    // unified events on every page through a single Pixel ID; per-event / per-page
+    // Pixel splitting (Shopline's advanced model) doesn't apply to our product.
 
     // P1 placeholder sections (Offline data reporting / Social e-commerce conversion event reporting)
     offlineAuth: { authorized: false },

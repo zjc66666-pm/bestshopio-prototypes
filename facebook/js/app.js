@@ -365,37 +365,28 @@
     const backdrop = h('<div class="modal-backdrop"></div>');
     const m = h('<div class="modal" style="width:540px"></div>');
 
-    const eventOpts = D.trackingEvents.map((e) => '<option value="' + esc(e.value) + '">' + esc(e.label) + '</option>').join('');
-    const pageOpts  = D.pageTypes.map((e) => '<option value="' + esc(e.value) + '">' + esc(e.label) + '</option>').join('');
-
     // Prefill values when editing (token is masked in storage — show as-is rather than
     // re-prompting for a fresh token; the merchant clears + re-enters to rotate).
+    // NOTE: "Select tracking event" and "Tracking Pages Type" were removed —
+    // BestShopio auto-fires all 6 unified events on every page using a single
+    // Pixel ID, so per-event / per-page Pixel splitting doesn't apply here.
     const prePixelId = isEdit ? existing.pixelId : '';
     const preToken   = isEdit ? existing.capiToken : '';
-    const preEvent   = isEdit ? (existing.trackingEvent || 'page_view') : 'page_view';
-    const prePage    = isEdit ? (existing.pageType || 'online_store') : 'online_store';
-
-    const eventOptsSel = D.trackingEvents.map((e) => '<option value="' + esc(e.value) + '"' + (e.value === preEvent ? ' selected' : '') + '>' + esc(e.label) + '</option>').join('');
-    const pageOptsSel  = D.pageTypes.map((e) => '<option value="' + esc(e.value) + '"' + (e.value === prePage ? ' selected' : '') + '>' + esc(e.label) + '</option>').join('');
 
     m.innerHTML =
       '<div class="modal-head flex items-center justify-between"><span>' + esc(title) + '</span>' +
         '<span class="drawer-x" data-x style="cursor:pointer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>' +
       '</div>' +
       '<div class="modal-body" style="max-height:70vh;overflow:auto">' +
-        '<div style="margin-bottom:14px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Select tracking event</div>' +
-          '<select class="input" style="width:100%">' + eventOptsSel + '</select></div>' +
         '<div style="margin-bottom:14px">' +
           '<div class="ctrl-label" style="text-transform:none;margin-bottom:4px">Facebook pixel</div>' +
           '<div class="muted" style="font-size:11.5px;margin-bottom:6px">It\'s usually a JavaScript code snippet obtainable on the Meta platform.</div>' +
           '<input class="input" value="' + esc(prePixelId) + '" placeholder="Paste your Facebook pixel, e.g.: 212313338444699" style="width:100%" /></div>' +
-        '<div style="margin-bottom:14px">' +
+        '<div style="margin-bottom:4px">' +
           '<div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Access Token</div>' +
           '<input class="input" value="' + esc(preToken) + '" type="password" placeholder="Paste your access token" style="width:100%" />' +
           (isEdit ? '<div class="muted" style="font-size:11.5px;margin-top:4px">Existing token shown masked — clear and re-enter to rotate.</div>' : '') +
         '</div>' +
-        '<div style="margin-bottom:4px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Tracking Pages Type</div>' +
-          '<select class="input" style="width:100%">' + pageOptsSel + '</select></div>' +
       '</div>' +
       '<div class="modal-foot" style="justify-content:flex-end">' +
         '<div class="flex gap-2">' +
@@ -410,12 +401,9 @@
     m.querySelector('[data-cancel]').onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
     m.querySelector('[data-ok]').onclick = () => {
-      const selects = m.querySelectorAll('select');
       const inputs  = m.querySelectorAll('input');
       const pixelId = inputs[0].value.trim();
       const token   = inputs[1].value.trim();
-      const tEvent  = selects[0].value;
-      const tPage   = selects[1].value;
       if (!pixelId) { toast('Please enter Facebook pixel'); return; }
       // Mask token at storage boundary — never persist plaintext in prototype state.
       const maskedToken = token
@@ -426,12 +414,10 @@
         capiToken: maskedToken,
         createSource: isEdit ? existing.createSource : 'Add manually',
         status: maskedToken === '—' ? 'pending' : 'verified',
-        trackingEvent: tEvent,
-        pageType: tPage,
       };
       if (isEdit) D.pixels[idx] = row; else D.pixels.push(row);
       close();
-      toast(isEdit ? 'Saved successfully' : 'Saved successfully');
+      toast('Saved successfully');
       refreshPixelRows();
     };
   }
