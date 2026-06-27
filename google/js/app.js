@@ -1338,17 +1338,25 @@
           summary: gaLinked ? 'Measurement ID: ' + esc(g.measurementId) + (g.apiSecret ? ' · API secret set' : '') : 'Not connected yet',
           linked: gaLinked, enabled: g.enabled }) +
 
-      connectorRow('ads', 'Google Ads Conversion', 'Fire the Purchase conversion to Google Ads. Get Conversion ID + Purchase label from Google Ads → Tools → Conversions → your Purchase action.',
-        { badge: 'Ads', badgeStyle: 'color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#4285F4;padding:5px 9px',
-          title: 'Google Ads',
-          summary: adsLinked ? 'Conversion ID: ' + esc(a.conversionId) : 'Not connected yet',
-          linked: adsLinked, enabled: a.enabled }) +
-
       connectorRow('gtm', 'Google Tag Manager', 'Install a GTM container instead of writing tags inline. Useful when you also run third-party pixels (TikTok, Reddit, Snap) through one tag manager.',
         { badge: 'GTM', badgeStyle: 'color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#246fdb;padding:5px 9px',
           title: 'Google Tag Manager',
           summary: gtmLinked ? 'Container ID: ' + esc(t.containerId) : 'Not connected yet',
           linked: gtmLinked, enabled: t.enabled }) +
+
+      // ---- Google Ads Conversion (P1 placeholder — same shape as Remarketing) ----
+      '<div class="panel card-pad mb-4">' +
+        '<div class="card-title">Google Ads Conversion</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Fire the Purchase conversion to Google Ads. Get Conversion ID + Purchase label from Google Ads → Tools → Conversions → your Purchase action.</div>' +
+        '<div class="gw-row">' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<span style="color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#4285F4;padding:5px 9px">Ads</span>' +
+            '<b style="color:var(--ink);font-weight:600;font-size:13.5px">Google Ads</b>' +
+            '<span class="pill pill-gray"><span class="dot"></span>Unauthorized</span>' +
+          '</div>' +
+          '<span class="gw-card-soon">Coming soon</span>' +
+        '</div>' +
+      '</div>' +
 
         '</div>' + // end of Section 1 right column
       '</div>' + // end of Section 1 gw-sec
