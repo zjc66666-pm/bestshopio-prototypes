@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260627h'; // cache-bust for lazy-loaded module scripts
+  var V = '20260627i'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -91,7 +91,12 @@
   }
 
   function renderSidebar(activeId) {
-    navEl.innerHTML = getMenu().map(function (it) { return itemHtml(it, activeId); }).join('');
+    // Entries with `_group` are section dividers (nav.js buildMenu returns
+    // a flat list with these sentinels). Render them as <div class="nav-group-label">.
+    navEl.innerHTML = getMenu().map(function (it) {
+      if (it && it._group) return '<div class="nav-group-label">' + it._group + '</div>';
+      return itemHtml(it, activeId);
+    }).join('');
     footEl.innerHTML = '<a class="nav-item' + (activeId === 'settings' ? ' active' : '') + '" href="#/settings/base">' + ICONS.settings + '<span>Settings</span></a>';
   }
 

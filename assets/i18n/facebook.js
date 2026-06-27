@@ -1,5 +1,9 @@
 /* i18n: Facebook channel workspace — workspace home + Data tracking sub-page + Add Pixel modal */
 window.I18N.extend({
+  // ============================== Sidebar group labels ==============================
+  "Channels": "渠道",
+  "Apps":     "应用",
+
   // ============================== Workspace home ==============================
   // Note: brand names "Facebook"/"Instagram"/"Meta"/"Messenger"/"Shop" are kept in English.
   "Domain verification": "网域验证",

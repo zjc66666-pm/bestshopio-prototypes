@@ -21,6 +21,8 @@ window.STORES = [
   { name: 'Gigaxin',      url: 'www.gugaxin.com' },
 ];
 
+// Top-level base modules (no group label). Order: Orders / Products / Customers
+// / Discounts / Analytics / Content (analytics intentionally before content).
 window.NAV_MENU = [
   { id: 'orders',       label: 'Orders',       icon: 'inbox',        route: '#/orders',       desc: 'Orders, fulfillment, refunds and returns.' },
   { id: 'products',     label: 'Products',     icon: 'tag',          route: '#/products',     desc: 'Products, variants, inventory, media and metafields.', children: [
@@ -29,18 +31,23 @@ window.NAV_MENU = [
   ] },
   { id: 'customers',    label: 'Customers',    icon: 'userPen',      route: '#/customers',    desc: 'Customer profiles, orders, subscriptions and timeline.' },
   { id: 'discounts',    label: 'Discounts',    icon: 'badgePercent', route: '#/discounts',    desc: 'Product / order / shipping discounts with stacking rules.' },
+  { id: 'analytics',    label: 'Analytics',    icon: 'analytics',    route: '#/analytics',    desc: 'Reports engine, funnels, behavior (Sensors) and live view.', children: [
+    { id: 'analytics-reports', label: 'Reports',   route: '#/analytics/reports' },
+    { id: 'analytics-live',    label: 'Live View', route: '#/analytics/live' },
+  ] },
   { id: 'content',      label: 'Content',      icon: 'newspaper',    route: '#/blog',         desc: 'Blog posts, pages and storefront menus.', children: [
     { id: 'blog',        label: 'Blog',        route: '#/blog',        desc: 'Blog posts and categories with rich content.' },
     { id: 'page',        label: 'Page',        route: '#/page',        desc: 'Custom pages (About, Contact, policies).' },
     { id: 'menu',        label: 'Menu',        route: '#/menu',        desc: 'Storefront navigation menus (two-level tree).' },
   ] },
-  { id: 'analytics',    label: 'Analytics',    icon: 'analytics',    route: '#/analytics',    desc: 'Reports engine, funnels, behavior (Sensors) and live view.', children: [
-    { id: 'analytics-reports', label: 'Reports',   route: '#/analytics/reports' },
-    { id: 'analytics-live',    label: 'Live View', route: '#/analytics/live' },
-  ] },
-  { id: 'online-store', label: 'Online store', icon: 'globe',        route: '#/online-store', desc: 'Theme list and the visual store builder.' },
-  { id: 'google',       label: 'Google',       icon: 'google',       route: '#/google',       desc: 'Tracking pixels (GA4 / Google Ads), domain verification and Merchant Center product sync.' },
-  { id: 'facebook',     label: 'Facebook',     icon: 'facebook', route: '#/facebook', desc: 'Meta Pixel + Conversion API, domain verification, FB & IG Shop, and ad management.' },
+];
+
+// "Channels" group — per-platform sales-channel workspaces (Shopify-style channels).
+// Mirrors the BestShopio Planning Map's Channel column.
+window.NAV_CHANNELS = [
+  { id: 'online-store', label: 'Online store', icon: 'globe',    route: '#/online-store', desc: 'Theme list and the visual store builder.' },
+  { id: 'google',       label: 'Google',       icon: 'google',   route: '#/google',       desc: 'Tracking pixels (GA4 / Google Ads), domain verification and Merchant Center product sync.' },
+  { id: 'facebook',     label: 'Facebook',     icon: 'facebook', route: '#/facebook',     desc: 'Meta Pixel + Conversion API, domain verification, FB & IG Shop, and ad management.' },
 ];
 
 window.NAV_SETTINGS = [
@@ -65,7 +72,22 @@ window.NAV_SETTINGS = [
    workspace is a resident top-level item in the sidebar — the separate "Apps"
    shell was dropped as redundant while there's a single built-in app.
    PLUGGABLE_APPS / AppState are kept for a future app marketplace. */
+// Apps Store — order matters for the "Apps" sidebar group:
+// BestCheckout first (focus app, sits under the Channels group), then
+// Subscriptions and Bundles (older built-ins).
 window.PLUGGABLE_APPS = [
+  {
+    id: 'bestcheckout', name: 'BestCheckout', icon: 'card', builtin: true, category: 'Selling', status: 'available',
+    tagline: 'High-converting external checkout for your Shopify store — and your on-ramp to BestShopio.',
+    blurb: 'Bring your Shopify store: products, discounts and shipping sync both ways and stay editable here, orders write back to Shopify for fulfillment. Sell through a faster checkout with one-click post-purchase upsells and multi-MID payment routing, then migrate to a native BestShopio store with a single domain switch. Subscriptions reuse the Subscriptions app.',
+    permissions: ['Connect a Shopify store (OAuth)', 'Two-way sync of products, collections, discounts and shipping', 'Write paid orders back to Shopify to trigger fulfillment', 'Use connected payment gateways for checkout & routing'],
+    // App workspace with a second-level menu (like Subscriptions / Analytics): parent = Overview, children below.
+    menu: { id: 'bestcheckout', label: 'BestCheckout', icon: 'card', route: '#/bestcheckout', desc: 'External high-converting checkout, payment routing & post-purchase for a connected Shopify store.',
+      children: [
+        { id: 'bestcheckout-funnel',     label: 'Funnel',     route: '#/bestcheckout/funnel' },
+        { id: 'bestcheckout-connect',    label: 'Connection', route: '#/bestcheckout/connect' },
+      ] },
+  },
   {
     id: 'subscriptions', name: 'Subscriptions', icon: 'refresh', builtin: true, category: 'Selling', status: 'available',
     tagline: 'Sell products on a recurring schedule — Subscribe & Save.',
@@ -85,18 +107,6 @@ window.PLUGGABLE_APPS = [
     blurb: 'Sell more per order with quantity-break offers (Buy 1 / BOGO / N-pack + gifts) or let customers build their own box. Bundles can be one-time or subscription.',
     menu: { id: 'bundles', label: 'Bundles', icon: 'box', route: '#/bundles', desc: 'Quantity-break and build-a-box bundles.' },
   },
-  {
-    id: 'bestcheckout', name: 'BestCheckout', icon: 'card', builtin: true, category: 'Selling', status: 'available',
-    tagline: 'High-converting external checkout for your Shopify store — and your on-ramp to BestShopio.',
-    blurb: 'Bring your Shopify store: products, discounts and shipping sync both ways and stay editable here, orders write back to Shopify for fulfillment. Sell through a faster checkout with one-click post-purchase upsells and multi-MID payment routing, then migrate to a native BestShopio store with a single domain switch. Subscriptions reuse the Subscriptions app.',
-    permissions: ['Connect a Shopify store (OAuth)', 'Two-way sync of products, collections, discounts and shipping', 'Write paid orders back to Shopify to trigger fulfillment', 'Use connected payment gateways for checkout & routing'],
-    // App workspace with a second-level menu (like Subscriptions / Analytics): parent = Overview, children below.
-    menu: { id: 'bestcheckout', label: 'BestCheckout', icon: 'card', route: '#/bestcheckout', desc: 'External high-converting checkout, payment routing & post-purchase for a connected Shopify store.',
-      children: [
-        { id: 'bestcheckout-funnel',     label: 'Funnel',     route: '#/bestcheckout/funnel' },
-        { id: 'bestcheckout-connect',    label: 'Connection', route: '#/bestcheckout/connect' },
-      ] },
-  },
   { id: 'loyalty',   name: 'Loyalty & Rewards', icon: 'badgePercent', builtin: true, category: 'Marketing', status: 'coming_soon', tagline: 'Points, rewards and a loyalty program.' },
   { id: 'wholesale', name: 'Wholesale / B2B',   icon: 'tag',          builtin: true, category: 'Selling',   status: 'coming_soon', tagline: 'Wholesale pricing, minimum order quantity and B2B customers.' },
   { id: 'affiliate', name: 'Affiliate',         icon: 'userPen',      builtin: true, category: 'Marketing', status: 'coming_soon', tagline: 'Referral links and commission payouts.' },
@@ -109,12 +119,21 @@ window.AppState = {
   setEnabled: function (id, on) { try { localStorage.setItem(this.k(id), on ? '1' : '0'); } catch (e) {} },
 };
 
-/* Sidebar menu = base modules + every built-in workspace (Subscriptions, Bundles…). */
+/* Sidebar menu = base modules + Channels group + Apps group.
+   Entries with `_group` are section dividers (rendered as <div class="nav-group-label">)
+   by shell.js renderSidebar. Order:
+     base modules (NAV_MENU)
+     → "Channels" divider → NAV_CHANNELS
+     → "Apps" divider → enabled PLUGGABLE_APPS in declaration order */
 window.buildMenu = function () {
   var apps = window.PLUGGABLE_APPS
     .filter(function (a) { return a.menu && a.status === 'available'; })
     .map(function (a) { return a.menu; });
-  return window.NAV_MENU.concat(apps);
+  return window.NAV_MENU
+    .concat([{ _group: 'Channels' }])
+    .concat(window.NAV_CHANNELS || [])
+    .concat([{ _group: 'Apps' }])
+    .concat(apps);
 };
 
 /* route first-segment -> module folder to lazy-load (router uses this). */
