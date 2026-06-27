@@ -387,14 +387,10 @@
           '<select class="input" style="width:100%">' + eventOptsSel + '</select></div>' +
         '<div style="margin-bottom:14px">' +
           '<div class="ctrl-label" style="text-transform:none;margin-bottom:4px">Facebook pixel</div>' +
-          '<div class="muted" style="font-size:11.5px;margin-bottom:6px">It\'s usually a JavaScript code snippet obtainable on the Meta platform. <a href="#" class="lnk" style="color:var(--brand)">Learn more ↗</a></div>' +
+          '<div class="muted" style="font-size:11.5px;margin-bottom:6px">It\'s usually a JavaScript code snippet obtainable on the Meta platform.</div>' +
           '<input class="input" value="' + esc(prePixelId) + '" placeholder="Paste your Facebook pixel, e.g.: 212313338444699" style="width:100%" /></div>' +
         '<div style="margin-bottom:14px">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
-            '<div class="ctrl-label" style="text-transform:none">Access Token</div>' +
-            '<div style="font-size:12px;color:var(--ink-muted)">' +
-              '<a href="#" class="lnk" style="color:var(--brand)">What is Verification</a><span style="margin:0 6px;color:var(--ctl)">|</span><a href="#" class="lnk" style="color:var(--brand)">Need help?</a>' +
-            '</div></div>' +
+          '<div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Access Token</div>' +
           '<input class="input" value="' + esc(preToken) + '" type="password" placeholder="Paste your access token" style="width:100%" />' +
           (isEdit ? '<div class="muted" style="font-size:11.5px;margin-top:4px">Existing token shown masked — clear and re-enter to rotate.</div>' : '') +
         '</div>' +
