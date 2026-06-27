@@ -1130,9 +1130,10 @@
           '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">' + esc(o.title) + '</div>' +
             '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + o.summary + '</div></div>' +
         '</div>' +
+        // No enable/disable toggle — Linked / Not linked pill carries the same signal,
+        // and "stop reporting" is what Disconnect (inside the Edit modal) is for.
         '<div style="display:flex;align-items:center;gap:14px">' +
           wLinkedPill(o.linked) +
-          '<div class="gw-sw' + (o.enabled ? ' on' : '') + '" data-toggle="' + esc(key) + '-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
           '<button class="btn btn-default" data-edit="' + esc(key) + '">' + editLabel + '</button>' +
         '</div>' +
       '</div>' +
