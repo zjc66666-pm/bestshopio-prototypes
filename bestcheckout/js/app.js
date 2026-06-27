@@ -278,9 +278,35 @@
     fnAutoLayout(s);
     return s;
   }
+  // Snapshot the graph portion of state for publish-tracking — `_pub` is JSON of
+  // {nodes, edges}. fnHasChanges() compares the current graph against it.
+  function fnSnap(s) { return JSON.stringify({ nodes: s.nodes, edges: s.edges }); }
+  function fnHasChanges(s) { return fnSnap(s) !== (s._pub || ''); }
+  function fnPubEdgeKeys(s) {
+    try {
+      var pub = JSON.parse(s._pub || '{"edges":[]}');
+      var ks = new Set();
+      (pub.edges || []).forEach(function (e) { ks.add(e.from + '→' + e.to + ':' + JSON.stringify(e.rule || null)); });
+      return ks;
+    } catch (e) { return new Set(); }
+  }
+  function fnPublish(s) { s._pub = fnSnap(s); bcFunnelSave(s); }
+
   function bcFunnel() {
-    try { var s = JSON.parse(localStorage.getItem('bsio_bc_funnel') || 'null'); if (s && s.nodes) { fnMigrateRules(s); return s; } } catch (e) {}
-    var def = fnDefault(); fnMigrateRules(def); return def;
+    try {
+      var s = JSON.parse(localStorage.getItem('bsio_bc_funnel') || 'null');
+      if (s && s.nodes) {
+        fnMigrateRules(s);
+        // Backfill _pub for legacy state — treat existing graphs as already published.
+        if (!s._pub) s._pub = fnSnap(s);
+        return s;
+      }
+    } catch (e) {}
+    var def = fnDefault(); fnMigrateRules(def);
+    // First-ever load — treat the default funnel as already published so red edges
+    // only appear when the merchant makes a real change.
+    def._pub = fnSnap(def);
+    return def;
   }
   function bcFunnelSave(s) { try { localStorage.setItem('bsio_bc_funnel', JSON.stringify(s)); } catch (e) {} }
   // Unified edge rule model. Legacy {label,kind,split} → {rule:{type,value}}. Idempotent.
@@ -442,6 +468,11 @@
 // removed, so an explicit "tidy" button is redundant; "reset" was a developer convenience that
 // merchants would only ever hit by accident.
 '<button class="btn btn-default" data-z="out" title="Zoom out">−</button><span class="fc-zval" id="fc-z">100%</span><button class="btn btn-default" data-z="in" title="Zoom in">+</button><button class="btn btn-default" data-z="fit">' + t('Fit') + '</button>' +
+        // Publish status — Publish (purple) when there are unsaved edits, Published (gray) otherwise
+        '<span class="fc-sep"></span>' +
+        (fnHasChanges(bcFunnel())
+          ? '<button class="btn" id="fc-publish" style="background:#7b4bd0;color:#fff;border-color:#7b4bd0">' + t('Publish changes') + '</button>'
+          : '<button class="btn btn-default" id="fc-publish" disabled style="opacity:.6;cursor:default">' + t('Published') + '</button>') +
         '<span class="fc-hint" id="fc-hint">' + t('Click a node to branch from it · drag the title bar to move') + '</span></div>' +
       '<div class="fc-scroll" id="fc-scroll"><div class="fc-sizer" id="fc-sizer"><div class="fc-canvas" id="fc-canvas" style="width:' + FC_W + 'px;height:' + FC_H + 'px">' +
         '<svg class="fc-edges" id="fc-edges"></svg><div class="fc-labels" id="fc-labels"></div>' + nodes +
@@ -466,6 +497,10 @@
       fcSel = null; applySel();
     });
     var addBtn = root.querySelector('#fc-addbtn'); if (addBtn) addBtn.onclick = function () { openPagePicker({ mode: 'add' }); };
+    var pubBtn = root.querySelector('#fc-publish');
+    if (pubBtn && !pubBtn.disabled) pubBtn.onclick = function () {
+      var s = bcFunnel(); fnPublish(s); toast(t('Published')); renderFunnel();
+    };
     root.querySelectorAll('[data-swap]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); var s = bcFunnel(), n = fnNode(s, a.getAttribute('data-swap')); if (n) openPagePicker({ mode: 'swap', id: n.id, type: n.type }); }; });
     var applyZoom = function () { canvas.style.transform = 'scale(' + fcZoom + ')'; var sz = root.querySelector('#fc-sizer'); if (sz) { sz.style.width = (FC_W * fcZoom) + 'px'; sz.style.height = (FC_H * fcZoom) + 'px'; } var zl = root.querySelector('#fc-z'); if (zl) zl.textContent = Math.round(fcZoom * 100) + '%'; };
     root.querySelectorAll('[data-z]').forEach(function (b) { b.onclick = function () {
@@ -941,18 +976,21 @@
     fcEdges.forEach(function (e) { siblings[e.from] = (siblings[e.from] || 0) + 1; });
     var COLS = { accept: '#1f8f4e', decline: '#d98a2b', random: '#2b62d6', predicate: '#7b4bd0', fallback: '#9aa3af' };
     var MARKS = { accept: 'fcAa', decline: 'fcAd', random: 'fcAs', predicate: 'fcAp', fallback: 'fcA' };
+    // Published-edge index — edges not in here render in red (unsaved changes).
+    var pubKeys = fnPubEdgeKeys(bcFunnel());
     fcEdges.forEach(function (e) {
       var a = canvas.querySelector('.fc-node[data-id="' + e.from + '"]'), b = canvas.querySelector('.fc-node[data-id="' + e.to + '"]');
       if (!a || !b) return;
       var ax = a.offsetLeft + a.offsetWidth, ay = a.offsetTop + a.offsetHeight * (e.fromY || 0.5);
-      // Back off the endpoint by ~6px so the arrowhead tip sits *just outside* the node border
-      // rather than overlapping the body content (markers in strokeWidth units overshoot otherwise).
       // -10 leaves room for the SVG marker so the arrow head doesn't visually pierce
       // the target node's body. -6 was still too short on dense layouts.
       var bx = b.offsetLeft - 10, by = b.offsetTop + b.offsetHeight * 0.5;
       var dx = Math.max(46, Math.abs(bx - ax) / 2);
       var kind = fnRuleKind(e);
       var col = COLS[kind] || '#9aa3af', mk = MARKS[kind] || 'fcA';
+      // Unpublished edge → render red (mirrors CC's "edits show as red until Publish").
+      var edgeKey = e.from + '→' + e.to + ':' + JSON.stringify(e.rule || null);
+      if (!pubKeys.has(edgeKey)) { col = '#ef4444'; mk = 'fcAr'; }
       // dashed if any random condition is present (visual: "split" still reads as dashed line)
       var hasRandom = fnRuleConds(e).some(function (c) { return c.field === 'random'; });
       var dash = (hasRandom && kind !== 'accept' && kind !== 'decline' ? ' stroke-dasharray="6 4"' : '');
@@ -970,6 +1008,7 @@
       '<marker id="fcAd" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#d98a2b"/></marker>' +
       '<marker id="fcAs" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#2b62d6"/></marker>' +
       '<marker id="fcAp" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#7b4bd0"/></marker>' +
+      '<marker id="fcAr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0L7 3L0 6Z" fill="#ef4444"/></marker>' +
       '</defs>' + paths;
     if (labels) { labels.innerHTML = lab; labels.querySelectorAll('[data-edit]').forEach(function (el) { el.onclick = function (ev) { ev.stopPropagation(); openRuleEditor(el.getAttribute('data-edit')); }; }); }
     svg.querySelectorAll('.fc-ehit').forEach(function (p) { p.onclick = function (ev) { ev.stopPropagation(); openEdgeMenu(p.getAttribute('data-ef'), p.getAttribute('data-et'), ev.clientX, ev.clientY); }; });
@@ -1194,6 +1233,9 @@
     'External checkout on': '外置结账在',
     'orders write back to Shopify': '订单回写 Shopify',
     '· orders write back to Shopify': '· 订单回写 Shopify', // kept for legacy callers that still go through bcI18n
+    // Funnel publish workflow
+    'Publish changes': '发布改动',
+    'Published': '已发布',
     'Countdown': '倒计时', 'Pack tiers': '套餐档位', 'Add-on': '加购', 'Guarantee': '退款保证',
     'Reserve timer': '预留倒计时', 'Value props': '价值主张', 'Trust row': '信任条',
     // Funnel + Templates (新 IA)
