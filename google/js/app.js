@@ -1048,6 +1048,12 @@
     '.gw-millu svg{display:block;width:100%;height:100%}' +
     /* "Coming soon" pill — matches the unified badge style across all channel workspaces */
     '.gw-card-soon{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}' +
+    /* Data tracking sub-page — left/right two-column section (mirrors Facebook .fb-sec) */
+    '.gw-sec{display:grid;grid-template-columns:300px 1fr;gap:32px;margin-bottom:36px}' +
+    '.gw-sec-l h2{font-size:17px;font-weight:600;color:var(--ink);margin:0 0 8px}' +
+    '.gw-sec-l p{font-size:13px;color:var(--ink-muted);line-height:1.6;margin:0;max-width:260px}' +
+    '.gw-sec-r{min-width:0}' +
+    '.gw-sec-r .panel:last-child{margin-bottom:0}' +
     '.gw-note{display:flex;gap:10px;align-items:flex-start;background:#f7f8fb;border-radius:8px;padding:14px 16px;margin-bottom:18px}' +
     '.gw-note-ico{color:#4285F4;flex:none;display:inline-flex}' +
     '.gw-note-bd{font-size:12.5px;line-height:1.55;color:var(--ink-muted)}' +
@@ -1216,6 +1222,14 @@
         '<div class="gw-note-bd">Events fire from the storefront browser (gtag.js) and our server-side Measurement Protocol with a shared event_id — GA4 dedupes automatically, so attribution survives iOS 14+ tracking blocks (which would otherwise eat 30–50% of client-side events).</div>' +
       '</div>' +
 
+      // ============================== Section 1: Website data reporting ==============================
+      '<div class="gw-sec">' +
+        '<div class="gw-sec-l">' +
+          '<h2>Website data reporting</h2>' +
+          '<p>Send conversion events to Google Analytics 4 and Google Ads, and optionally install a GTM container to manage multiple third-party pixels.</p>' +
+        '</div>' +
+        '<div class="gw-sec-r">' +
+
       // ---- GA4 connector ----
       '<div class="panel card-pad mb-4">' +
         '<div class="card-title">Google Analytics 4</div>' +
@@ -1276,6 +1290,17 @@
         '</div>' +
       '</div>' +
 
+        '</div>' + // end of Section 1 right column
+      '</div>' + // end of Section 1 gw-sec
+
+      // ============================== Section 2: Audience reporting (P1 placeholder) ==============================
+      '<div class="gw-sec">' +
+        '<div class="gw-sec-l">' +
+          '<h2>Audience reporting</h2>' +
+          '<p>Build remarketing audiences from your storefront traffic. Requires a connected Google Ads account before this can be configured.</p>' +
+        '</div>' +
+        '<div class="gw-sec-r">' +
+
       // ---- Google Remarketing (P1 placeholder — kept light, all P1 cards look the same) ----
       '<div class="panel card-pad mb-4">' +
         '<div class="card-title">Google Remarketing</div>' +
@@ -1289,7 +1314,10 @@
         '</div>' +
       '</div>' +
 
-      // ---- Events matrix (collapsed by default — informational, not configurable) ----
+        '</div>' + // end of Section 2 right column
+      '</div>' + // end of Section 2 gw-sec
+
+      // ---- Events matrix (collapsed by default — informational, not configurable; full-width) ----
       '<details class="panel mb-4 gw-events" style="overflow:hidden">' +
         '<summary class="card-pad" style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:14px">' +
           '<div style="flex:1;min-width:0">' +

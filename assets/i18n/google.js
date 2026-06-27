@@ -21,6 +21,12 @@ window.I18N.extend({
   // Top tip banner — kept as a single text node in google/app.js so the whole sentence matches.
   "Events fire from the storefront browser (gtag.js) and our server-side Measurement Protocol with a shared event_id — GA4 dedupes automatically, so attribution survives iOS 14+ tracking blocks (which would otherwise eat 30–50% of client-side events).": "事件在店面浏览器（gtag.js）和服务器端 Measurement Protocol 同时上报（共享 event_id），GA4 自动去重，归因不受 iOS 14+ 拦截影响（否则浏览器端事件会丢失 30–50%）。",
 
+  // Section titles + lead-in copy (left column of the two-column layout, mirrors Facebook fb-sec)
+  "Website data reporting": "Website 数据上报",
+  "Send conversion events to Google Analytics 4 and Google Ads, and optionally install a GTM container to manage multiple third-party pixels.": "把转化事件回传到 Google Analytics 4 和 Google Ads；可选安装 GTM 容器统一管理多个三方 pixel。",
+  "Audience reporting": "受众群体上报",
+  "Build remarketing audiences from your storefront traffic. Requires a connected Google Ads account before this can be configured.": "用店面流量构建 remarketing 受众群体，需要先连接 Google Ads 账号才能配置。",
+
   // GA4 connector card
   "Stream events to GA4 via gtag.js (browser) and the Measurement Protocol (server-side). Both fire with a shared event_id so GA4 dedupes automatically.": "通过 gtag.js（浏览器端）+ Measurement Protocol（服务器端）将事件回传到 GA4。两侧共享 event_id，GA4 自动去重。",
   "Measurement ID": "Measurement ID",
