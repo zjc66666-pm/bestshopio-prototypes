@@ -107,4 +107,18 @@ window.I18N.extend({
   "Cancel":             "取消",
   "Disconnect":         "断开连接",
   "Disconnecting will clear the saved credentials (Measurement ID / Conversion ID / Container ID). You'll need to re-enter them to reconnect.": "断开后将清除已保存的凭据（Measurement ID / Conversion ID / Container ID）。重新连接时需要重新粘贴。",
+
+  // Edit / Connect modal
+  "Edit":               "编辑",
+  "Connect":            "连接",
+  "Save":               "保存",
+  "Edit Google Analytics 4":         "编辑 Google Analytics 4",
+  "Connect Google Analytics 4":      "连接 Google Analytics 4",
+  "Edit Google Ads Conversion":      "编辑 Google Ads Conversion",
+  "Connect Google Ads Conversion":   "连接 Google Ads Conversion",
+  "Edit Google Tag Manager":         "编辑 Google Tag Manager",
+  "Connect Google Tag Manager":      "连接 Google Tag Manager",
+  "Clears Measurement ID and API secret. You'll need to re-enter the credentials to reconnect.": "清除 Measurement ID 和 API secret。重新连接时需要重新粘贴。",
+  "Clears Conversion ID and labels. You'll need to re-enter the credentials to reconnect.": "清除 Conversion ID 和 labels。重新连接时需要重新粘贴。",
+  "Clears Container ID. You'll need to re-enter the credentials to reconnect.": "清除 Container ID。重新连接时需要重新粘贴。",
 });

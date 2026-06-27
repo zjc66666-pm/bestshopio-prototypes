@@ -1117,6 +1117,103 @@
     m.querySelector('[data-ok]').onclick = () => { close(); opts.onOk && opts.onOk(); };
   }
 
+  // Compact connector status row used inside Section 1 (Website data reporting).
+  // Edit button opens the full configuration in a styled modal.
+  function connectorRow(key, _unusedTitle, blurb, o) {
+    const editLabel = o.linked ? 'Edit' : 'Connect';
+    return '<div class="panel card-pad mb-4">' +
+      '<div class="card-title">' + esc(o.title) + '</div>' +
+      '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">' + esc(blurb) + '</div>' +
+      '<div class="gw-row">' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          '<span style="' + o.badgeStyle + '">' + esc(o.badge) + '</span>' +
+          '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">' + esc(o.title) + '</div>' +
+            '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + o.summary + '</div></div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:14px">' +
+          wLinkedPill(o.linked) +
+          '<div class="gw-sw' + (o.enabled ? ' on' : '') + '" data-toggle="' + esc(key) + '-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
+          '<button class="btn btn-default" data-edit="' + esc(key) + '">' + editLabel + '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // Per-connector config for the Edit modal — fields, blurb, etc.
+  function getConnectorConfig(key) {
+    const g = W_TRACKING.ga4, a = W_TRACKING.ads, t = W_TRACKING.gtm;
+    if (key === 'ga4') return {
+      title: 'Google Analytics 4',
+      blurb: 'Stream events to GA4 via gtag.js (browser) and the Measurement Protocol (server-side). Both fire with a shared event_id so GA4 dedupes automatically.',
+      linked: !!g.measurementId,
+      fields: [
+        wField('Measurement ID', g.measurementId, 'G-XXXXXXXXXX', { learnMore: g.docs }),
+        wField('API secret (Measurement Protocol)', g.apiSecret, 'gtm_…', { secret: true, hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' }),
+      ].join(''),
+      discHint: 'Clears Measurement ID and API secret',
+    };
+    if (key === 'ads') return {
+      title: 'Google Ads Conversion',
+      blurb: 'Fire the Purchase conversion to Google Ads. Get Conversion ID + Purchase label from Google Ads → Tools → Conversions → your Purchase action.',
+      linked: !!a.conversionId,
+      fields: [
+        wField('Conversion ID', a.conversionId, 'AW-123456789', { learnMore: a.docs }),
+        wField('Purchase conversion label', a.purchaseLabel, 'abcDEFghi_jKlMnoPqr', { hint: 'Google Ads → Tools → Conversions → your Purchase action → Tag setup → Use Google Tag Manager.' }),
+        wField('Lead conversion label', a.leadLabel, '', { optional: true, hint: 'Optional — fired when a lead form is submitted (not used by the core checkout funnel).' }),
+      ].join(''),
+      discHint: 'Clears Conversion ID and labels',
+    };
+    if (key === 'gtm') return {
+      title: 'Google Tag Manager',
+      blurb: 'Install a GTM container instead of writing tags inline. Useful when you also run third-party pixels (TikTok, Reddit, Snap) through one tag manager.',
+      linked: !!t.containerId,
+      fields: wField('Container ID', t.containerId, 'GTM-XXXXXX', { learnMore: t.docs, hint: 'Tag Manager → workspace → top-right header shows GTM-XXXXXX. Latest published container version is loaded automatically.' }),
+      discHint: 'Clears Container ID',
+    };
+    return null;
+  }
+
+  // Edit modal — shows the full configuration form for a connector.
+  function openConnectorModal(key) {
+    const cfg = getConnectorConfig(key);
+    if (!cfg) return;
+    const backdrop = h('<div class="modal-backdrop"></div>');
+    const m = h('<div class="modal" style="width:560px"></div>');
+    m.innerHTML =
+      '<div class="modal-head flex items-center justify-between"><span>' + (cfg.linked ? 'Edit ' : 'Connect ') + esc(cfg.title) + '</span>' +
+        '<span class="drawer-x" data-x style="cursor:pointer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>' +
+      '</div>' +
+      '<div class="modal-body" style="padding:18px 22px;max-height:70vh;overflow:auto">' +
+        '<div class="muted mb-4" style="font-size:13px;line-height:1.55">' + esc(cfg.blurb) + '</div>' +
+        cfg.fields +
+      '</div>' +
+      '<div class="modal-foot" style="justify-content:' + (cfg.linked ? 'space-between' : 'flex-end') + '">' +
+        (cfg.linked
+          ? '<button class="btn" style="background:var(--err);color:#fff" data-disc title="' + esc(cfg.discHint) + '">Disconnect</button>'
+          : '') +
+        '<div class="flex gap-2">' +
+          '<button class="btn btn-default" data-cancel>Cancel</button>' +
+          '<button class="btn" style="background:#4285F4;border-color:#4285F4;color:#fff" data-save>Save</button>' +
+        '</div>' +
+      '</div>';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    const close = () => backdrop.remove();
+    m.querySelector('[data-x]').onclick = close;
+    m.querySelector('[data-cancel]').onclick = close;
+    backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    m.querySelector('[data-save]').onclick = () => { close(); toast('Saved successfully'); };
+    const disc = m.querySelector('[data-disc]');
+    if (disc) disc.onclick = () => {
+      close();
+      gwConfirm({
+        title: 'Disconnect',
+        body: cfg.discHint + '. You\'ll need to re-enter the credentials to reconnect.',
+        okText: 'Disconnect', danger: true,
+        onOk: () => toast('Disconnected'),
+      });
+    };
+  }
+
   function wsPaint(html) {
     root.innerHTML = '<style>' + WS_STYLES + '</style><div class="gw-narrow">' + html + '</div>';
     root.querySelectorAll('[data-toggle]').forEach((el) => el.onclick = () => el.classList.toggle('on'));
@@ -1230,65 +1327,27 @@
         '</div>' +
         '<div class="gw-sec-r">' +
 
-      // ---- GA4 connector ----
-      '<div class="panel card-pad mb-4">' +
-        '<div class="card-title">Google Analytics 4</div>' +
-        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Stream events to GA4 via gtag.js (browser) and the Measurement Protocol (server-side). Both fire with a shared event_id so GA4 dedupes automatically.</div>' +
-        '<div class="gw-row" style="margin-bottom:18px">' +
-          '<div style="display:flex;align-items:center;gap:12px"><span style="color:#F9AB00;font-weight:700;font-size:13px;border-radius:6px;background:#fff8e1;padding:5px 9px">GA4</span>' +
-            '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Google Analytics 4</div>' +
-              '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (gaLinked ? 'Measurement ID: ' + esc(g.measurementId) + (g.apiSecret ? ' · API secret set' : '') : 'Not connected yet') + '</div></div>' +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(gaLinked) +
-            '<div class="gw-sw' + (g.enabled ? ' on' : '') + '" data-toggle="ga4-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
-          '</div>' +
-        '</div>' +
-        wField('Measurement ID', g.measurementId, 'G-XXXXXXXXXX', { learnMore: g.docs }) +
-        wField('API secret (Measurement Protocol)', g.apiSecret, 'gtm_…', { secret: true, hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' }) +
-        '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="ga4" style="background:#4285F4;border-color:#4285F4">Save</button>' +
-          (gaLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ga4" title="Clears Measurement ID and API secret">Disconnect</button>' : '') +
-        '</div>' +
-      '</div>' +
+      // Connector card builder: compact status row + Edit/Connect button.
+      // Detailed fields (ID / secret / Save / Disconnect) live in the Edit modal —
+      // matches Settings → Payments' "Link / Edit" pattern so the workspace
+      // doesn't sprawl with form fields.
+      connectorRow('ga4', 'Google Analytics 4', 'Stream events to GA4 via gtag.js (browser) and the Measurement Protocol (server-side). Both fire with a shared event_id so GA4 dedupes automatically.',
+        { badge: 'GA4', badgeStyle: 'color:#F9AB00;font-weight:700;font-size:13px;border-radius:6px;background:#fff8e1;padding:5px 9px',
+          title: 'Google Analytics 4',
+          summary: gaLinked ? 'Measurement ID: ' + esc(g.measurementId) + (g.apiSecret ? ' · API secret set' : '') : 'Not connected yet',
+          linked: gaLinked, enabled: g.enabled }) +
 
-      // ---- Google Ads connector ----
-      '<div class="panel card-pad mb-4">' +
-        '<div class="card-title">Google Ads Conversion</div>' +
-        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Fire the Purchase conversion to Google Ads. Get Conversion ID + Purchase label from Google Ads → Tools → Conversions → your Purchase action.</div>' +
-        '<div class="gw-row" style="margin-bottom:18px">' +
-          '<div style="display:flex;align-items:center;gap:12px"><span style="color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#4285F4;padding:5px 9px">Ads</span>' +
-            '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Google Ads</div>' +
-              '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (adsLinked ? 'Conversion ID: ' + esc(a.conversionId) : 'Not connected yet') + '</div></div>' +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(adsLinked) +
-            '<div class="gw-sw' + (a.enabled ? ' on' : '') + '" data-toggle="ads-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
-          '</div>' +
-        '</div>' +
-        wField('Conversion ID', a.conversionId, 'AW-123456789', { learnMore: a.docs }) +
-        wField('Purchase conversion label', a.purchaseLabel, 'abcDEFghi_jKlMnoPqr', { hint: 'Google Ads → Tools → Conversions → your Purchase action → Tag setup → Use Google Tag Manager.' }) +
-        wField('Lead conversion label', a.leadLabel, '', { optional: true, hint: 'Optional — fired when a lead form is submitted (not used by the core checkout funnel).' }) +
-        '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="ads" style="background:#4285F4;border-color:#4285F4">Save</button>' +
-          (adsLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="ads" title="Clears Conversion ID and labels">Disconnect</button>' : '') +
-        '</div>' +
-      '</div>' +
+      connectorRow('ads', 'Google Ads Conversion', 'Fire the Purchase conversion to Google Ads. Get Conversion ID + Purchase label from Google Ads → Tools → Conversions → your Purchase action.',
+        { badge: 'Ads', badgeStyle: 'color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#4285F4;padding:5px 9px',
+          title: 'Google Ads',
+          summary: adsLinked ? 'Conversion ID: ' + esc(a.conversionId) : 'Not connected yet',
+          linked: adsLinked, enabled: a.enabled }) +
 
-      // ---- GTM connector ----
-      '<div class="panel card-pad mb-4">' +
-        '<div class="card-title">Google Tag Manager</div>' +
-        '<div class="muted" style="font-size:12.5px;margin-top:2px;margin-bottom:14px">Install a GTM container instead of writing tags inline. Useful when you also run third-party pixels (TikTok, Reddit, Snap) through one tag manager.</div>' +
-        '<div class="gw-row" style="margin-bottom:18px">' +
-          '<div style="display:flex;align-items:center;gap:12px"><span style="color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#246fdb;padding:5px 9px">GTM</span>' +
-            '<div><div style="color:var(--ink);font-weight:600;font-size:13.5px">Google Tag Manager</div>' +
-              '<div style="font-size:12.5px;color:var(--ink-muted);margin-top:3px">' + (gtmLinked ? 'Container ID: ' + esc(t.containerId) + ' · ' + esc(t.containerVersion) : 'Not connected yet') + '</div></div>' +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:14px">' + wLinkedPill(gtmLinked) +
-            '<div class="gw-sw' + (t.enabled ? ' on' : '') + '" data-toggle="gtm-enable" aria-label="Enable" title="Pause reporting (credentials are kept)"><span class="gw-sw-k"></span></div>' +
-          '</div>' +
-        '</div>' +
-        wField('Container ID', t.containerId, 'GTM-XXXXXX', { learnMore: t.docs, hint: 'Tag Manager → workspace → top-right header shows GTM-XXXXXX. Latest published container version is loaded automatically.' }) +
-        '<div style="display:flex;gap:10px;margin-top:6px"><button class="btn btn-primary" data-save="gtm" style="background:#4285F4;border-color:#4285F4">Save</button>' +
-          (gtmLinked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc="gtm" title="Clears Container ID and version">Disconnect</button>' : '') +
-        '</div>' +
-      '</div>' +
+      connectorRow('gtm', 'Google Tag Manager', 'Install a GTM container instead of writing tags inline. Useful when you also run third-party pixels (TikTok, Reddit, Snap) through one tag manager.',
+        { badge: 'GTM', badgeStyle: 'color:#fff;font-weight:700;font-size:13px;border-radius:6px;background:#246fdb;padding:5px 9px',
+          title: 'Google Tag Manager',
+          summary: gtmLinked ? 'Container ID: ' + esc(t.containerId) : 'Not connected yet',
+          linked: gtmLinked, enabled: t.enabled }) +
 
         '</div>' + // end of Section 1 right column
       '</div>' + // end of Section 1 gw-sec
@@ -1334,17 +1393,8 @@
     );
 
     const back = root.querySelector('[data-back]'); if (back) back.onclick = () => { location.hash = '#/google'; };
-    root.querySelectorAll('[data-save]').forEach((b) => b.onclick = () => toast('Saved successfully'));
-    // Disconnect is destructive — styled confirm before clearing credentials.
-    root.querySelectorAll('[data-disc]').forEach((b) => b.onclick = () => {
-      gwConfirm({
-        title: 'Disconnect',
-        body: 'Disconnecting will clear the saved credentials (Measurement ID / Conversion ID / Container ID). You\'ll need to re-enter them to reconnect.',
-        okText: 'Disconnect',
-        danger: true,
-        onOk: () => toast('Disconnected'),
-      });
-    });
+    // Open the connector's Edit modal (GA4 / Ads / GTM) — saves / disconnect happen inside the modal.
+    root.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => openConnectorModal(b.getAttribute('data-edit')));
   }
 
   // `rest` is the hash tail after the `google` segment (e.g. '', 'products',
