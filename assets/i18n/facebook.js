@@ -100,4 +100,29 @@ window.I18N.extend({
   "Delete / Re-verify — coming soon": "删除 / 重新验证 — 即将上线",
   "Saved successfully": "保存成功",
   "Please enter Facebook pixel": "请输入 Facebook 像素",
+
+  // ============================== Multi-Pixel table actions ==============================
+  // Edit modal title (vs the "New ..." title for Add modal)
+  "Edit FB Pixel and Conversion API tracking event": "编辑 Facebook 像素 和 Conversion API 追踪事件",
+  // Token field hint (edit mode)
+  "Existing token shown masked — clear and re-enter to rotate.": "现有令牌以掩码显示——清空并重新输入即可更换。",
+  // "..." row menu options
+  "Delete": "删除",
+  // Toasts after row actions
+  "Pixel deleted": "Pixel 已删除",
+  // Native confirm() before delete — best-effort overlay
+  "Delete Pixel ": "删除 Pixel ",
+  "? This cannot be undone.": "？此操作无法撤销。",
+
+  // ============================== ? tooltip body ==============================
+  // Pixel + Conversion API title tooltip — appears below the round "?" hint.
+  // Translation matches the surrounding "Authorizing Pixel and Conversion API" copy.
+  "Pixel events fire from": "Pixel 事件由",
+  "the storefront browser (Pixel)": "店面浏览器（Pixel）",
+  "our server-side Conversion API with a shared event_id — Meta dedupes automatically, so attribution survives iOS 14+ tracking blocks.": "服务器端 Conversion API（共享 event_id）同时上报——Meta 自动去重，归因不受 iOS 14+ 拦截影响。",
+
+  // ============================== Hover hints (title attributes) ==============================
+  "Edit": "编辑",
+  "More": "更多",
+  "Back": "返回",
 });
