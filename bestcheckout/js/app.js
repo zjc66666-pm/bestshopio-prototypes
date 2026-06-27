@@ -438,7 +438,10 @@
       '<div class="fc-bar">' +
         '<button class="btn btn-primary" id="fc-addbtn">+ ' + t('Add page') + '</button>' +
         '<span class="fc-sep"></span>' +
-        '<button class="btn btn-default" data-z="out" title="Zoom out">−</button><span class="fc-zval" id="fc-z">100%</span><button class="btn btn-default" data-z="in" title="Zoom in">+</button><button class="btn btn-default" data-z="fit">' + t('Fit') + '</button><button class="btn btn-default" data-z="tidy">' + t('Tidy layout') + '</button><button class="btn btn-default" data-z="reset">' + t('Reset funnel') + '</button>' +
+        // Tidy layout / Reset funnel removed — fnAutoLayout() runs automatically when a node is added or
+// removed, so an explicit "tidy" button is redundant; "reset" was a developer convenience that
+// merchants would only ever hit by accident.
+'<button class="btn btn-default" data-z="out" title="Zoom out">−</button><span class="fc-zval" id="fc-z">100%</span><button class="btn btn-default" data-z="in" title="Zoom in">+</button><button class="btn btn-default" data-z="fit">' + t('Fit') + '</button>' +
         '<span class="fc-hint" id="fc-hint">' + t('Click a node to branch from it · drag the title bar to move') + '</span></div>' +
       '<div class="fc-scroll" id="fc-scroll"><div class="fc-sizer" id="fc-sizer"><div class="fc-canvas" id="fc-canvas" style="width:' + FC_W + 'px;height:' + FC_H + 'px">' +
         '<svg class="fc-edges" id="fc-edges"></svg><div class="fc-labels" id="fc-labels"></div>' + nodes +
@@ -944,7 +947,9 @@
       var ax = a.offsetLeft + a.offsetWidth, ay = a.offsetTop + a.offsetHeight * (e.fromY || 0.5);
       // Back off the endpoint by ~6px so the arrowhead tip sits *just outside* the node border
       // rather than overlapping the body content (markers in strokeWidth units overshoot otherwise).
-      var bx = b.offsetLeft - 6, by = b.offsetTop + b.offsetHeight * 0.5;
+      // -10 leaves room for the SVG marker so the arrow head doesn't visually pierce
+      // the target node's body. -6 was still too short on dense layouts.
+      var bx = b.offsetLeft - 10, by = b.offsetTop + b.offsetHeight * 0.5;
       var dx = Math.max(46, Math.abs(bx - ax) / 2);
       var kind = fnRuleKind(e);
       var col = COLS[kind] || '#9aa3af', mk = MARKS[kind] || 'fcA';
@@ -1184,6 +1189,11 @@
     'Pack-size value ladder — buy more, save more': '套餐价梯——买得越多省得越多',
     'Advertorial funnel — express pay + value props': '广告漏斗——Express 支付 + 价值主张',
     'Clean single-column checkout': '极简单列结账',
+    // Page subtitle ("xxx · External checkout on lovocross.myshopify.com · orders write back to Shopify")
+    // Translated as separate text-node fragments (the inline <b>domain</b> splits the line).
+    'External checkout on': '外置结账在',
+    'orders write back to Shopify': '订单回写 Shopify',
+    '· orders write back to Shopify': '· 订单回写 Shopify', // kept for legacy callers that still go through bcI18n
     'Countdown': '倒计时', 'Pack tiers': '套餐档位', 'Add-on': '加购', 'Guarantee': '退款保证',
     'Reserve timer': '预留倒计时', 'Value props': '价值主张', 'Trust row': '信任条',
     // Funnel + Templates (新 IA)
@@ -1665,8 +1675,10 @@
   ];
   // Sections are navigated from the sidebar second-level menu (PLUGGABLE_APPS children) — no in-page tabs.
   const subnav = () => '';
+  // Use t() up-front for the surrounding English text so the bcI18n textNode walker
+  // doesn't choke on a "漏斗 · External checkout on" mixed string it can't dict-match.
   const head = (sub) => '<div class="bc-head"><div class="bc-h1">BestCheckout</div>' +
-    '<div class="bc-sub">' + sub + '　·　External checkout on <b>lovocross.myshopify.com</b> · orders write back to Shopify</div></div>';
+    '<div class="bc-sub">' + sub + '　·　' + t('External checkout on') + ' <b>lovocross.myshopify.com</b> · ' + t('orders write back to Shopify') + '</div></div>';
   const chip = (text, cls) => '<span class="bc-chip ' + cls + '"><span class="d"></span>' + esc(text) + '</span>';
   const wrap = (inner) => '<div class="view-wrap">' + STYLE + inner + '</div>';
   const money = (n) => '$' + Number(n).toFixed(2);
