@@ -142,9 +142,6 @@
         cta = m.ctaUrl
           ? '<a class="btn btn-default" href="' + esc(m.ctaUrl) + '" target="_blank" rel="noreferrer" style="padding:6px 14px;font-size:13px;display:inline-flex;align-items:center;gap:5px;text-decoration:none">' + esc(m.ctaText) + I.external + '</a>'
           : '<button class="btn btn-default" data-soon style="padding:6px 14px;font-size:13px">' + esc(m.ctaText) + '</button>';
-      } else if (m.id === 'shop') {
-        // Shop only has a Setup button (no Learn more on Shopline)
-        cta = '<button class="btn btn-primary" data-soon style="padding:6px 16px;font-size:13px">Setup</button>';
       } else {
         cta = '<span class="fb-soonpill">Coming soon</span>';
       }
