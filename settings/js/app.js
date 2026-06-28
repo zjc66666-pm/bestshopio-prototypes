@@ -393,10 +393,10 @@
     const expIcos = (PAY_EXPRESS[a.key] || []).map((id) => PAY_ICON[id]).join(' ');
     return '<div class="panel card-pad">' +
       '<div class="slot-head"><span class="slot-title">Processed by ' + esc(a.name) + '</span>' + picker + '</div>' +
-      '<div class="sec-sub" style="margin:0 0 14px">The active processor renders card input and Express; the specific wallets are auto-detected by buyer device/environment — not toggled here.</div>' +
-      '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Bank cards</span><span class="meta">Visa / Mastercard / Amex / UnionPay …</span></div><span class="right"><span class="sw' + (D.payments.cardsOn ? ' on' : '') + '" data-tg="cards"><i></i></span></span></div>' +
-      '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span></span></div><span class="right"><span class="sw' + (D.payments.expressOn ? ' on' : '') + '" data-tg="express"><i></i></span></span></div>' +
-      '<div class="syncline">Synced from the active processor · just now · <span class="lnkico" data-dash="' + a.key + '">↻ Refresh</span><span style="margin-left:auto">Switch = whether to mount this block at checkout</span></div>' +
+      '<div class="sec-sub" style="margin:0 0 14px">Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.</div>' +
+      '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Bank cards</span><span class="meta">Visa / Mastercard / Amex / UnionPay …</span></div></div>' +
+      '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span></span></div></div>' +
+      '<div class="syncline">Synced from the active processor · just now · <span class="lnkico" data-dash="' + a.key + '">↻ Refresh</span></div>' +
     '</div>';
   }
 
@@ -418,10 +418,10 @@
   // 手机端结账预览（对齐实测：快捷支付按钮 → OR → 银行卡）
   function pPreview() {
     const a = pActive();
-    const express = (a && D.payments.expressOn) ? (PAY_EXPRESS[a.key] || []).slice() : [];
+    const express = a ? (PAY_EXPRESS[a.key] || []).slice() : [];
     const hasPaypal = D.payments.paypal.connected && D.payments.paypal.on;
     const klarnaDirect = D.payments.klarna.directConnected && D.payments.klarna.directOn;
-    const hasCard = a && D.payments.cardsOn;
+    const hasCard = !!a;
     if (!express.length && !hasPaypal && !klarnaDirect && !hasCard) return '<div class="muted" style="text-align:center;padding:24px 0;font-size:13px">No payment provider connected yet, buyers can\'t pay.</div>';
     const order = { applepay: 0, googlepay: 1, link: 2, amazonpay: 3, klarna: 4 };
     express.sort((x, y) => (order[x] ?? 9) - (order[y] ?? 9));
@@ -597,7 +597,6 @@
       false
     );
     root.querySelectorAll('[data-setproc]').forEach((el) => el.onclick = () => pConfirmSwitch(el.dataset.setproc));
-    root.querySelectorAll('[data-tg]').forEach((el) => el.onclick = () => { if (el.dataset.tg === 'cards') D.payments.cardsOn = !D.payments.cardsOn; else D.payments.expressOn = !D.payments.expressOn; renderPayments(); });
     root.querySelectorAll('[data-itg]').forEach((el) => el.onclick = () => { const k = el.dataset.itg; if (k === 'paypal') D.payments.paypal.on = !D.payments.paypal.on; else if (k === 'klarna_direct') D.payments.klarna.directOn = !D.payments.klarna.directOn; renderPayments(); });
     root.querySelectorAll('[data-cfg]').forEach((el) => el.onclick = () => pOpenConnect(el.dataset.cfg));
     root.querySelectorAll('[data-dash]').forEach((el) => el.onclick = () => toast('(Prototype) Opens the processor dashboard — Payment method configurations'));
