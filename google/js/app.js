@@ -1385,20 +1385,10 @@
         '</div>' + // end of Section 2 right column
       '</div>' + // end of Section 2 gw-sec
 
-      // ---- Events matrix (collapsed by default — informational, not configurable; full-width) ----
-      '<details class="panel mb-4 gw-events" style="overflow:hidden">' +
-        '<summary class="card-pad" style="cursor:pointer;list-style:none;display:flex;align-items:flex-start;justify-content:space-between;gap:14px">' +
-          '<div style="flex:1;min-width:0">' +
-            '<div class="card-title">Events sent automatically</div>' +
-            '<div class="muted" style="font-size:12.5px;margin-top:2px">BestShopio fires these events client-side (gtag.js) and server-side (Measurement Protocol / Google Ads conversions). You don\'t install any tracking code per app.</div>' +
-          '</div>' +
-          '<span class="gw-evtoggle">' + W_EVENTS.length + ' events <span class="gw-evarrow">▾</span></span>' +
-        '</summary>' +
-        '<div style="overflow-x:auto;padding:0 16px 16px"><table class="gw-evtable">' +
-          '<thead><tr><th style="min-width:280px">Event</th><th>GA4 event name</th><th>Google Ads</th></tr></thead>' +
-          '<tbody>' + W_EVENTS.map(evRow).join('') + '</tbody>' +
-        '</table></div>' +
-      '</details>'
+      // Events sent automatically table removed — merchants don't actively check this;
+      // to verify firing they go to GA4 Realtime. W_EVENTS / evRow left as dead data for
+      // future re-use (no runtime cost).
+      ''
     );
 
     const back = root.querySelector('[data-back]'); if (back) back.onclick = () => { location.hash = '#/google'; };
