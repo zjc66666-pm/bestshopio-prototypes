@@ -394,7 +394,7 @@
     return '<div class="panel card-pad">' +
       '<div class="slot-head"><span class="slot-title">Processed by ' + esc(a.name) + '</span>' + picker + '</div>' +
       '<div class="sec-sub" style="margin:0 0 14px">Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.</div>' +
-      '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Bank cards</span><span class="meta">Visa / Mastercard / Amex / UnionPay …</span></div></div>' +
+      '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Cards</span><span class="meta">Visa / Mastercard / Amex / UnionPay …</span></div></div>' +
       '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span></span></div></div>' +
       '<div class="syncline">Synced from the active processor · just now · <span class="lnkico" data-dash="' + a.key + '">↻ Refresh</span></div>' +
     '</div>';
@@ -440,7 +440,7 @@
     if (hasCard) {
       const anyW = hasPaypal || express.length || klarnaDirect;
       if (anyW) html += '<div style="text-align:center;font-size:11px;color:var(--ink-muted);margin:2px 0 10px">or pay with card</div>';
-      html += '<div class="ck-opt sel"><span class="ck-radio"></span><span>Bank cards</span><span class="ck-ico">' + PAY_ICON.cards + '</span></div>';
+      html += '<div class="ck-opt sel"><span class="ck-radio"></span><span>Cards</span><span class="ck-ico">' + PAY_ICON.cards + '</span></div>';
     }
     return html + '<div class="ck-pay">Pay now</div>';
   }

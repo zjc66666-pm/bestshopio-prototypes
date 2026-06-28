@@ -38,6 +38,7 @@
     'Paid': '已付款', 'Unpaid': '未付款',
     'Country': '国家/地区', 'Countries': '国家/地区',
     'Payment method': '付款方式', 'Details': '详情', 'Overview': '概览',
+    'Cards': '银行卡', // payments page label (bestcheckout MID table uses its own local dict → unaffected)
     'Title': '标题', 'Type': '类型', 'Name': '名称', 'Date': '日期',
     'Status:': '状态：'
   });

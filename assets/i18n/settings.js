@@ -593,7 +593,6 @@ window.I18N.extend({
   "Manage": "管理",
   "Disabled": "已关闭",
   "Not connected": "未连接",
-  "Bank cards": "银行卡",
   "Express Checkout": "Express Checkout（快捷支付）",
   "Cards & Express processor": "卡 & Express 处理方",
   "No processor connected yet. Click “+ …” above to connect one and start accepting cards and Apple/Google Pay.": "还没有连接处理方。点上方「+ …」连接一个，即可收银行卡与 Apple/Google Pay。",
