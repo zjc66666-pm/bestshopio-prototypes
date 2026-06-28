@@ -322,102 +322,288 @@
   //   Airwallex then Stripe rows: logo + method icons + Linked dot + Edit/Link)
   //   then a separate PayPal card. Credentials are entered in modals only.
   // ===========================================================================
-  function renderPayments() {
-    const p = D.payments;
-    const active = p.activeProcessor;
+  // ---- v2 资源 / 能力 ----
+  const PAY_ASSET = 'settings/assets/payments/';
+  const payImg = (f, hh) => '<img src="' + PAY_ASSET + f + '" style="height:' + (hh || 18) + 'px" alt=""/>';
+  const PAY_ICON = {
+    cards: payImg('visa.svg', 20) + payImg('mastercard.svg', 20) + payImg('amex.svg', 20) + payImg('unionpay.svg', 20),
+    applepay: payImg('applepay.svg'), googlepay: payImg('googlepay.svg'), link: payImg('link.svg'),
+    amazonpay: payImg('amazonpay.svg'), klarna: payImg('klarna.svg'), paypal: payImg('paypal-logo.svg', 16),
+  };
+  // 各处理方「我们采用的集成方式」下 Express 块实际能出的方式（均已查官方文档核实 2026-06，见 PRD §5.2）
+  // Adyen=Components / Checkout=Flow / NMI=Collect.js / Mollie=Components(GooglePay 待确认) / Braintree=Hosted Fields
+  const PAY_EXPRESS = {
+    stripe: ['applepay', 'googlepay', 'link', 'klarna', 'amazonpay'], airwallex: ['applepay', 'googlepay'],
+    adyen: ['applepay', 'googlepay'], checkout: ['applepay', 'googlepay'], mollie: ['applepay'], nmi: ['applepay', 'googlepay'], braintree: ['applepay', 'googlepay'],
+  };
+  // 连接弹窗字段规格（Stripe / Airwallex 字段、文案、Learn more 链接对齐线上 StripeAccount / AirwallexAccount）
+  const PAY_FORMS = {
+    stripe: { desc: 'Allows users to pay with Card, Apple Pay, Google Pay, Link, Amazon Pay, and Klarna (where available).',
+      fields: [
+        { k: 'pub', label: 'Publishable Key', msg: 'Please enter Publishable Key' },
+        { k: 'sec', label: 'Secret Key', msg: 'Please enter Secret Key' },
+        { k: 'sign', label: 'Signing secret', msg: 'Please enter Signing secret' },
+      ] },
+    airwallex: { desc: 'Allows users to pay with Visa, Master Card, American Express, Discover, Diners Club, JCB, Afterpay, Klarna, Apple Pay, Google Pay',
+      fields: [
+        { k: 'cid', label: 'Client ID', msg: 'Please enter Client ID' },
+        { k: 'appkey', label: 'App Key', msg: 'Please enter App Key' },
+        { k: 'api', label: 'API endpoints', msg: 'Please enter API endpoints', learn: 'https://www.airwallex.com/docs/api' },
+        { k: 'wsec', label: 'Webhook Secret Key', msg: 'Please enter Webhook Secret Key' },
+        { k: 'wip', label: 'Webhook Whitelist IP addresses', msg: 'Please enter Webhook Whitelist IP addresses', learn: 'https://www.airwallex.com/docs/developer-tools/webhooks/listen-for-webhook-events#whitelist-ip-addresses' },
+      ], file: 'Airwallex domain verification file' },
+    paypal: { desc: 'Allows users to pay with PayPal.', fields: [
+      { k: 'cid', label: 'Client ID' }, { k: 'sec', label: 'Client secret' }, { k: 'whid', label: 'Webhook ID' },
+    ] },
+    adyen: { fields: [{ k: 'api', label: 'API key' }, { k: 'mer', label: 'Merchant account' }, { k: 'ck', label: 'Client key' }, { k: 'hmac', label: 'HMAC key' }] },
+    checkout: { fields: [{ k: 'pub', label: 'Public key' }, { k: 'sec', label: 'Secret key' }, { k: 'wsig', label: 'Webhook signature key' }] },
+    mollie: { fields: [{ k: 'api', label: 'API key (live)' }, { k: 'pid', label: 'Profile ID' }, { k: 'wsec', label: 'Webhook secret' }] },
+    nmi: { fields: [{ k: 'sk', label: 'Security key' }, { k: 'tk', label: 'Tokenization key' }, { k: 'wsk', label: 'Webhook signing key' }] },
+    braintree: { fields: [{ k: 'mid', label: 'Merchant ID' }, { k: 'pub', label: 'Public key' }, { k: 'priv', label: 'Private key' }] },
+    klarna_direct: { fields: [{ k: 'uid', label: 'API username (UID)' }, { k: 'pwd', label: 'API password' }, { k: 'region', label: 'Region（EU / NA / OC）' }] },
+  };
 
-    // payment-method brand icons are real SVG/PNG assets copied from the reference
-    // (web-antd src/assets/payments). Path is relative to the SPA document root.
-    const ASSET = 'settings/assets/payments/';
-    const payIco = (n) => '<img class="pay-ico" src="' + ASSET + n + '.svg" alt="' + n + '" />';
-    const BASE_METHODS = ['visa', 'mastercard', 'amex', 'diners', 'discover', 'unionpay', 'jcb', 'applepay', 'googlepay', 'afterpay', 'klarna'];
+  const pProcsVis = () => D.payments.processors;
+  const pConnected = () => pProcsVis().filter((p) => p.connected);
+  function pActive() { let a = D.payments.processors.find((p) => p.key === D.payments.cardProcessor && p.connected); if (!a) a = pConnected()[0] || null; return a; }
+  const pLogo = (p, hh) => p.logo ? payImg(p.logo, hh || 20) : '<span class="pm-mono">' + esc(p.name) + '</span>';
+  function pMethPill(connected, on) {
+    if (!connected) return '<span class="pill pill-gray"><span class="dot"></span>Not connected</span>';
+    return on ? '<span class="pill pill-green"><span class="dot"></span>Connected</span>' : '<span class="pill pill-gray"><span class="dot"></span>Disabled</span>';
+  }
 
-    // a processor block (mirrors render.tsx renderPaymentItem): brand logo on top,
-    // then a soft .b-c box holding the method icons + Linked/Not-linked pill, with
-    // an Edit/Link button on the right.
-    const provBlock = (logo, logoH, iconsHtml, linked, kindKey) =>
-      '<div class="prov-block">' +
-        '<div class="prov-logo"><img src="' + ASSET + logo + '" alt="" style="height:' + logoH + 'px" /></div>' +
-        '<div class="pay-bc">' +
-          '<div>' +
-            '<div class="pay-icons">' + iconsHtml + '</div>' +
-            linkedPill(linked) +
-          '</div>' +
-          '<button class="btn btn-gray" data-prov="' + kindKey + '">' + (linked ? 'Edit' : 'Link') + '</button>' +
-        '</div>' +
-      '</div>';
+  // ① 卡 + Express 单处理方槽位（picker 内连接/切换/管理）
+  function pSlot() {
+    const a = pActive();
+    const picker = '<div class="proc-pick"><span class="lab">Card processor</span>' +
+      D.payments.processors.map((p) => {
+        if (p.connected) {
+          const on = a && p.key === a.key;
+          // ⚙ on every connected provider → edit credentials anytime; click a non-active name = switch
+          const cog = '<button class="pchip-cog" data-cfg="' + p.key + '" title="Manage credentials">⚙</button>';
+          if (on) return '<span class="pchip on"><span class="pchip-name">' + pLogo(p, 15) + '</span>' + cog + '</span>';
+          return '<span class="pchip"><button class="pchip-name" data-setproc="' + p.key + '" title="Set as processor">' + pLogo(p, 15) + '</button>' + cog + '</span>';
+        }
+        return '<button class="add" data-cfg="' + p.key + '">+ ' + esc(p.name) + '</button>';
+      }).join('') + '</div>';
+    if (!a) {
+      return '<div class="panel card-pad"><div class="slot-head"><span class="slot-title">Cards &amp; Express processor</span>' + picker + '</div>' +
+        '<div class="muted" style="padding:14px 0 4px;font-size:13px">No processor connected yet. Click “+ …” above to connect one and start accepting cards and Apple/Google Pay.</div></div>';
+    }
+    const expIcos = (PAY_EXPRESS[a.key] || []).map((id) => PAY_ICON[id]).join(' ');
+    return '<div class="panel card-pad">' +
+      '<div class="slot-head"><span class="slot-title">Processed by ' + esc(a.name) + '</span>' + picker + '</div>' +
+      '<div class="sec-sub" style="margin:0 0 14px">The active processor renders card input and Express; the specific wallets are auto-detected by buyer device/environment — not toggled here.</div>' +
+      '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Bank cards</span><span class="meta">Visa / Mastercard / Amex / UnionPay …</span></div><span class="right"><span class="sw' + (D.payments.cardsOn ? ' on' : '') + '" data-tg="cards"><i></i></span></span></div>' +
+      '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span></span></div><span class="right"><span class="sw' + (D.payments.expressOn ? ' on' : '') + '" data-tg="express"><i></i></span></span></div>' +
+      '<div class="syncline">Synced from the active processor · just now · <span class="lnkico" data-dash="' + a.key + '">↻ Refresh</span><span style="margin-left:auto">Switch = whether to mount this block at checkout</span></div>' +
+    '</div>';
+  }
 
-    const air = p.providers.airwallex;
-    const stripe = p.providers.stripe;
-    const pp = p.paypal;
+  // ② 独立支付方式（PayPal / Klarna 自有直连）
+  function pIndep() {
+    let html = ''; const pp = D.payments.paypal;
+    html += '<div class="panel imeth"><span class="lg">' + payImg('paypal-logo.svg', 24) + '</span><div><div class="nm">PayPal</div><div class="sub">Independent wallet, self-settling · runs alongside the card processor</div></div><div class="right">' + pMethPill(pp.connected, pp.on) + (pp.connected ? '<span class="sw' + (pp.on ? ' on' : '') + '" data-itg="paypal"><i></i></span><button class="set-prim" data-cfg="paypal">Manage</button>' : '<button class="btn btn-primary" data-cfg="paypal">Connect</button>') + '</div></div>';
+    {
+      const k = D.payments.klarna;
+      if (k.directConnected) {
+        html += '<div class="panel imeth" style="display:block"><div style="display:flex;align-items:center;gap:13px"><span class="lg">' + payImg('klarna.svg', 24) + '</span><div><div class="nm">Klarna · own direct account</div><div class="sub">Your own Klarna direct account · rates usually better than via a PSP</div></div><div class="right">' + pMethPill(true, k.directOn) + '<span class="sw' + (k.directOn ? ' on' : '') + '" data-itg="klarna_direct"><i></i></span><button class="set-prim" data-cfg="klarna_direct">Manage</button></div></div><div class="dnote">💡 Klarna at checkout uses your direct account; if the active processor also has Klarna enabled, it defers to the direct account automatically to avoid showing twice to buyers.</div></div>';
+      } else {
+        html += '<div class="panel imeth"><span class="lg">' + payImg('klarna.svg', 24) + '</span><div><div class="nm">Klarna · own direct account</div><div class="sub">Have your own Klarna account? Connect it for better rates and platform routing (otherwise it is rendered by the active processor).</div></div><div class="right"><span class="pill pill-gray"><span class="dot"></span>Not connected</span><button class="btn btn-primary" data-cfg="klarna_direct">Connect</button></div></div>';
+      }
+    }
+    return html;
+  }
 
-    const procOpt = (key) => {
-      const opt = p.processorOptions.find((o) => o.value === key);
-      const on = active === key;
-      return '<label class="set-radio" data-proc="' + key + '" style="margin-right:18px">' +
-        '<span class="proc-radio">' + (on ? '<span class="proc-dot"></span>' : '') + '</span>' + esc(opt.label) + '</label>';
-    };
+  // 手机端结账预览（对齐实测：快捷支付按钮 → OR → 银行卡）
+  function pPreview() {
+    const a = pActive();
+    const express = (a && D.payments.expressOn) ? (PAY_EXPRESS[a.key] || []).slice() : [];
+    const hasPaypal = D.payments.paypal.connected && D.payments.paypal.on;
+    const klarnaDirect = D.payments.klarna.directConnected && D.payments.klarna.directOn;
+    const hasCard = a && D.payments.cardsOn;
+    if (!express.length && !hasPaypal && !klarnaDirect && !hasCard) return '<div class="muted" style="text-align:center;padding:24px 0;font-size:13px">No payment provider connected yet, buyers can\'t pay.</div>';
+    const order = { applepay: 0, googlepay: 1, link: 2, amazonpay: 3, klarna: 4 };
+    express.sort((x, y) => (order[x] ?? 9) - (order[y] ?? 9));
+    const stacked = a && a.key === 'airwallex';
+    const ppBtn = '<div style="height:46px;border-radius:9px;background:#ffc439;display:grid;place-items:center;margin-bottom:8px">' + payImg('paypal-logo.svg', 20) + '</div>';
+    const fullBox = (id) => '<div class="wallet" style="width:100%;height:46px;margin-bottom:8px">' + PAY_ICON[id] + '</div>';
+    let html = '';
+    if (hasPaypal) html += ppBtn;
+    if (stacked) {
+      express.forEach((id) => html += fullBox(id));
+      if (klarnaDirect && !express.includes('klarna')) html += fullBox('klarna');
+    } else {
+      const grid = express.slice(); if (klarnaDirect && !grid.includes('klarna')) grid.push('klarna');
+      if (grid.length) html += '<div class="wallets">' + grid.map((id, i) => { const full = (grid.length % 2 === 1) && (i === grid.length - 1); return '<div class="wallet"' + (full ? ' style="grid-column:1 / -1"' : '') + '>' + PAY_ICON[id] + '</div>'; }).join('') + '</div>';
+    }
+    if (hasCard) {
+      const anyW = hasPaypal || express.length || klarnaDirect;
+      if (anyW) html += '<div style="text-align:center;font-size:11px;color:var(--ink-muted);margin:2px 0 10px">or pay with card</div>';
+      html += '<div class="ck-opt sel"><span class="ck-radio"></span><span>Bank cards</span><span class="ck-ico">' + PAY_ICON.cards + '</span></div>';
+    }
+    return html + '<div class="ck-pay">Pay now</div>';
+  }
 
-    const cardCard =
-      '<div class="panel card-pad mb-4">' + sectionTitle('Card Payments & Express Checkout') +
-        '<div class="mt-4">' +
-          '<div class="set-note mb-6" style="background:#f7f8fa">' +
-            '<div class="text-sm" style="font-weight:600;color:var(--ink);margin-bottom:8px">Payment Processor</div>' +
-            '<div class="flex items-center">' + procOpt('airwallex') + procOpt('stripe') + '</div>' +
-            '<div class="muted" style="font-size:12px;margin-top:8px;line-height:1.5">Choose which processor handles Card, Apple Pay, and Google Pay. Switching processors requires re-entering credentials. Switching processors requires Apple Pay domain re-verification. Please contact our support team to complete the switch.</div>' +
-          '</div>' +
-          provBlock('airwallex.svg', 30, BASE_METHODS.map(payIco).join(''), air.linked, 'airwallex') +
-          provBlock('stripe.svg', 40, BASE_METHODS.concat(['link', 'amazonpay']).map(payIco).join(''), stripe.linked, 'stripe') +
-        '</div>' +
-      '</div>';
+  function pReco() {
+    if (D.payments.phase !== 2) return '';
+    return '<div class="reco"><div class="star">★</div><div style="flex:1"><div style="font-weight:700;font-size:14px;color:var(--ink)">BestShopio Payments <span class="pill pill-blue" style="margin-left:6px"><span class="dot"></span>Coming soon</span></div><div class="sec-sub" style="margin:3px 0 0">Platform acquiring — one-click setup, instant settlement, smart routing + retries behind the scenes. No account of your own needed.</div></div><button class="btn btn-gray" disabled style="opacity:.6;cursor:default">Coming soon</button></div>';
+  }
 
-    const paypalMethods =
-      '<img class="pay-ico" style="height:35px" src="' + ASSET + 'paypal-buynow.png" alt="Buy Now" />' +
-      '<img class="pay-ico" style="height:35px" src="' + ASSET + 'paypal-later-2.png" alt="Pay Later" />';
-    const paypalCard =
-      '<div class="panel card-pad mb-4">' +
-        provBlock('paypal-logo.svg', 30, paypalMethods, pp.linked, 'paypal') +
-      '</div>';
+  // Switch processor — confirm dialog (reuses SPA modal())
+  function pConfirmSwitch(key) {
+    const cur = pActive(); const p = D.payments.processors.find((x) => x.key === key);
+    modal({ title: 'Switch card processor', width: 440, okText: 'Switch',
+      body: '<div style="font-size:13.5px;line-height:1.65;color:var(--ink-body)">Cards and Express Checkout at checkout will switch processor. The payment methods buyers see may change accordingly.</div><div style="font-size:13px;margin-top:8px"><b>' + esc(cur ? cur.name : '—') + '</b> → <b>' + esc(p.name) + '</b></div><div class="muted" style="font-size:12px;margin-top:10px">Switch during off-peak hours; in-flight transactions are unaffected.</div>',
+      onOk: (m, close) => { D.payments.cardProcessor = key; close(); renderPayments(); toast('Switched successfully'); } });
+  }
 
-    paint(
-      pageHead('Payments') +
-      '<div class="set-note mb-4" style="display:flex;gap:10px;align-items:flex-start"><span style="color:var(--brand);flex:none;display:inline-flex">' + I.info + '</span>' +
-        '<div class="muted" style="font-size:12.5px;line-height:1.5">Payment connections belong to <b>this store only</b> and are never shared between stores. A newly created store always starts with no processor connected, so you connect fresh credentials here.</div></div>' +
-      cardCard + paypalCard,
-      true
-    );
+  function pIsConnected(key) { if (key === 'paypal') return D.payments.paypal.connected; if (key === 'klarna_direct') return D.payments.klarna.directConnected; const p = D.payments.processors.find((p) => p.key === key); return p && p.connected; }
+  function pEntName(key) { if (key === 'paypal') return 'PayPal'; if (key === 'klarna_direct') return 'Klarna Direct'; const p = D.payments.processors.find((p) => p.key === key); return p ? p.name : ''; }
 
-    // switch processor (re-render so the active radio updates)
-    root.querySelectorAll('[data-proc]').forEach((el) => el.onclick = () => {
-      const key = el.getAttribute('data-proc');
-      if (key === D.payments.activeProcessor) return;
-      D.payments.activeProcessor = key;
-      renderPayments();
-      toast('Updated successfully — re-enter credentials to finish');
+  // 连接 / 管理弹窗（复用 SPA modal()；凭证按 shop_id 隔离 + webhook 提示）
+  function pConnect(key) {
+    if (key === 'paypal') D.payments.paypal.connected = true;
+    else if (key === 'klarna_direct') { D.payments.klarna.directConnected = true; D.payments.klarna.directOn = true; }
+    else { const pr = D.payments.processors.find((p) => p.key === key); pr.connected = true; if (!D.payments.processors.some((p) => p.connected && p.key === D.payments.cardProcessor)) D.payments.cardProcessor = key; }
+  }
+  function pDisconnect(key) {
+    if (key === 'paypal') D.payments.paypal.connected = false;
+    else if (key === 'klarna_direct') D.payments.klarna.directConnected = false;
+    else { const pr = D.payments.processors.find((p) => p.key === key); pr.connected = false; if (D.payments.cardProcessor === key) { const n = pConnected()[0]; D.payments.cardProcessor = n ? n.key : null; } }
+  }
+  function pOpenConnect(key) {
+    const connected = pIsConnected(key); const name = pEntName(key);
+    const spec = PAY_FORMS[key] || { fields: [{ k: 'k1', label: 'API key' }, { k: 'k2', label: 'Secret' }] };
+    let body = '';
+    if (spec.desc) body += '<div class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.5">' + esc(spec.desc) + '</div>';
+    body += '<div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">Credentials are used for this store only (isolated by shop_id). Webhook callback URL:<br/><code style="font-size:11.5px;color:var(--brand)">/webhook/' + key + '/{shop_id}</code></div>';
+    body += spec.fields.map((f) => {
+      const learn = f.learn ? '<a href="' + f.learn + '" target="_blank" style="font-size:12px;color:var(--brand);font-weight:400">Learn more</a>' : '';
+      return '<div style="margin-bottom:4px"><div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px"><span>' + esc(f.label) + ' <span style="color:var(--err)">*</span></span>' + learn + '</div>' +
+        '<input class="input" data-pf="' + f.k + '" placeholder="Please enter ' + esc(f.label) + '"' + (connected ? ' value="•••••••••••• (saved)"' : '') + ' />' +
+        '<div data-perr="' + f.k + '" style="min-height:18px;font-size:12px;color:var(--err);margin-top:3px"></div></div>';
+    }).join('');
+    if (spec.file) body += '<div style="margin-bottom:4px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">' + esc(spec.file) + '</div><button class="btn btn-default" type="button" data-zip>Upload ZIP</button><div class="muted" style="font-size:11.5px;margin-top:4px">Only .zip files up to 1MB are supported.</div></div>';
+
+    const dlg = modal({
+      title: (connected ? 'Manage ' : 'Connect ') + name, width: 520, okText: connected ? 'Save' : 'Connect',
+      body,
+      extraLeft: connected ? '<button class="btn" style="background:var(--err);color:#fff" data-disc>Cancel connection</button>' : '',
+      onOk: (m, close) => {
+        // 校验：必填字段不能为空（对齐线上 validateForm）
+        let okAll = true, firstBad = null;
+        spec.fields.forEach((f) => {
+          const inp = m.querySelector('[data-pf="' + f.k + '"]');
+          const err = m.querySelector('[data-perr="' + f.k + '"]');
+          const val = ((inp && inp.value) || '').trim();
+          if (!val) { okAll = false; if (err) err.textContent = f.msg || ('Please enter ' + f.label); if (inp) inp.style.borderColor = 'var(--err)'; if (!firstBad) firstBad = inp; }
+        });
+        if (!okAll) { if (firstBad) firstBad.focus(); return; }   // 校验不过不关闭
+        if (!connected) pConnect(key);
+        close(); renderPayments(); toast(connected ? 'Edit successfully' : 'Connected successfully');
+      },
+      onExtra: (m, close) => { pDisconnect(key); close(); renderPayments(); toast('Cancelled connection successfully'); },
     });
-    root.querySelectorAll('[data-prov]').forEach((b2) => b2.onclick = () => openProviderModal(b2.getAttribute('data-prov')));
+    // 输入即清除该字段错误；ZIP 走本地文件选择（原型）
+    dlg.m.querySelectorAll('[data-pf]').forEach((inp) => inp.oninput = () => { const err = dlg.m.querySelector('[data-perr="' + inp.dataset.pf + '"]'); if (err) err.textContent = ''; inp.style.borderColor = ''; });
+    const zip = dlg.m.querySelector('[data-zip]'); if (zip) zip.onclick = () => openFilePicker();
   }
 
-  function openProviderModal(key) {
-    const p = D.payments;
-    const prov = key === 'paypal' ? p.paypal : p.providers[key];
-    let body = '<div class="muted mb-4" style="font-size:13px">' + esc(prov.blurb) + '</div>';
-    body += prov.fields.map((f) => field(f.label, f.value, 'Please enter ' + f.label, { secret: f.secret, learnMore: f.learnMore })).join('');
-    if (key === 'airwallex') {
-      body += '<div style="margin-top:4px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Airwallex domain verification file</div>' +
-        '<button class="btn btn-gray" type="button">Upload ZIP</button>' +
-        '<div class="muted" style="font-size:11.5px;margin-top:4px">Only .zip files up to 1MB are supported.</div></div>';
-    }
-    if (key === 'paypal') {
-      body += '<div style="margin-top:4px"><div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Mode</div>' +
-        '<label class="set-radio' + (prov.mode === 'live' ? ' on' : '') + '" style="margin-right:16px"><span class="proc-radio">' + (prov.mode === 'live' ? '<span class="proc-dot"></span>' : '') + '</span>Live</label>' +
-        '<label class="set-radio' + (prov.mode === 'sandbox' ? ' on' : '') + '"><span class="proc-radio">' + (prov.mode === 'sandbox' ? '<span class="proc-dot"></span>' : '') + '</span>Sandbox</label></div>';
-    }
-    modal({ title: prov.modalTitle, width: 620, okText: 'Save',
-      body, onOk: (m, close) => { close(); toast(prov.linked ? 'Edit successfully' : 'Connected successfully'); },
-      extraLeft: prov.linked ? '<button class="btn" style="background:var(--err);color:#fff" data-disc>Cancel connection</button>' : '',
-      onExtra: (m, close) => { close(); toast('Cancelled connection successfully'); } });
+  const PAY_CSS =
+    '.payv2 .pay-grid{display:grid;grid-template-columns:1fr;gap:22px;align-items:start;max-width:1180px}' +
+    '@media(min-width:1200px){.payv2 .pay-grid{grid-template-columns:minmax(0,1fr) 340px}}' +
+    '.payv2 .seg{display:inline-flex;background:#eef0f7;border-radius:9px;padding:3px;gap:2px}' +
+    '.payv2 .seg button{border:none;background:transparent;height:30px;padding:0 14px;border-radius:7px;font-size:13px;font-weight:600;color:var(--ink-muted);cursor:pointer}' +
+    '.payv2 .seg button.on{background:#fff;color:var(--brand);box-shadow:0 1px 2px rgb(16 24 40/8%)}' +
+    '.payv2 .sec-title{font-size:15px;font-weight:700;color:var(--ink);margin:22px 0 4px}' +
+    '.payv2 .sec-sub{font-size:12.5px;color:var(--ink-muted);margin:0 0 12px;line-height:1.5}' +
+    '.payv2 .slot-head{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:10px}' +
+    '.payv2 .slot-title{font-weight:700;font-size:14px}' +
+    '.payv2 .proc-pick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;row-gap:8px}' +
+    '.payv2 .proc-pick .lab{font-size:12px;color:var(--ink-muted);margin-right:2px}' +
+    '.payv2 .proc-pick button{height:30px;padding:0 11px;border-radius:8px;border:1px solid var(--ctl);background:#fff;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}' +
+    '.payv2 .proc-pick button.on{border-color:var(--brand);background:var(--brand-50);color:var(--brand);font-weight:600}' +
+    '.payv2 .proc-pick img{height:15px}' +
+    '.payv2 .proc-pick .add{border-style:dashed;color:var(--brand)}' +
+    '.payv2 .proc-pick .add:hover{background:var(--brand-50)}' +
+    '.payv2 .proc-pick .pchip{display:inline-flex;align-items:center;height:30px;border:1px solid var(--ctl);border-radius:8px;overflow:hidden}' +
+    '.payv2 .proc-pick .pchip.on{border-color:var(--brand);background:var(--brand-50)}' +
+    '.payv2 .proc-pick .pchip .pchip-name{height:28px;padding:0 6px 0 11px;border:none;background:transparent;display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink);cursor:pointer}' +
+    '.payv2 .proc-pick .pchip.on .pchip-name{color:var(--brand);font-weight:600;cursor:default}' +
+    '.payv2 .proc-pick .pchip .pchip-name:hover{background:rgba(0,0,0,.04)}' +
+    '.payv2 .proc-pick .pchip.on .pchip-name:hover{background:transparent}' +
+    '.payv2 .proc-pick .pchip .pchip-cog{height:28px;padding:0 8px;border:none;border-left:1px solid var(--hair);background:transparent;color:var(--ink-muted);cursor:pointer;font-size:12px}' +
+    '.payv2 .proc-pick .pchip .pchip-cog:hover{background:rgba(0,0,0,.05);color:var(--ink)}' +
+    '.payv2 .proc-pick .lock{height:30px;padding:0 11px;border-radius:8px;border:1px dashed var(--hair);background:var(--panel);font-size:13px;color:var(--ink-muted);display:inline-flex;align-items:center;gap:6px}' +
+    '.payv2 .slot-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--hair)}' +
+    '.payv2 .slot-row .ic{display:flex;gap:4px;align-items:center;flex-wrap:wrap}' +
+    '.payv2 .slot-row .ic img{height:20px}' +
+    '.payv2 .slot-row .bd{display:flex;flex-direction:column}' +
+    '.payv2 .slot-row .lbl{font-weight:600;font-size:13.5px;color:var(--ink)}' +
+    '.payv2 .slot-row .meta{font-size:12px;color:var(--ink-muted);margin-top:2px}' +
+    '.payv2 .slot-row .right{margin-left:auto}' +
+    '.payv2 .sw{width:34px;height:20px;border-radius:9999px;background:#cfd5e4;position:relative;cursor:pointer;transition:background .15s;flex:none;display:inline-block}' +
+    '.payv2 .sw.on{background:var(--brand)}' +
+    '.payv2 .sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgb(0 0 0/20%)}' +
+    '.payv2 .sw.on i{left:16px}' +
+    '.payv2 .lnkico{color:var(--brand);cursor:pointer}.payv2 .lnkico:hover{text-decoration:underline}' +
+    '.payv2 .syncline{font-size:12px;color:var(--ink-muted);padding-top:12px;border-top:1px solid var(--hair);display:flex;gap:8px;flex-wrap:wrap;align-items:center}' +
+    '.payv2 .imeth{display:flex;align-items:center;gap:13px;padding:15px 16px;margin-bottom:12px}' +
+    '.payv2 .imeth .lg{height:24px;display:flex;align-items:center}.payv2 .imeth .lg img{height:24px}' +
+    '.payv2 .imeth .nm{font-weight:700;font-size:14px;color:var(--ink)}' +
+    '.payv2 .imeth .sub{font-size:12.5px;color:var(--ink-muted);margin-top:2px}' +
+    '.payv2 .imeth .right{margin-left:auto;display:flex;align-items:center;gap:10px}' +
+    '.payv2 .dnote{margin:10px 0 0;font-size:12.5px;color:#1e3a8a;background:#eef4ff;border:1px solid #cfe1ff;border-radius:9px;padding:9px 12px;line-height:1.6}' +
+    '.payv2 .set-prim{font-size:12px;color:var(--brand);background:#fff;border:1px solid var(--ctl);border-radius:8px;padding:5px 11px;cursor:pointer}' +
+    '.payv2 .set-prim:hover{border-color:var(--brand);background:var(--brand-50)}' +
+    '.payv2 .pm-mono{font-weight:800;font-size:13px;color:var(--ink)}' +
+    '.payv2 .reco{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #cfe1ff;background:linear-gradient(95deg,#eef4ff,#f7faff);border-radius:12px;margin-bottom:18px}' +
+    '.payv2 .reco .star{width:38px;height:38px;border-radius:10px;background:var(--brand);color:#fff;display:grid;place-items:center;flex:none}' +
+    '.payv2 .preview-col{position:sticky;top:16px}' +
+    '.payv2 .phone{background:#fff;border:1px solid var(--ctl);border-radius:22px;box-shadow:var(--float-shadow);padding:14px;max-width:380px;margin:0 auto}' +
+    '.payv2 .phone-notch{width:90px;height:5px;border-radius:3px;background:#e3e6ef;margin:2px auto 12px}' +
+    '.payv2 .ck-h{font-size:13px;font-weight:700;color:var(--ink);margin:2px 0 10px}' +
+    '.payv2 .ck-opt{display:flex;align-items:center;gap:10px;border:1px solid var(--ctl);border-radius:10px;padding:11px 12px;margin-bottom:8px;font-size:13px}' +
+    '.payv2 .ck-opt.sel{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)}' +
+    '.payv2 .ck-radio{width:16px;height:16px;border-radius:50%;border:2px solid var(--ctl);flex:none}' +
+    '.payv2 .ck-opt.sel .ck-radio{border-color:var(--brand);background:radial-gradient(circle at center,var(--brand) 0 4px,#fff 5px)}' +
+    '.payv2 .ck-ico{margin-left:auto;display:flex;gap:4px}.payv2 .ck-ico img{height:16px}' +
+    '.payv2 .ck-pay{margin-top:6px;height:42px;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;font-size:14px;display:grid;place-items:center}' +
+    '.payv2 .wallets{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}' +
+    '.payv2 .wallet{height:40px;border-radius:9px;border:1px solid var(--ctl);display:grid;place-items:center}.payv2 .wallet img{height:18px}' +
+    '.payv2 .preview-note{font-size:11.5px;color:var(--ink-muted);text-align:center;margin-top:10px;line-height:1.5}' +
+    '.payv2 .foot-note{font-size:12px;color:var(--ink-muted);margin-top:20px;line-height:1.7}';
+
+  function renderPayments() {
+    const main =
+      '<div class="sec-title" style="margin-top:0">① Cards &amp; Express checkout</div>' +
+      '<div class="sec-sub">Only one processor at a time renders cards and Express Checkout. Switching the processor moves cards and Apple/Google Pay together.</div>' +
+      pSlot() +
+      '<div class="sec-title">② Independent payment methods</div>' +
+      '<div class="sec-sub">Self-settling — can run alongside the card processor, each on its own rails.</div>' +
+      pIndep();
+    const preview =
+      '<div class="preview-col"><div class="phone"><div class="phone-notch"></div>' +
+        '<div class="ck-h">Checkout · methods buyers see</div>' + pPreview() + '</div>' +
+        '<div class="preview-note">What buyers see are the methods lit up by connected providers; flip the switches above and this updates live.</div></div>';
+    paint(
+      '<style>' + PAY_CSS + '</style>' +
+      '<div class="payv2">' +
+        '<div style="margin-bottom:14px"><div class="page-title" style="font-size:20px">Payments</div></div>' +
+        '<div class="set-note" style="margin-bottom:22px;display:flex;gap:10px;align-items:flex-start"><span style="color:var(--brand);flex:none;display:inline-flex">' + I.info + '</span><div class="muted" style="font-size:12.5px;line-height:1.5">Payment connections belong to this store only and are never shared between stores. A newly created store starts with no provider connected, so you connect fresh credentials here.</div></div>' +
+        '<div class="pay-grid"><div>' + main + '</div>' + preview + '</div>' +
+      '</div>',
+      false
+    );
+    root.querySelectorAll('[data-setproc]').forEach((el) => el.onclick = () => pConfirmSwitch(el.dataset.setproc));
+    root.querySelectorAll('[data-tg]').forEach((el) => el.onclick = () => { if (el.dataset.tg === 'cards') D.payments.cardsOn = !D.payments.cardsOn; else D.payments.expressOn = !D.payments.expressOn; renderPayments(); });
+    root.querySelectorAll('[data-itg]').forEach((el) => el.onclick = () => { const k = el.dataset.itg; if (k === 'paypal') D.payments.paypal.on = !D.payments.paypal.on; else if (k === 'klarna_direct') D.payments.klarna.directOn = !D.payments.klarna.directOn; renderPayments(); });
+    root.querySelectorAll('[data-cfg]').forEach((el) => el.onclick = () => pOpenConnect(el.dataset.cfg));
+    root.querySelectorAll('[data-dash]').forEach((el) => el.onclick = () => toast('(Prototype) Opens the processor dashboard — Payment method configurations'));
   }
+
+  // (旧 openProviderModal 已移除——连接/管理改由 pOpenConnect 承接，见上)
 
   // NOTE: Tracking pixels (Meta / GA4 / TikTok / Google Ads / Custom) moved out
   //   of Settings — Pixel + CAPI now lives in each platform's Channel workspace:

@@ -50,9 +50,9 @@ window.DATA_SETTINGS = {
     presets: {
       order_paid: [
         { code: 'order_paid_minimal', name: 'Minimal', subject: 'Order #{{order.number}} confirmed',
-          body: '<h2 class="nf-h">Order confirmed</h2>\n<p class="nf-lead">Hi {{customer.first_name}}, thanks for your order. We’re getting it ready and will email you tracking as soon as it ships.</p>\n{{block.cta_button}}\n{{block.order_summary}}\n{{block.shipping_address}}' },
+          body: '<h2 class="nf-h">Order confirmed</h2>\n<p class="nf-lead">Hi {{customer.first_name}}, we’ve received your order and payment. We’ll email you tracking the moment it ships.</p>\n{{block.order_summary}}' },
         { code: 'order_paid_branded', name: 'Branded + thank-you', subject: 'Thank you for your order, {{customer.first_name}}!',
-          body: '<h2 class="nf-h">Thanks for your order</h2>\n<p class="nf-lead">Your {{store.name}} order is confirmed and being packed with care. Here’s a summary of what’s on the way.</p>\n{{block.order_summary}}\n{{block.shipping_address}}\n{{block.cta_button}}\n<p class="nf-fine">Questions? Just reply to this email — we’re happy to help.</p>' },
+          body: '<h2 class="nf-h">Thank you, {{customer.first_name}}</h2>\n<p class="nf-lead">Your {{store.name}} order is confirmed and being packed with care. We’ll be in touch the moment it’s on its way — we can’t wait for you to receive it.</p>\n{{block.cta_button}}\n{{block.order_summary}}\n{{block.shipping_address}}\n<p class="nf-fine">Questions about your order? Just reply to this email — a real person on our team will help you out.</p>' },
       ],
       order_shipped: [
         { code: 'order_shipped_minimal', name: 'Minimal', subject: 'Your order #{{order.number}} is on its way',
@@ -158,54 +158,75 @@ window.DATA_SETTINGS = {
   //   credentials are entered in its own modal. Card order in real admin:
   //   Airwallex first, then Stripe. PayPal is a separate card.
   // =========================================================================
+  // v2 渠道/方式模型（见 app.js renderPayments + docs/支付对接现状_Stripe_Airwallex.md）
+  //   卡+Express = 单处理方槽位（cardProcessor，仅 active 一个）；独立方式 = PayPal / Klarna 自有直连。
+  //   phase 1 = 上线版（3 BYO）；phase 2 = 渠道扩展（更多 PSP + Klarna 直连）。
   payments: {
-    activeProcessor: 'airwallex', // 'airwallex' | 'stripe' (payment_processor; default airwallex)
-    processorOptions: [
-      { label: 'Airwallex', value: 'airwallex' },
-      { label: 'Stripe',    value: 'stripe' },
+    phase: 1,                 // 1 = 一期上线版；2 = 二期渠道扩展（演示路线图）
+    cardProcessor: 'stripe',  // 当前 active 的卡+Express 处理方（必须已连接）
+    cardsOn: true,            // 结账页是否挂卡输入
+    expressOn: true,          // 结账页是否挂 Express 块
+    // 可连接的卡处理方（同一时间只能 active 一个）；phase2 的在一期标「二期」
+    processors: [
+      { key: 'stripe',    name: 'Stripe',       logo: 'stripe.svg',    connected: true },
+      { key: 'airwallex', name: 'Airwallex',    logo: 'airwallex.svg', connected: false },
+      { key: 'adyen',     name: 'Adyen',        connected: false, phase2: true },
+      { key: 'checkout',  name: 'Checkout.com', connected: false, phase2: true },
+      { key: 'mollie',    name: 'Mollie',       connected: false, phase2: true },
+      { key: 'nmi',       name: 'NMI',          connected: false, phase2: true },
+      { key: 'braintree', name: 'Braintree',    connected: false, phase2: true },
     ],
-    // Card brand / wallet method chips shown under each card processor.
-    cardMethods: ['Visa', 'Mastercard', 'American Express', 'Diners Club', 'Discover', 'UnionPay', 'JCB', 'Apple Pay', 'Google Pay', 'Afterpay', 'Klarna'],
-    stripeExtraMethods: ['Link', 'Amazon Pay'],
-    providers: {
-      airwallex: {
-        key: 'airwallexPayments', name: 'Airwallex', linked: false, kind: 'card',
-        modalTitle: 'Connect Airwallex developer account',
-        blurb: 'Allows users to pay with Visa, Master Card, American Express, Discover, Diners Club, JCB, Afterpay, Klarna, Apple Pay, Google Pay',
-        fields: [
-          // airwallex_client_id / _api_key / _base_url / _webhook_secret / _ip_whitelist
-          { label: 'Client ID',                     value: '', secret: false },
-          { label: 'App Key',                        value: '', secret: true },
-          { label: 'API endpoints',                  value: '', secret: false, learnMore: 'https://www.airwallex.com/docs/api' },
-          { label: 'Webhook Secret Key',             value: '', secret: true },
-          { label: 'Webhook Whitelist IP addresses', value: '', secret: false, learnMore: 'https://www.airwallex.com/docs/developer-tools/webhooks/listen-for-webhook-events#whitelist-ip-addresses' },
-        ],
-        domainFile: '', // airwallex_domain_verification_file (zip up to 1MB)
+    // 独立方式（自带清算，与卡处理方并存）
+    paypal: { connected: true, on: true },
+    klarna: { directConnected: true, directOn: true }, // 自有直连，仅二期展示
+  },
+
+  // =========================================================================
+  // TRACKING PIXELS (platform-level)
+  //   Cross-app — Online Store, BestCheckout, Subscriptions all read the same pixel
+  //   IDs from here. BestShopio fires standard events on the merchant's behalf
+  //   (PageView, InitiateCheckout, Purchase, etc.) so they don't have to hand-roll
+  //   tracking code per app. Conversion API tokens enable server-side de-duped events
+  //   — critical post-iOS 14 because client-side pixels miss 30-50% of conversions.
+  // =========================================================================
+  pixels: {
+    platforms: {
+      meta: {
+        key: 'meta', name: 'Meta Pixel', vendor: 'Facebook · Instagram', logo: 'meta',
+        enabled: true, pixelId: '102938475610293', capiToken: 'EAA•••••••••••••••', testEventCode: '',
+        advMatching: true,
+        docs: 'https://www.facebook.com/business/help/952192354843755',
       },
-      stripe: {
-        key: 'stripePayments', name: 'Stripe', linked: true, kind: 'card',
-        modalTitle: 'Connect Stripe account',
-        blurb: 'Allows users to pay with Card, Apple Pay, Google Pay, Link, Amazon Pay, and Klarna (where available).',
-        fields: [
-          // stripe_publishable_key / _secret_key / _webhook_secret
-          { label: 'Publishable Key', value: 'pk_live_51PdQ8xK2Pj7nProto0a1b2c', secret: false },
-          { label: 'Secret Key',      value: 'sk_live_••••••••••••••••••••',     secret: true },
-          { label: 'Signing secret',  value: 'whsec_••••••••••••••••',           secret: true },
-        ],
+      ga4: {
+        key: 'ga4', name: 'Google Analytics 4', vendor: 'GA4 · GTM', logo: 'ga4',
+        enabled: true, measurementId: 'G-AB12CD34EF', apiSecret: 'gtm_•••••••••', gtmId: '',
+        docs: 'https://developers.google.com/analytics/devguides/collection/ga4',
+      },
+      tiktok: {
+        key: 'tiktok', name: 'TikTok Pixel', vendor: 'TikTok Ads', logo: 'tiktok',
+        enabled: false, pixelId: '', accessToken: '', testCode: '',
+        docs: 'https://ads.tiktok.com/marketing_api/docs?id=1739584847324162',
+      },
+      googleAds: {
+        key: 'googleAds', name: 'Google Ads Conversion', vendor: 'Google Ads', logo: 'gads',
+        enabled: false, conversionId: '', purchaseLabel: '', leadLabel: '',
+        docs: 'https://support.google.com/google-ads/answer/6095821',
+      },
+      custom: {
+        key: 'custom', name: 'Custom tracking code', vendor: 'Head & Body scripts', logo: 'code',
+        enabled: false, headScript: '', bodyScript: '',
       },
     },
-    paypal: {
-      key: 'paypalPayments', name: 'PayPal', linked: true, kind: 'wallet',
-      modalTitle: 'Connect Paypal developer account',
-      blurb: 'Allows users to pay with PayPal.',
-      mode: 'live', // live | sandbox  (paypal_mode)
-      fields: [
-        // paypal_client_id / _client_secret / _webhook_secret
-        { label: 'Client ID',  value: 'Aa1bProtoClientId2c3dXXXXXXXXXXXXXXXXXXXXXXXXXXXX', secret: false },
-        { label: 'Secret key', value: 'EL••••••••••••••••••••••••', secret: true },
-        { label: 'Webhook ID', value: '5GA••••••••••••', secret: true },
-      ],
-    },
+    // Standard events BestShopio fires automatically. Merchants don't pick these — the platform
+    // maps a unified internal event ("buyer reached checkout") to each platform's vendor name.
+    events: [
+      { id: 'page_view',     name: 'Page view',          meta: 'PageView',         ga4: 'page_view',       tiktok: 'PageView',         gads: '—',                       fires: 'Every storefront page load' },
+      { id: 'view_item',     name: 'View product / offer', meta: 'ViewContent',    ga4: 'view_item',       tiktok: 'ViewContent',      gads: '—',                       fires: 'Product page, upsell offer, downsell offer' },
+      { id: 'add_to_cart',   name: 'Add to cart / accept upsell', meta: 'AddToCart', ga4: 'add_to_cart',  tiktok: 'AddToCart',        gads: '—',                       fires: 'Cart add + one-click upsell accept' },
+      { id: 'begin_checkout', name: 'Begin checkout',    meta: 'InitiateCheckout', ga4: 'begin_checkout', tiktok: 'InitiateCheckout', gads: '—',                       fires: 'Buyer lands on the checkout page' },
+      { id: 'add_payment',   name: 'Payment info added', meta: 'AddPaymentInfo',   ga4: 'add_payment_info', tiktok: 'AddPaymentInfo', gads: '—',                       fires: 'Buyer fills payment method' },
+      { id: 'purchase',      name: 'Purchase',           meta: 'Purchase',         ga4: 'purchase',        tiktok: 'CompletePayment',  gads: 'Conversion (Purchase)',   fires: 'Order written back (Thank-you / order_create webhook)' },
+    ],
   },
 
   // =========================================================================

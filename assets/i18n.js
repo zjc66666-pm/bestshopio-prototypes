@@ -205,11 +205,12 @@
   }
 
   function translateAttrs(el) {
+    if (el.closest && el.closest('.i18n-skip')) return; // attrs (e.g. placeholder) inside a skipped subtree stay untranslated
     for (var i = 0; i < ATTRS.length; i++) {
       var a = ATTRS[i];
       if (el.hasAttribute && el.hasAttribute(a)) {
         var v = el.getAttribute(a);
-        var hit = DICT[(v || '').trim()];
+        var hit = tr(v); // DICT + RULES（如 "Please enter X" → "请输入 X"），与文本节点一致
         if (hit != null && hit !== v) el.setAttribute(a, hit);
       }
     }
