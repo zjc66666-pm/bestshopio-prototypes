@@ -1210,7 +1210,13 @@
         title: 'Disconnect',
         body: cfg.discHint + '. You\'ll need to re-enter the credentials to reconnect.',
         okText: 'Disconnect', danger: true,
-        onOk: () => toast('Disconnected'),
+        onOk: () => {
+          if (key === 'ga4') { W_TRACKING.ga4.measurementId = ''; W_TRACKING.ga4.apiSecret = ''; }
+          else if (key === 'ads') { W_TRACKING.ads.conversionId = ''; W_TRACKING.ads.purchaseLabel = ''; W_TRACKING.ads.leadLabel = ''; }
+          else if (key === 'gtm') { W_TRACKING.gtm.containerId = ''; }
+          renderWsTracking();
+          toast('Disconnected');
+        },
       });
     };
   }
