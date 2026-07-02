@@ -87,6 +87,7 @@
       { kind: 'checkout-endorsement', name: 'Specialist endorsement', desc: 'Doctor / expert approval card' },
       { kind: 'checkout-rating', name: 'Rating bar', desc: 'Trustpilot-style rating strip' },
       { kind: 'checkout-guarantee', name: 'Guarantee badge', desc: 'Money-back guarantee reassurance' },
+      { kind: 'checkout-trust', name: 'Trust & certifications', desc: 'GMP / Made in USA / FDA seal wall' },
       { kind: 'checkout-addon', name: 'Upsell add-on', desc: 'Customers-also-grabbed cross-sell' },
       { kind: 'checkout-bundle', name: 'Offer / Bundle picker', desc: 'Single-page funnel (Offer source) · P1' },
       { kind: 'checkout-confirm', name: 'Order confirmation', desc: 'Thank-you hero with check' },
@@ -140,7 +141,7 @@
       { sub: 'Shape' },
       { key: 'button_border_color', label: 'Border color', control: 'color', default: '#103635' },
       { key: 'button_border_width', label: 'Border width', control: 'range', min: 0, max: 4, step: 1, unit: 'px', default: 1 },
-      { key: 'button_border_radius', label: 'Corner radius', control: 'range', min: 0, max: 40, step: 1, unit: 'px', default: 40, info: 'Capped at 40px — once radius ≥ height ÷ 2 the corners are fully pilled.' },
+      { key: 'button_border_radius', label: 'Corner radius', control: 'range', min: 0, max: 40, step: 1, unit: 'px', default: 6, info: 'Capped at 40px — once radius ≥ height ÷ 2 the corners are fully pilled.' },
       { key: 'button_height', label: 'Height', control: 'range', min: 32, max: 64, step: 1, unit: 'px', default: 44 },
       { key: 'button_horizontal_padding', label: 'Horizontal padding', control: 'range', min: 8, max: 48, step: 1, unit: 'px', default: 24 },
       { key: 'button_text_transform', label: 'Label case', control: 'select', default: 'uppercase', options: [
@@ -161,6 +162,31 @@
       { sub: 'Radius' },
       { key: 'image_border_radius', label: 'Image radius', control: 'range', min: 0, max: 40, step: 1, unit: 'px', default: 12 },
       { key: 'card_border_radius', label: 'Card radius', control: 'range', min: 0, max: 40, step: 1, unit: 'px', default: 12 },
+    ] },
+    // Checkout funnel — its own layout, decoupled from the storefront Max page width. Applies to the
+    // checkout / thank-you / upsell / downsell pages (the focused, conversion-first surface).
+    // surface:'checkout' → shown only when editing a funnel page (checkout/thank-you/upsell/downsell),
+    // and the storefront groups above are hidden there. A self-contained settings surface, like Shopify's
+    // separate checkout editor. The funnel reads ONLY these tokens (not the storefront page width/padding).
+    { key: 'checkout', name: 'Checkout funnel', desc: 'A dedicated surface for checkout · thank-you · upsell · downsell', surface: 'checkout', open: true, fields: [
+      { info: 'These settings apply only to the checkout funnel. It is a focused, conversion-first surface, fully separate from the storefront theme (own width, padding, spacing — not the storefront page settings).' },
+      { sub: 'Logo' },
+      { key: 'logo_image', label: 'Logo image', control: 'image', default: '', info: 'Shown centered at the top. Falls back to the logo text.' },
+      { key: 'logo_text', label: 'Logo text', control: 'text', default: 'AURA', info: 'Used when no logo image is set.' },
+      { key: 'logo_width', label: 'Logo width', control: 'range', min: 80, max: 280, step: 4, unit: 'px', default: 150 },
+      { key: 'logo_alignment', label: 'Logo alignment', control: 'segmented', default: 'center', options: [
+        { value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' } ] },
+      { sub: 'Colors' },
+      { key: 'accent_color', label: 'Accent', control: 'color', default: '#103635', info: 'Buttons, links and selected states.' },
+      { key: 'form_background', label: 'Form side', control: 'color', default: '#FFFFFF' },
+      { key: 'summary_background', label: 'Summary side', control: 'color', default: '#F9FAFB' },
+      { sub: 'Layout' },
+      { key: 'content_width', label: 'Content width', control: 'segmented', default: 'compact', options: [
+        { value: 'compact', label: 'Compact' }, { value: 'comfortable', label: 'Comfortable' } ] },
+      { key: 'summary_position', label: 'Order summary position', control: 'segmented', default: 'right', options: [
+        { value: 'right', label: 'Right' }, { value: 'left', label: 'Left' } ] },
+      { key: 'padding_horizontal', label: 'Horizontal padding', control: 'range', min: 8, max: 80, step: 2, unit: 'px', default: 40, info: 'Checkout-only — independent of the storefront page padding.' },
+      { key: 'section_spacing', label: 'Vertical spacing', control: 'range', min: 8, max: 48, step: 2, unit: 'px', default: 18 },
     ] },
     { key: 'product_cards', name: 'Product cards', desc: 'Default product card visuals', fields: [
       { sub: 'Image' },
@@ -192,7 +218,7 @@
       { key: 'input_border_color', label: 'Border (default)', control: 'color', default: '#E5E5E5' },
       { key: 'focus_border_color', label: 'Border (focused)', control: 'color', default: '#103635' },
       { sub: 'Shape' },
-      { key: 'input_border_radius', label: 'Corner radius', control: 'range', min: 0, max: 40, step: 1, unit: 'px', default: 40 },
+      { key: 'input_border_radius', label: 'Corner radius', control: 'range', min: 0, max: 40, step: 1, unit: 'px', default: 6 },
       { key: 'input_height', label: 'Height', control: 'range', min: 32, max: 64, step: 1, unit: 'px', default: 44 },
       { key: 'input_horizontal_padding', label: 'Horizontal padding', control: 'range', min: 8, max: 32, step: 1, unit: 'px', default: 16 },
     ] },
@@ -353,11 +379,14 @@
       ] },
       { id: 'co-end',  kind: 'checkout-endorsement' },
       { id: 'co-rate', kind: 'checkout-rating' },
+      { id: 'co-trust', kind: 'checkout-trust' },
       { id: 'co-rev',  kind: 'testimonial' },
       { id: 'co-why',  kind: 'text-with-icon' },
     ] },
-    // Standard — the BestVoy production checkout: clean form (left) + order summary (right), nothing else.
+    // Standard — BestVoy production checkout: logo header + reserved-timer band on top, then the clean
+    // form (left) + order summary (right). The countdown is what merchants expect to see on checkout.
     'standard': { seeds: [
+      { id: 'co-urg', kind: 'checkout-urgency', settings: { style: 'reserve', message: 'Due to high demand your order is reserved for:', time: '02:45' } },
       { id: 'co-pay', kind: 'checkout-payment' },
       { id: 'co-sum', kind: 'checkout-summary', settings: { subtotal: '$9.32', shipping: '$8.99', discount: '$0.00', total: '$18.31' } },
     ] },

@@ -146,6 +146,10 @@
     pagePad: (t, mob) => ((t && t.layout) ? (mob ? t.layout.page_horizontal_padding_mobile : t.layout.page_horizontal_padding_desktop) : (mob ? 16 : 40)),
     gridGap: (t, mob) => ((t && t.layout) ? (mob ? t.layout.grid_gap_mobile : t.layout.grid_gap_desktop) : (mob ? 16 : 24)),
     pageWidth: (t) => ((t && t.layout && t.layout.page_width) || 1200),
+    // checkout funnel layout — its OWN tokens (decoupled from the storefront layout group)
+    ckPad: (t, mob) => { const v = (t && t.checkout && t.checkout.padding_horizontal != null) ? t.checkout.padding_horizontal : 40; return mob ? Math.min(v, 20) : v; },
+    ckGap: (t) => ((t && t.checkout && t.checkout.section_spacing != null) ? t.checkout.section_spacing : 18),
+    ckWidth: (t) => (((t && t.checkout && t.checkout.content_width) === 'comfortable') ? 1200 : 980),
   });
 
   // ------------------------------------------------------------------ section loader
@@ -304,7 +308,7 @@
     document.body.appendChild(b);
     wireTop(); wireLeft(); wireCanvas();
     if (ED.leftMode === 'settings' || ED.selection.kind === 'theme-settings') wireSettings(); else wireRight();
-    applyHighlight(); scrollToSelected();
+    applyHighlight(); applyFrameWidth(); scrollToSelected();
   }
   function closeBuilder() { const ex = document.getElementById('os-builder'); if (ex) ex.remove(); closePops(); }
 
@@ -374,28 +378,61 @@
     return left;
   }
   function settingsTreeHint() {
-    return '<div class="os-tree-note">Global tokens — every Section &amp; Block inherits from here unless overridden. Edit on the right; the preview updates live.</div>' +
-      D.SETTINGS_GROUPS.map((g) => '<div class="os-tree-row" data-sgrp="' + g.key + '"><span class="os-tr-ico">' + I.gear + '</span><span class="os-tr-name">' + esc(g.name) + '</span></div>').join('');
+    const note = isFunnel()
+      ? 'Checkout funnel settings — a dedicated surface, separate from the storefront theme. Edit on the right; the preview updates live.'
+      : 'Global tokens — every Section &amp; Block inherits from here unless overridden. Edit on the right; the preview updates live.';
+    return '<div class="os-tree-note">' + note + '</div>' +
+      settingsGroups().map((g) => '<div class="os-tree-row" data-sgrp="' + g.key + '"><span class="os-tr-ico">' + I.gear + '</span><span class="os-tr-name">' + esc(g.name) + '</span></div>').join('');
   }
   function treeHtml() {
     const sel = ED.selection;
-    const groupHead = (key, label) => '<div class="os-grp-head" data-grp="' + key + '"><span class="os-caret' + (ED.expand[key] ? ' open' : '') + '">' + I.chevR + '</span>' + esc(label) + '</div>';
+    const gopen = (key) => ED.expand[key] !== false; // default-open groups
+    const groupHead = (key, label) => '<div class="os-grp-head" data-grp="' + key + '"><span class="os-caret' + (gopen(key) ? ' open' : '') + '">' + I.chevR + '</span>' + esc(label) + '</div>';
     let html = '';
-    // Header group
+    if (isFunnel()) return funnelTreeHtml(groupHead, gopen);
+    // ---- storefront tree (home / collection / product) ----
     html += groupHead('header', 'Header Group');
-    if (ED.expand.header) {
+    if (gopen('header')) {
       html += globalRow('announcement', 'Announcement bar', ED.theme.announcement, sel.kind === 'announcement');
       html += globalRow('header', 'Header', ED.theme.header, sel.kind === 'header');
     }
-    // Template group
     html += groupHead('template', pageLabel().replace(/ page$/i, '') + ' Template');
-    if (ED.expand.template) {
+    if (gopen('template')) {
       pageSections().forEach((s) => { html += sectionRow(s); });
       html += '<div class="os-tree-add" data-add-sec>' + I.plus + ' Add section <span class="os-add-n">(' + countAvailable() + ')</span></div>';
     }
-    // Footer group
     html += groupHead('footer', 'Footer Group');
-    if (ED.expand.footer) html += globalRow('footer', 'Footer', ED.theme.footer, sel.kind === 'footer');
+    if (gopen('footer')) html += globalRow('footer', 'Footer', ED.theme.footer, sel.kind === 'footer');
+    return html;
+  }
+  // Checkout-funnel tree — Shopify-style: Header / Main / Order summary / Footer. Logo & Policies are
+  // governed by the checkout settings & the auto policy footer (shown as locked rows that jump there).
+  function funnelTreeHtml(groupHead, gopen) {
+    const secs = pageSections();
+    const lockRow = (icon, label, title, jump) => '<div class="os-row sec ck-fixed"' + (jump ? ' data-ck-jump="' + jump + '"' : '') + '>' +
+      '<span class="os-row-caret ghost"></span><span class="os-tr-ico">' + ICON(icon) + '</span>' +
+      '<span class="os-tr-name">' + esc(label) + '</span><span class="os-tr-lock" title="' + esc(title) + '">' + I.lock + '</span></div>';
+    let html = '';
+    // Header — logo lives in checkout settings
+    html += groupHead('ck-header', 'Header');
+    if (gopen('ck-header')) html += lockRow('image', 'Logo', 'Edit in Checkout settings', 'logo');
+    // Core sections (payment / summary) break into Shopify-style locked sub-steps; add-ons stay normal rows.
+    const rowFor = (s) => CK_PARTS[s.kind] ? ckPartsRows(s, CK_PARTS[s.kind]) : sectionRow(s);
+    // Main — form-side sections (urgency, payment, …) + full-width content below
+    html += groupHead('ck-main', 'Main');
+    if (gopen('ck-main')) {
+      secs.filter((s) => ckColOf(s.kind) === 'main').forEach((s) => { html += rowFor(s); });
+      html += '<div class="os-tree-add" data-add-sec>' + I.plus + ' Add section <span class="os-add-n">(' + countAvailable() + ')</span></div>';
+    }
+    // Order summary — summary-side sections
+    const side = secs.filter((s) => ckColOf(s.kind) === 'summary');
+    if (side.length) {
+      html += groupHead('ck-summary', 'Order summary');
+      if (gopen('ck-summary')) side.forEach((s) => { html += rowFor(s); });
+    }
+    // Footer — auto policy links
+    html += groupHead('ck-footer', 'Footer');
+    if (gopen('ck-footer')) html += lockRow('lock', 'Policies', 'Auto — Refund / Shipping / Privacy / Terms');
     return html;
   }
   function countAvailable() { let n = 0; D.CATALOG.forEach((g) => g.entries.forEach((e) => { if (e.kind && SECTIONS[e.kind]) n++; })); return n; }
@@ -427,16 +464,17 @@
     const hasBlocks = def && def.blocks;
     const open = ED.sectionExpand[s.id] !== false;
     const name = sectionLabel(s);
-    let html = '<div class="os-row sec' + (active ? ' active' : '') + (s.hidden ? ' hid' : '') + '" draggable="true" data-sel-sec="' + s.id + '">' +
+    const locked = !!(def && def.core); // core checkout steps: can't delete / reorder / hide (keep settings)
+    let html = '<div class="os-row sec' + (active ? ' active' : '') + (s.hidden ? ' hid' : '') + '"' + (locked ? '' : ' draggable="true"') + ' data-sel-sec="' + s.id + '">' +
       (hasBlocks ? '<span class="os-row-caret' + (open ? ' open' : '') + '" data-tog-sec="' + s.id + '">' + I.chevR + '</span>' : '<span class="os-row-caret ghost"></span>') +
       '<span class="os-tr-ico">' + ICON(def ? def.icon : 'layers') + '</span>' +
       '<span class="os-tr-name">' + esc(name) + '</span>' +
-      rowActions(s.hidden, true) + '<span class="os-tr-grip">' + I.grip + '</span></div>';
+      (locked ? '<span class="os-tr-lock" title="Core checkout step — locked">' + I.lock + '</span>' : rowActions(s.hidden, true) + '<span class="os-tr-grip">' + I.grip + '</span>') + '</div>';
     if (hasBlocks && open) {
       (s.blocks || []).forEach((bl) => {
         const bActive = sel.kind === 'block' && sel.blockId === bl.id;
         html += '<div class="os-row blk' + (bActive ? ' active' : '') + (bl.hidden ? ' hid' : '') + '" draggable="true" data-sel-blk="' + s.id + ':' + bl.id + '">' +
-          '<span class="os-tr-ico sm">' + ICON('layers') + '</span><span class="os-tr-name">' + esc(blockLabel(s, bl)) + '</span>' +
+          '<span class="os-row-caret ghost"></span><span class="os-tr-ico sm">' + ICON('layers') + '</span><span class="os-tr-name">' + esc(blockLabel(s, bl)) + '</span>' +
           rowActions(bl.hidden, true) + '<span class="os-tr-grip">' + I.grip + '</span></div>';
       });
       const bd = blockAddInfo(s);
@@ -475,10 +513,13 @@
       tree.querySelectorAll('[data-sgrp]').forEach((r) => r.onclick = () => { const k = r.getAttribute('data-sgrp'); ED.settingsExpand[k] = true; ED.selection = { kind: 'theme-settings' }; refreshRight(); setTimeout(() => { const el = document.querySelector('#os-set-' + k); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30); });
       return;
     }
-    tree.querySelectorAll('[data-grp]').forEach((g) => g.onclick = () => { const k = g.getAttribute('data-grp'); ED.expand[k] = !ED.expand[k]; refreshTree(); });
+    tree.querySelectorAll('[data-grp]').forEach((g) => g.onclick = () => { const k = g.getAttribute('data-grp'); ED.expand[k] = ED.expand[k] === false ? true : false; refreshTree(); });
     tree.querySelectorAll('[data-tog-sec]').forEach((c) => c.onclick = (e) => { e.stopPropagation(); const id = c.getAttribute('data-tog-sec'); ED.sectionExpand[id] = ED.sectionExpand[id] === false ? true : false; refreshTree(); });
+    // funnel "Logo" row → jump into the checkout settings surface
+    tree.querySelectorAll('[data-ck-jump]').forEach((r) => r.onclick = () => { ED.leftMode = 'settings'; ED.selection = { kind: 'theme-settings' }; ED.settingsExpand['checkout'] = true; rerender(); });
     tree.querySelectorAll('[data-sel-global]').forEach((r) => bindRow(r, () => select({ kind: r.getAttribute('data-sel-global') })));
     tree.querySelectorAll('[data-sel-sec]').forEach((r) => bindRow(r, () => select({ kind: 'section', sectionId: r.getAttribute('data-sel-sec') })));
+    tree.querySelectorAll('[data-sel-part]').forEach((r) => bindRow(r, () => { const p = r.getAttribute('data-sel-part').split(':'); select({ kind: 'section', sectionId: p[0], part: p[1] }); }));
     tree.querySelectorAll('[data-sel-blk]').forEach((r) => bindRow(r, () => { const p = r.getAttribute('data-sel-blk').split(':'); select({ kind: 'block', sectionId: p[0], blockId: p[1] }); }));
     const addS = tree.querySelector('[data-add-sec]'); if (addS) addS.onclick = (e) => openAddSection(e.currentTarget);
     tree.querySelectorAll('[data-add-blk]').forEach((r) => r.onclick = (e) => { e.stopPropagation(); addBlock(r.getAttribute('data-add-blk'), e.currentTarget); });
@@ -494,35 +535,103 @@
   function centerPanel() {
     const c = h('<div class="os-center"></div>');
     c.innerHTML = '<div class="os-canvas-bar">Live preview · ' + esc(pageLabel()) + ' · ' + (ED.device === 'desktop' ? 'Desktop' : 'Mobile') + '</div>' +
-      '<div class="os-canvas-scroll" id="os-cscroll"><div class="os-frame i18n-skip ' + ED.device + '" id="os-frame">' + canvasHtml() + '</div></div>';
+      '<div class="os-canvas-scroll" id="os-cscroll"><div class="os-frame-wrap" id="os-frame-wrap"><div class="os-frame i18n-skip ' + ED.device + '" id="os-frame">' + canvasHtml() + '</div></div></div>';
     return c;
+  }
+  // The checkout funnel (checkout / thank-you / upsell / downsell) is its own surface — no storefront
+  // announcement, nav header or footer; it brings its own checkout-header + minimal policy footer.
+  function isFunnel() { const p = ED.currentPage; return p === 'checkout' || p === 'thank-you' || p === 'upsell' || p === 'downsell'; }
+  // The theme-settings panel is surface-aware: funnel pages show ONLY the checkout settings; storefront
+  // pages show the storefront groups (and hide the checkout group). Like Shopify's separate checkout editor.
+  function settingsGroups() { return D.SETTINGS_GROUPS.filter((g) => isFunnel() ? g.surface === 'checkout' : g.surface !== 'checkout'); }
+  // checkout column map (shared by the canvas layout AND the Shopify-style grouped tree): which column
+  // each funnel section lives in. Unmapped → 'main' (full-width / form-side content).
+  const CK_COL = { 'checkout-payment': 'main', 'checkout-bundle': 'main', 'checkout-addon': 'main', 'checkout-urgency': 'main', 'checkout-confirm': 'main', 'checkout-postpurchase': 'main', 'checkout-tracking': 'main', 'checkout-summary': 'summary', 'checkout-endorsement': 'summary', 'checkout-rating': 'summary', 'checkout-trust': 'summary' };
+  function ckColOf(kind) { return CK_COL[kind] === 'summary' ? 'summary' : 'main'; }
+  // Shopify-style locked steps shown in the tree for the core sections (one level — no nested children).
+  // Each row selects the parent section (so its settings stay reachable) but is locked (flow is fixed).
+  const CK_PARTS = {
+    'checkout-payment': [
+      { id: 'express', icon: 'cart', label: 'Express checkout' },
+      { id: 'contact', icon: 'user', label: 'Contact' },
+      { id: 'delivery', icon: 'cart', label: 'Delivery' },
+      { id: 'shipping', icon: 'layers', label: 'Shipping method' },
+      { id: 'payment', icon: 'lock', label: 'Payment' },
+      { id: 'remember', icon: 'eye', label: 'Remember me' },
+      { id: 'paynow', icon: 'play', label: 'Pay now' },
+    ],
+    'checkout-summary': [
+      { id: 'cart', icon: 'cart', label: 'Cart' },
+      { id: 'discounts', icon: 'gear', label: 'Discounts' },
+      { id: 'total', icon: 'layers', label: 'Total' },
+    ],
+  };
+  function ckPartsRows(s, parts) {
+    const sel = ED.selection;
+    return parts.map((p) => {
+      const active = sel.kind === 'section' && sel.sectionId === s.id && sel.part === p.id;
+      return '<div class="os-row sec ck-fixed' + (active ? ' active' : '') + '" data-sel-part="' + s.id + ':' + p.id + '"><span class="os-row-caret ghost"></span>' +
+        '<span class="os-tr-ico">' + ICON(p.icon) + '</span><span class="os-tr-name">' + esc(p.label) + '</span>' +
+        '<span class="os-tr-lock" title="Locked checkout step">' + I.lock + '</span></div>';
+    }).join('');
   }
   function canvasHtml() {
     let html = '';
-    const coPage = ED.currentPage === 'checkout' || ED.currentPage === 'thank-you';
     const visible = pageSections().filter((s) => !s.hidden);
-    html += wrapGlobal('announcement', ED.theme.announcement);
-    if (!coPage) html += wrapGlobal('header', ED.theme.header); // checkout / thank-you: no storefront nav header
-    if (ED.currentPage === 'checkout') {
-      // PC = two columns like every real checkout: the FORM (payment) + bundle/add-on are the wide
-      // left; the order summary and right-rail social proof (specialist card, rating) sit in the
-      // 372px sidebar. Reviews / why-us / guarantee stay full-width. Mobile collapses to one column.
-      const COL = { 'checkout-payment': 'main', 'checkout-bundle': 'main', 'checkout-addon': 'main', 'checkout-summary': 'sidebar', 'checkout-endorsement': 'sidebar', 'checkout-rating': 'sidebar' };
-      let mainB = [], sideB = [];
-      const flush = () => {
-        if (mainB.length && sideB.length) html += '<div class="os-co-2col"><div class="os-co-col">' + mainB.join('') + '</div><div class="os-co-col os-co-side">' + sideB.join('') + '</div></div>';
-        else if (sideB.length) html += '<div class="os-co-solo">' + sideB.join('') + '</div>'; // payment with no main column → centered
-        else if (mainB.length) html += mainB.join('');
-        mainB = []; sideB = [];
-      };
-      visible.forEach((s) => { const c = COL[s.kind]; if (c === 'main') mainB.push(wrapSection(s)); else if (c === 'sidebar') sideB.push(wrapSection(s, true)); else { flush(); html += wrapSection(s); } });
-      flush();
+    if (!isFunnel()) html += wrapGlobal('announcement', ED.theme.announcement); // funnel: no storefront announcement
+    if (!isFunnel()) html += wrapGlobal('header', ED.theme.header); // funnel: no storefront nav header (uses checkout-header)
+    if (isFunnel()) {
+      html += renderFunnel(visible);
     } else {
       visible.forEach((s) => { html += wrapSection(s); });
     }
-    html += wrapGlobal('footer', ED.theme.footer);
+    if (!isFunnel()) html += wrapGlobal('footer', ED.theme.footer); // funnel: no storefront footer (uses its own minimal policy footer)
     if (!visible.length) html += '<div class="os-empty-canvas">This template has no visible sections.<br>Add one from the left, or switch page type.</div>';
     return html;
+  }
+  // Renders any funnel page on the shared checkout surface: logo bar (from checkout settings) + body +
+  // policy footer, wrapped in .ck-funnel (own system font). Checkout & Thank-you use the two-tone two
+  // column layout (form + order summary). Upsell & Downsell use a single-focus centered column.
+  function renderFunnel(visible) {
+    const t = tokens(), ck = t.checkout || {};
+    const contentW = OS.ckWidth(t), gap = OS.ckGap(t), pad = OS.ckPad(t, ED.device === 'mobile');
+    const formBg = OS.bgOrTransparent(ck.form_background || '#FFFFFF');
+    const sumBg = OS.bgOrTransparent(ck.summary_background || '#F9FAFB');
+    const surf = (inner) => '<div class="ck-surface" style="background:' + formBg + '">' + inner + '</div>';
+    // logo bar (all funnel pages) — pad by ckPad so Left/Right align with the form/summary content edges
+    const lAlign = ck.logo_alignment || 'center';
+    const logoBar = '<div class="ck-surface" style="background:' + formBg + ';border-bottom:1px solid rgba(0,0,0,.07)"><div class="ck-logobar" style="max-width:' + contentW + 'px;padding:20px ' + pad + 'px;justify-content:' + (lAlign === 'left' ? 'flex-start' : lAlign === 'right' ? 'flex-end' : 'center') + '">' +
+      (ck.logo_image ? '<img src="' + OS.esc(ck.logo_image) + '" alt="" style="width:' + (ck.logo_width || 150) + 'px;height:auto">' : '<span class="ck-logo-txt" style="font-size:' + Math.max(16, Math.round((ck.logo_width || 150) / 6.5)) + 'px">' + OS.esc(ck.logo_text || 'Shop') + '</span>') +
+      '</div></div>';
+    const footer = surf('<div class="ck-foot" style="max-width:' + contentW + 'px">' +
+      ['Refund policy', 'Shipping', 'Privacy policy', 'Terms of service'].map((l) => '<a href="#">' + l + '</a>').join('') + '</div>');
+
+    let body;
+    if (ED.currentPage === 'upsell' || ED.currentPage === 'downsell') {
+      // single-focus: one narrow centered column, a reassurance line, zero distraction (no summary rail)
+      const note = '<div class="ck-reassure"><b>✓ Your order is confirmed.</b> Add this to your order in one click — no need to re-enter payment.</div>';
+      body = surf('<div class="ck-single" style="max-width:' + Math.min(contentW, 660) + 'px;gap:' + gap + 'px">' + note + visible.map((s) => wrapSection(s)).join('') + '</div>');
+    } else {
+      // two-tone two-column (checkout + thank-you): form-side + order-summary-side that bleeds to the edge
+      const summaryLeft = ck.summary_position === 'left';
+      const topB = [], mainB = [], sideB = [], botB = [];
+      let seenCol = false;
+      visible.forEach((s) => {
+        const c = CK_COL[s.kind];
+        if (c === 'main') { seenCol = true; mainB.push(wrapSection(s)); }
+        else if (c === 'summary') { seenCol = true; sideB.push(wrapSection(s, true)); }
+        else (seenCol ? botB : topB).push(wrapSection(s));
+      });
+      const formCol = '<div class="ck-fcol" style="gap:' + gap + 'px">' + mainB.join('') + '</div>';
+      const sideCol = sideB.length ? '<div class="ck-scol" style="--sbg:' + sumBg + ';background:' + sumBg + ';gap:' + gap + 'px">' + sideB.join('') + '</div>' : '';
+      const gridCols = sideB.length ? (summaryLeft ? '1fr 1.25fr' : '1.25fr 1fr') : '1fr';
+      body = (topB.length ? topB.join('') : '') +
+        '<div class="ck-surface' + (summaryLeft ? ' sleft' : '') + '" style="background:' + formBg + '">' +
+        '<div class="ck-row" style="max-width:' + contentW + 'px;grid-template-columns:' + gridCols + '">' +
+        (summaryLeft ? (sideCol + formCol) : (formCol + sideCol)) + '</div></div>' +
+        (botB.length ? surf('<div class="ck-below" style="max-width:' + contentW + 'px">' + botB.join('') + '</div>') : '');
+    }
+    return '<div class="ck-funnel">' + logoBar + body + footer + '</div>';
   }
   function ctxFor(scope, id, selBool, selBlk, rail) { return { mob: ED.device === 'mobile', tokens: tokens(), scope, sectionId: id, selected: selBool, selectedBlockId: selBlk, sample: D.SAMPLE, rail: !!rail }; }
   function wrapGlobal(scope, inst) {
@@ -532,7 +641,8 @@
     return '<div class="os-sec' + (sel ? ' active' : '') + '" data-csel-global="' + scope + '"><span class="os-sec-tag">' + esc(scope === 'announcement' ? 'Announcement' : scope[0].toUpperCase() + scope.slice(1)) + '</span>' + inner + '</div>';
   }
   function wrapSection(s, rail) {
-    const def = SECTIONS[s.kind]; const sel = ED.selection.kind === 'section' && ED.selection.sectionId === s.id;
+    const def = SECTIONS[s.kind]; const selSec = ED.selection.kind === 'section' && ED.selection.sectionId === s.id;
+    const sel = selSec && !ED.selection.part; // a part selection suppresses the full-section outline (the part outlines instead)
     const inner = def ? safeRender(def, s, 'section', s.id, rail) : unknown(s.kind);
     return '<div class="os-sec' + (sel ? ' active' : '') + '" data-csel="' + s.id + '" data-preview-id="section:' + s.id + '"><span class="os-sec-tag">' + esc(sectionLabel(s)) + '</span>' + inner + '</div>';
   }
@@ -556,6 +666,8 @@
     frame.querySelectorAll('[data-csel]').forEach((el) => el.addEventListener('click', (e) => {
       const blk = e.target.closest('[data-block-id]'); const id = el.getAttribute('data-csel');
       if (blk && el.contains(blk)) { e.stopPropagation(); select({ kind: 'block', sectionId: id, blockId: blk.getAttribute('data-block-id') }); return; }
+      const part = e.target.closest('[data-ck-part]'); // checkout-payment / summary parts → select the matching tree step
+      if (part && el.contains(part)) { e.stopPropagation(); select({ kind: 'section', sectionId: id, part: part.getAttribute('data-ck-part') }); return; }
       select({ kind: 'section', sectionId: id });
     }));
     // hydrate each section for storefront interactivity (carousels, accordions, drag sliders…)
@@ -586,9 +698,12 @@
       const s = pageSections().find((x) => x.id === sel.sectionId);
       if (!s) return emptyRight('Section not found.');
       const def = SECTIONS[s.kind];
-      return panelHead(def ? def.icon : 'layers', sectionLabel(s), def ? def.name : s.kind, s.hidden, 'section', s.id) +
-        '<div class="os-right-scroll" id="os-form">' + (def ? schemaForm(def.schema, s.settings, '') : noSettings()) +
-        '<button class="os-remove" data-remove-sec="' + s.id + '">' + I.trash + ' Remove section</button></div>';
+      const locked = !!(def && def.core);
+      return panelHead(def ? def.icon : 'layers', sectionLabel(s), def ? def.name : s.kind, s.hidden, 'section', s.id, locked) +
+        '<div class="os-right-scroll" id="os-form">' +
+        (locked ? '<div class="os-info">This is a core checkout step — its position is locked, but you can still adjust its settings below.</div>' : '') +
+        (def ? schemaForm(def.schema, s.settings, '') : noSettings()) +
+        (locked ? '' : '<button class="os-remove" data-remove-sec="' + s.id + '">' + I.trash + ' Remove section</button>') + '</div>';
     }
     if (sel.kind === 'block') {
       const s = pageSections().find((x) => x.id === sel.sectionId) || globalBySel(sel.sectionId);
@@ -602,10 +717,11 @@
     return emptyRight('Select a section or block to edit.');
   }
   function globalBySel(scope) { return (scope === 'footer' || scope === 'header' || scope === 'announcement') ? ED.theme[scope] : null; }
-  function panelHead(icon, title, sub, hidden, scope, id) {
+  function panelHead(icon, title, sub, hidden, scope, id, locked) {
     return '<div class="os-right-head"><span class="os-rh-ico">' + ICON(icon) + '</span>' +
       '<div style="min-width:0"><div class="os-rh-title">' + esc(title) + '</div><div class="os-rh-sub">' + esc(sub) + '</div></div>' +
-      '<button class="os-rh-vis' + (hidden ? ' off' : '') + '" data-head-vis="' + scope + ':' + id + '" title="' + (hidden ? 'Show section' : 'Hide section') + '">' + (hidden ? I.eyeOff : I.eye) + '</button></div>';
+      (locked ? '<span class="os-rh-vis" title="Core checkout step — locked" style="cursor:default;opacity:.6">' + I.lock + '</span>'
+              : '<button class="os-rh-vis' + (hidden ? ' off' : '') + '" data-head-vis="' + scope + ':' + id + '" title="' + (hidden ? 'Show section' : 'Hide section') + '">' + (hidden ? I.eyeOff : I.eye) + '</button>') + '</div>';
   }
   function emptyRight(msg) { return '<div class="os-right-head"><span class="os-rh-ico">' + I.layers + '</span><div><div class="os-rh-title">Settings</div><div class="os-rh-sub">Nothing selected</div></div></div><div class="os-empty-right">' + esc(msg) + '</div>'; }
   function noSettings() { return '<div class="os-info">This section has no settings.</div>'; }
@@ -743,10 +859,11 @@
   //  THEME SETTINGS PANEL (right side, 8 collapsible groups)
   // ==========================================================================
   function themeSettingsPanel() {
+    const funnel = isFunnel();
     const head = '<div class="os-right-head"><span class="os-rh-ico">' + I.gear + '</span>' +
-      '<div style="min-width:0"><div class="os-rh-title">Theme settings</div><div class="os-rh-sub">Global tokens — inherited everywhere</div></div>' +
+      '<div style="min-width:0"><div class="os-rh-title">' + (funnel ? 'Checkout settings' : 'Theme settings') + '</div><div class="os-rh-sub">' + (funnel ? 'A dedicated surface, separate from the storefront theme' : 'Global tokens — inherited everywhere') + '</div></div>' +
       '<button class="os-expall" id="os-expall">Expand all</button></div>';
-    const groups = D.SETTINGS_GROUPS.map((g) => {
+    const groups = settingsGroups().map((g) => {
       const open = ED.settingsExpand[g.key];
       const n = g.fields.filter((f) => f.key).length;
       const body = open ? '<div class="os-set-body">' + g.fields.map((f) => fieldHtml(f, ED.theme.settings[g.key])).join('') + '</div>' : '';
@@ -759,10 +876,10 @@
   }
   function wireSettings() {
     const form = document.querySelector('#os-form'); if (!form) return;
-    const exp = document.querySelector('#os-expall'); if (exp) exp.onclick = () => { const anyClosed = D.SETTINGS_GROUPS.some((g) => !ED.settingsExpand[g.key]); D.SETTINGS_GROUPS.forEach((g) => ED.settingsExpand[g.key] = anyClosed); refreshRight(); };
+    const exp = document.querySelector('#os-expall'); if (exp) exp.onclick = () => { const gs = settingsGroups(); const anyClosed = gs.some((g) => !ED.settingsExpand[g.key]); gs.forEach((g) => ED.settingsExpand[g.key] = anyClosed); refreshRight(); };
     form.querySelectorAll('[data-setgrp]').forEach((hd) => hd.onclick = () => { const k = hd.getAttribute('data-setgrp'); ED.settingsExpand[k] = !ED.settingsExpand[k]; refreshRight(); });
     // wire each group's fields against theme.settings[group]
-    D.SETTINGS_GROUPS.forEach((g) => {
+    settingsGroups().forEach((g) => {
       if (!ED.settingsExpand[g.key]) return;
       const grpEl = form.querySelector('#os-set-' + g.key); if (!grpEl) return;
       const target = ED.theme.settings[g.key];
@@ -996,7 +1113,7 @@
       newsletter: T.centered, 'custom-html': T.code,
       'checkout-payment': T.form, 'checkout-summary': T.summary, 'checkout-bundle': T.bundle, 'checkout-addon': T.rows,
       'checkout-urgency': T.urgency, 'checkout-rating': T.rating, 'checkout-guarantee': T.guarantee, 'checkout-tracking': T.tracking,
-      'checkout-endorsement': T.endorse, 'checkout-confirm': T.confirm,
+      'checkout-endorsement': T.endorse, 'checkout-confirm': T.confirm, 'checkout-trust': T.iconRow,
       // collection sections (not in catalog today, but keep them ready)
       'collection-banner': T.split, 'collection-list': T.tiles(4), 'collection-page': T.productGrid, 'list-collections': T.tiles(4),
     };
@@ -1041,7 +1158,15 @@
   }
   function switchPage(pt) {
     if (pt === ED.currentPage) return;
-    ED.currentPage = pt; if (ED.selection.kind === 'section' || ED.selection.kind === 'block') ED.selection = { kind: 'header' };
+    ED.currentPage = pt;
+    // Reset the selection to a valid item on the new page. Globals (header/announcement/footer) don't
+    // exist on the funnel surface, so never leave one of those selected after switching to a funnel page.
+    const k = ED.selection.kind;
+    const staleGlobal = isFunnel() && (k === 'header' || k === 'announcement' || k === 'footer');
+    if (k === 'section' || k === 'block' || staleGlobal) {
+      const secs = (ED.theme.templates[pt] && ED.theme.templates[pt].sections) || [];
+      ED.selection = secs.length ? { kind: 'section', sectionId: secs[0].id } : (isFunnel() ? { kind: 'theme-settings' } : { kind: 'header' });
+    }
     ED.leftMode = 'sections'; rerender();
   }
 
@@ -1120,7 +1245,36 @@
   function refreshTop() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-top'); const nw = topBar(); old.replaceWith(nw); wireTop(); }
   function refreshTree() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-left'); const nw = leftPanel(); old.replaceWith(nw); wireLeft(); }
   function refreshRight() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-right'); const nw = rightPanel(); old.replaceWith(nw); if (ED.leftMode === 'settings' || ED.selection.kind === 'theme-settings') wireSettings(); else wireRight(); }
-  function refreshCanvas() { const fr = document.getElementById('os-frame'); if (!fr) return; fr.className = 'os-frame i18n-skip ' + ED.device; fr.innerHTML = canvasHtml(); wireCanvas(); applyHighlight(); const bar = document.querySelector('.os-canvas-bar'); if (bar) bar.textContent = 'Live preview · ' + pageLabel() + ' · ' + (ED.device === 'desktop' ? 'Desktop' : 'Mobile'); }
+  function refreshCanvas() { const fr = document.getElementById('os-frame'); if (!fr) return; fr.className = 'os-frame i18n-skip ' + ED.device; fr.innerHTML = canvasHtml(); wireCanvas(); applyHighlight(); applyFrameWidth(); const bar = document.querySelector('.os-canvas-bar'); if (bar) bar.textContent = 'Live preview · ' + pageLabel() + ' · ' + (ED.device === 'desktop' ? 'Desktop' : 'Mobile'); }
+  // Preview frame reflects the theme's page width: the frame renders at its true design width
+  // (page_width on desktop, 390 on mobile) and scales down to fit the available center area, so the
+  // whole Max-page-width range is visible — like a real theme editor. The wrapper holds the scaled
+  // footprint so centering/scrolling stay correct.
+  function applyFrameWidth() {
+    const scroll = document.getElementById('os-cscroll');
+    const wrap = document.getElementById('os-frame-wrap');
+    const fr = document.getElementById('os-frame');
+    if (!scroll || !wrap || !fr) return;
+    const avail = scroll.clientWidth - 40; // 20px padding each side
+    // Checkout funnel renders full-bleed (its own surface), so the frame fills the available width;
+    // storefront pages use the theme's Max page width.
+    const designW = ED.device === 'mobile' ? 390 : (ED.currentPage === 'checkout' ? Math.max(600, avail) : OS.pageWidth(tokens()));
+    fr.style.width = designW + 'px';
+    fr.style.transform = 'none';
+    const scale = avail > 0 ? Math.min(1, avail / designW) : 1;
+    if (scale < 1) {
+      const hh = fr.offsetHeight; // natural (unscaled) height
+      fr.style.transformOrigin = 'top left';
+      fr.style.transform = 'scale(' + scale + ')';
+      wrap.style.width = Math.round(designW * scale) + 'px';
+      wrap.style.height = Math.round(hh * scale) + 'px';
+    } else {
+      wrap.style.width = designW + 'px';
+      wrap.style.height = '';
+    }
+  }
+  // keep the scale correct when the editor window resizes
+  window.addEventListener('resize', function () { if (document.getElementById('os-frame')) applyFrameWidth(); });
   function refreshAffectedCanvas() {
     const sel = ED.selection;
     if (sel.kind === 'header' || sel.kind === 'footer' || sel.kind === 'announcement') return refreshCanvas();
@@ -1129,7 +1283,24 @@
   function applyHighlight() {
     const fr = document.getElementById('os-frame'); if (!fr) return;
     fr.querySelectorAll('.os-block-sel').forEach((x) => x.classList.remove('os-block-sel'));
+    fr.querySelectorAll('.os-part-sel').forEach((x) => x.classList.remove('os-part-sel'));
     if (ED.selection.kind === 'block') { const el = fr.querySelector('[data-block-id="' + cssesc(ED.selection.blockId) + '"]'); if (el) el.classList.add('os-block-sel'); }
+    // keep the canvas section/global outline in sync with the selection — tree clicks don't re-render
+    // the canvas, so without this the .active outline stays on whatever was last rendered.
+    fr.querySelectorAll('.os-sec.active').forEach((x) => x.classList.remove('active'));
+    const sel = ED.selection; let secEl = null;
+    if (sel.kind === 'section') secEl = fr.querySelector('[data-csel="' + cssesc(sel.sectionId) + '"]');
+    else if (sel.kind === 'announcement' || sel.kind === 'header' || sel.kind === 'footer') secEl = fr.querySelector('[data-csel-global="' + sel.kind + '"]');
+    if (secEl) {
+      // part selection: outline the matching `[data-ck-part]` inside the section instead of the whole section
+      if (sel.kind === 'section' && sel.part) {
+        const pe = secEl.querySelector('[data-ck-part="' + cssesc(sel.part) + '"]');
+        if (pe) pe.classList.add('os-part-sel');
+        else secEl.classList.add('active'); // fallback if the part isn't on this section
+      } else {
+        secEl.classList.add('active');
+      }
+    }
   }
   function cssesc(s) { return String(s).replace(/"/g, '\\"'); }
   function scrollToSelected() {
@@ -1137,7 +1308,11 @@
     setTimeout(() => {
       if (sel.kind === 'header' || sel.kind === 'announcement') { sc.scrollTo({ top: 0, behavior: 'smooth' }); return; }
       let el = null;
-      if (sel.kind === 'section') el = sc.querySelector('[data-preview-id="section:' + cssesc(sel.sectionId) + '"]');
+      if (sel.kind === 'section') {
+        const sEl = sc.querySelector('[data-preview-id="section:' + cssesc(sel.sectionId) + '"]');
+        // if a part is selected, scroll to the part (e.g. clicking "Payment" jumps to the Card panel)
+        el = sel.part && sEl ? (sEl.querySelector('[data-ck-part="' + cssesc(sel.part) + '"]') || sEl) : sEl;
+      }
       else if (sel.kind === 'block') { const sEl = sc.querySelector('[data-block-id="' + cssesc(sel.blockId) + '"]'); el = sEl; }
       else if (sel.kind === 'footer') el = sc.querySelector('[data-csel-global="footer"]');
       if (el) { const r = el.getBoundingClientRect(); const sr = sc.getBoundingClientRect(); sc.scrollTo({ top: sc.scrollTop + (r.top - sr.top) - 10, behavior: 'smooth' }); }
@@ -1175,8 +1350,8 @@
       const tpl = tplM ? decodeURIComponent(tplM[1]) : null;
       const savedM = q.match(/(?:^|&)saved=([^&]+)/);
       const saved = savedM ? decodeURIComponent(savedM[1]) : null;
-      // from BestCheckout: 装修 is reached from the Templates library / Funnel → return there
-      const exitTo = /(^|&)from=bestcheckout(&|$)/.test(q) ? '#/bestcheckout/templates' : null;
+      // from BestCheckout: 装修 is always reached from the Funnel (template choice is contextual there) → return to it
+      const exitTo = /(^|&)from=bestcheckout(&|$)/.test(q) ? '#/bestcheckout/funnel' : null;
       ensureSections().then(() => renderBuilder(decodeURIComponent(m[1]), pg, exitTo, tpl, saved));
     } else renderList();
   }
@@ -1239,15 +1414,20 @@
   .os-tree-note{font-size:12px;color:var(--ink-muted);line-height:1.55;background:var(--panel);border-radius:8px;padding:9px 11px;margin:4px 4px 10px}
   .os-tree-row{display:flex;align-items:center;gap:9px;padding:8px 8px;border-radius:8px;cursor:pointer;color:var(--ink-body);font-size:13.5px}
   .os-tree-row:hover{background:var(--panel)}
-  .os-grp-head{display:flex;align-items:center;gap:6px;padding:9px 8px 6px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}
+  /* tree hierarchy: Group (L1) › Section (L2, indented) › Block (L3, indented + guide line) */
+  .os-grp-head{display:flex;align-items:center;gap:6px;padding:9px 6px 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer;margin-top:12px}
+  #os-tree>.os-grp-head:first-child{margin-top:2px}
   .os-caret{display:inline-flex;color:var(--ink-muted);transition:transform .15s}.os-caret.open{transform:rotate(90deg)}
-  .os-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--ink-body);position:relative}
+  .os-row{display:flex;align-items:center;gap:8px;padding:7px 8px 7px 18px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--ink-body);position:relative}
   .os-row:hover{background:var(--panel)}
   .os-row.active{background:#e6f0ff;color:var(--brand);font-weight:600}
   .os-row.active .os-tr-ico{color:var(--brand)}
   .os-row.hid .os-tr-name{text-decoration:line-through;opacity:.7}
-  .os-row.blk{padding-left:24px}
+  .os-row.blk{padding-left:40px}
+  .os-row.blk::before{content:'';position:absolute;left:51px;top:0;bottom:0;width:1px;background:var(--hair)} /* aligned to the parent section icon centre */
   .os-tr-ico{width:18px;height:18px;flex:none;color:var(--ink-muted);display:inline-flex}.os-tr-ico.sm{width:15px;height:15px}
+  .os-tr-dash{width:14px;height:14px;flex:none;border:1.5px dashed #c0c7d2;border-radius:3px;display:inline-block}
+  .ck-fixed{cursor:pointer}.ck-fixed .os-tr-lock{opacity:.5}
   .os-tr-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .os-row-caret{width:16px;display:inline-flex;color:var(--ink-muted);transition:transform .15s;flex:none}.os-row-caret.open{transform:rotate(90deg)}.os-row-caret.ghost{visibility:hidden}
   .os-tr-acts{display:flex;gap:1px;opacity:0;flex:none}
@@ -1257,8 +1437,8 @@
   .os-tr-grip{color:#c4cad3;cursor:grab;display:inline-flex;flex:none;opacity:0}
   .os-row:hover .os-tr-grip{opacity:1}
   .os-tr-lock{color:#c4cad3;display:inline-flex;flex:none;margin-left:2px}
-  .os-tree-add{display:flex;align-items:center;gap:6px;padding:8px;margin:4px 0 2px;border:1px dashed var(--ctl);border-radius:8px;color:var(--brand);font-size:13px;cursor:pointer}
-  .os-tree-add:hover{background:var(--brand-50)}.os-tree-add.sub{margin-left:20px;font-size:12.5px;padding:6px 8px}
+  .os-tree-add{display:flex;align-items:center;gap:6px;padding:8px;margin:4px 0 2px 14px;border:1px dashed var(--ctl);border-radius:8px;color:var(--brand);font-size:13px;cursor:pointer}
+  .os-tree-add:hover{background:var(--brand-50)}.os-tree-add.sub{margin-left:36px;font-size:12.5px;padding:6px 8px}
   .os-add-n{color:var(--ink-muted);font-size:12px}
   .os-row.dragging{opacity:.4}
   .os-row.drop-before::before,.os-row.drop-after::before{content:'';position:absolute;left:8px;right:8px;height:2px;background:var(--brand);border-radius:2px}
@@ -1268,20 +1448,34 @@
   .os-center{display:flex;flex-direction:column;min-height:0;background:#eef0f3}
   .os-canvas-bar{flex-shrink:0;padding:7px 14px;font-size:12px;color:var(--ink-muted);background:#f7f8fa;border-bottom:1px solid var(--hair)}
   .os-canvas-scroll{flex:1;overflow:auto;padding:20px;display:flex;justify-content:center;align-items:flex-start}
-  .os-frame{width:100%;max-width:1080px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08);border-radius:4px;overflow:hidden;transition:max-width .2s}
-  .os-frame.mobile{max-width:390px}
-  .os-co-2col{display:grid;grid-template-columns:1fr 42%;gap:0;align-items:stretch;padding:0}
-  .os-co-col{display:flex;flex-direction:column;gap:18px;min-width:0}
-  .os-co-side{background:#f9fafb}
-  .os-co-solo{max-width:592px;margin:0 auto;padding:10px 32px 28px}
-  .os-frame.mobile .os-co-2col{grid-template-columns:1fr;padding:8px 14px 16px;gap:16px}
-  .os-frame.mobile .os-co-side{position:static}
-  .os-frame.mobile .os-co-solo{padding:8px 14px 16px}
+  .os-frame-wrap{flex:none}
+  .os-frame{width:1080px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08);border-radius:4px;overflow:hidden;transform-origin:top left}
+  /* checkout funnel surface — full-bleed two-tone; summary bg bleeds to the frame edge */
+  /* funnel uses its own neutral system font (decoupled from theme typography, like Shopify checkout) */
+  .ck-funnel,.ck-funnel *{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif!important}
+  .ck-surface{position:relative;width:100%;overflow:hidden}
+  .ck-row{margin:0 auto;display:grid;gap:0;align-items:stretch}
+  .ck-fcol,.ck-scol{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .ck-scol{position:relative}
+  .ck-scol::after{content:'';position:absolute;top:0;bottom:0;left:100%;width:100vw;background:var(--sbg);z-index:0}
+  .ck-surface.sleft .ck-scol::after{left:auto;right:100%}
+  .ck-scol>*{position:relative;z-index:1}
+  .ck-below{margin:0 auto}
+  .ck-single{margin:0 auto;display:flex;flex-direction:column;padding:8px 0 8px}
+  .ck-reassure{background:#eaf7ef;border:1px solid #bfe6cf;color:#1f7a4d;border-radius:10px;padding:12px 16px;font-size:13.5px;line-height:1.45;text-align:center}
+  .ck-logobar{margin:0 auto;display:flex;align-items:center;padding:20px 0}
+  .ck-logobar img{display:block}.ck-logo-txt{font-weight:800;letter-spacing:.06em;color:#1a1a1a}
+  .ck-foot{margin:0 auto;display:flex;flex-wrap:wrap;gap:18px;justify-content:center;padding:22px 0 28px;border-top:1px solid rgba(0,0,0,.08)}
+  .ck-foot a{font-size:12.5px;color:#6b7280;text-decoration:none}.ck-foot a:hover{text-decoration:underline}
+  .os-frame.mobile .ck-row{grid-template-columns:1fr!important}
+  .os-frame.mobile .ck-scol::after{display:none}
   .os-sec{position:relative;outline:2px solid transparent;outline-offset:-2px;cursor:pointer;transition:outline-color .12s}
   .os-sec:hover{outline-color:#b9d2ff}.os-sec.active{outline-color:var(--brand)}
   .os-sec-tag{position:absolute;top:0;left:0;z-index:4;background:var(--brand);color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-bottom-right-radius:6px;opacity:0;pointer-events:none;transition:opacity .12s;letter-spacing:.02em}
   .os-sec:hover .os-sec-tag,.os-sec.active .os-sec-tag{opacity:1}
   .os-block-sel{outline:2px solid var(--brand);outline-offset:-2px}
+  /* checkout payment/summary part selection — same brand outline as block-sel, but on the sub-region */
+  .os-part-sel{position:relative;outline:2px solid var(--brand);outline-offset:4px;border-radius:6px}
   .os-empty-canvas{padding:64px 20px;text-align:center;color:#9aa3b0;font-size:13px;line-height:1.7}
   .os-render-err{margin:8px;padding:14px;background:#fff4f2;color:#b3401f;font-size:12.5px;border:1px solid #f3c9c0;border-radius:8px}
 
