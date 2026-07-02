@@ -306,8 +306,10 @@
   const isDirty = () => JSON.stringify(EDIT) !== JSON.stringify(ORIGINAL);
   const syncBar = () => window.UI && window.UI.setUnsavedBar(document, isDirty());
 
+  const supportedWidgetStyle = (style) => WID_STYLES.indexOf(style) >= 0 ? style : 'radio';
+
   function emptyPlan() {
-    return { id: 0, name: '', status: 'draft', itemType: '', product: '', sku: '', bundleId: '', bundleTemplate: '', tierIndex: 0, image: '', widgetStyle: WID.style, cycle: { every: 1, unit: 'month' },
+    return { id: 0, name: '', status: 'draft', itemType: '', product: '', sku: '', bundleId: '', bundleTemplate: '', tierIndex: 0, image: '', widgetStyle: supportedWidgetStyle(WID.style), cycle: { every: 1, unit: 'month' },
       price: null, compareAt: null, discountType: 'percent', discountValue: 10, currency: 'USD', minCycles: 0, gateway: D.settings.defaultGateway, subscribers: 0, createdAt: '2026-06-18' };
   }
 
@@ -316,6 +318,7 @@
     if (isEdit) { const p = planById(id); if (!p) return renderMissing('Plan', '#/subscriptions/plans'); EDIT_ID = p.id; EDIT = snap(p); }
     else { EDIT_ID = null; EDIT = emptyPlan(); }
     if (EDIT.widgetStyle == null) EDIT.widgetStyle = WID.style;       // existing plans predate per-plan style
+    EDIT.widgetStyle = supportedWidgetStyle(EDIT.widgetStyle);        // Frequency needs multiple plans on the same product; not supported in this MVP.
     if (!EDIT.itemType) EDIT.itemType = EDIT.product ? 'product' : '';
     if (EDIT.discountValue == null) { EDIT.discountType = EDIT.discountType || 'percent'; EDIT.discountValue = EDIT.discountPct || 0; } // migrate legacy percent-only plans
     previewBuyMode = 'sub';
@@ -378,7 +381,7 @@
       : '';
 
     // Compact storefront-style thumbnails (line-art glyph + label); the full render shows live in the right-rail preview.
-    const styleNames = { radio: 'Radio list', freq: 'Frequency', buttons: 'Buttons', bordered: 'Bordered' };
+    const styleNames = { radio: 'Radio list', buttons: 'Buttons', bordered: 'Bordered' };
     const styleThumb = (key) => {
       const on = p.widgetStyle === key;
       return '<div data-pstyle="' + key + '" style="cursor:pointer;border:1.5px solid ' + (on ? 'var(--brand)' : 'var(--ctl)') + ';border-radius:8px;padding:16px 14px 14px;position:relative;background:#fff">' +
@@ -422,7 +425,7 @@
             card('Commitment',
               label('Minimum cycles') + numInput('', 'id="pl-min"', p.minCycles, { min: 0, w: '220px' }) + '<div class="muted" style="font-size:11.5px;margin-top:6px">Customers can\'t cancel before this many charges. 0 = cancel anytime.</div>') +
             card('Storefront style',
-              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="pl-styles">' + WID_STYLES.map(styleThumb).join('') + '</div>' +
+              '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px" id="pl-styles">' + WID_STYLES.map(styleThumb).join('') + '</div>' +
               '<div class="muted" style="font-size:12px;margin-top:12px">How the Subscribe &amp; Save options look on this product\'s page.</div>') +
             '<div class="flex gap-2 mt-1" style="justify-content:flex-end">' +
               '<button class="btn btn-primary" data-act="save">' + saveText + '</button>' +
@@ -761,7 +764,7 @@
 
   // ================= STOREFRONT (subscription widget display) =================
   const WID = { tab: 'pdp', style: 'radio', showReward: false, showBenefits: false, showSwap: false };
-  const WID_STYLES = ['radio', 'freq', 'buttons', 'bordered'];
+  const WID_STYLES = ['radio', 'buttons', 'bordered'];
 
   // a mini purchase-options box rendered in the chosen style (used by the style preview + the live plan preview).
   // o defaults reproduce the shop-level Storefront sample ($5 / $4.75 / 5% / every 20 days); pass a plan to reflect real numbers.
@@ -983,6 +986,7 @@
 
   function renderStorefront() {
     const styleCard = (key) => {
+      WID.style = supportedWidgetStyle(WID.style);
       const on = WID.style === key;
       return '<div class="panel" data-wstyle="' + key + '" style="padding:14px;cursor:pointer;position:relative;border-color:' + (on ? 'var(--brand)' : 'var(--hair)') + (on ? ';box-shadow:0 0 0 1px var(--brand)' : '') + '">' +
         (on ? '<span style="position:absolute;top:8px;right:10px;color:var(--brand);font-size:13px">●</span>' : '') + buyBox(key) + '</div>';
@@ -994,7 +998,7 @@
       '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Subscription widget</h1></div>' +
       '<div class="detail-cols"><div class="detail-main">' +
         card('Widget styles',
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="wstyles">' + WID_STYLES.map(styleCard).join('') + '</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px" id="wstyles">' + WID_STYLES.map(styleCard).join('') + '</div>' +
           '<div class="info-banner" style="margin-top:14px;font-size:12px">More styling (fonts, colors, spacing) is available in the Theme Editor.</div>') +
         card('Display options',
           tog('showReward', WID.showReward, 'Show reward') + '<div style="border-top:1px solid var(--hair)"></div>' +
