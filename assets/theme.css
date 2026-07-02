@@ -240,6 +240,9 @@ input[list]::-webkit-calendar-picker-indicator { display: none !important; }
 .modal-foot { padding: 4px 18px 18px; display: flex; justify-content: flex-end; gap: 8px; }
 .input { width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--ctl); border-radius: var(--radius); font-size: 14px; background: #fff; }
 .input:focus { outline: none; border-color: var(--brand); }
+/* Inline validation — mirrors .sh-fld-input.has-error / .sh-fld-error so .input fields
+   show a red border + red helper text instead of a toast. Stays red even on focus. */
+.input.has-error, .input.has-error:focus { border-color: var(--err); box-shadow: 0 0 0 2px rgb(211 54 18 / 10%); }
 
 /* metric tooltip */
 .tipbox { position: fixed; z-index: 90; max-width: 264px; background: #fff; border: 1px solid var(--hair); border-radius: 8px; box-shadow: var(--float-shadow); padding: 10px 12px; pointer-events: none; }

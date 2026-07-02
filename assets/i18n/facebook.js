@@ -12,8 +12,9 @@ window.I18N.extend({
 
   "Data tracking": "数据追踪",
   "Send conversion events back to Meta": "将转化事件回传到 Meta",
-  "Boost ad efficiency with Website Pixel, CAPI, and Offline CAPI by sending back conversion data to Meta. Connected accounts:": "通过 Website 的 Pixel 和 CAPI、Offline CAPI 回传转化事件到 Meta，帮助您提升广告投放效率。已绑定的账号：",
-  "Connected Website Pixel ID:": "已连接的 Website Pixel ID：",
+  "Boost ad efficiency with Facebook Pixel, CAPI, and Offline CAPI by sending back conversion data to Meta. Connected accounts:": "通过 Facebook Pixel 和 CAPI、Offline CAPI 回传转化事件到 Meta，帮助您提升广告投放效率。已绑定的账号：",
+  "Connected Pixel ID:": "已连接的 Pixel ID：",
+  "Connected Pixel IDs:": "已连接的 Pixel ID：",
 
   "Sell your products on Facebook and Instagram": "透过 Facebook 和 Instagram Shop 销售产品",
   "Showcase your products on social media to increase brand awareness and sales.": "在您的社群媒体上展示和销售商品，让顾客透过 Facebook 及 Instagram 就能轻松购物。",
@@ -38,18 +39,17 @@ window.I18N.extend({
   "Website data reporting": "Website 上报",
   "Once you successfully link up Pixel and Conversion API, we'll send the data to Meta every time there's a conversion.": "Pixel 和 Conversion API 绑定成功后，BestShopio 将在转化事件发生时把数据上报到 Meta，整个过程无需您编写代码。",
   "Authorizing Pixel and Conversion API": "Pixel 和 Conversion API 授权",
-  "Authorize": "授权",
   "Add": "添加",
   "Add Pixel ID and access token to send all events through Facebook Pixel and Conversions API. This will enhance your marketing ability.": "添加 Pixel ID 和访问令牌以通过 Facebook Pixel 和 Conversions API 发送所有事件，这些数据可提高你的营销能力。",
   "Learn how to set this up": "如何获得？",
   "Please do not select 'Instagram Account' during authorization.": "授权中不要勾选'Instagram 主页'，否则可能授权失败。",
 
   // Table headers + cells
-  "Facebook pixel": "Facebook 像素",
-  "Conversion API Access Token": "Conversion API Access Token",
+  "Pixel ID": "Pixel ID",
+  "Conversion API access token": "Conversion API access token",
   "Create source": "创建来源",
   "Action": "操作",
-  "Verified": "验证通过",
+  "No Pixel yet": "暂无 Pixel",
   "Add manually": "手动添加",
 
   // Pixel Helper helper row
@@ -61,7 +61,7 @@ window.I18N.extend({
   "Offline data reporting": "Offline 上报",
   "Evaluate your Meta ads' results over bricks-and-mortar conversions. You can also create and target offline audience groups with the right ads.": "借助线下转化量来衡量通过 Meta 投放的广告带来的实际成效，如店铺购物。除此之外，还可以创建类似受众，将广告投放给与您的线下客户具有相似特征的用户。",
   "Report offline conversion data with Offline Conversions API": "通过 Offline Conversions API 上报线下转化",
-  "After authorizing data set permissions through Meta Business Extension (MBE), we'll report offline order events to Meta. All offline orders from the previous day will be reported at 1 am UTC+8. You can choose a Pixel ID as your dataset ID, the same as what you report on the Website data reporting.": "通过 MBE 授权数据集权限后将为您上报成单事件到 Meta。东八区每天凌晨 1 点上报前一天全部 POS 成单的线下订单。您可以选择和【Website 上报】一样的 Pixel ID 作为数据集 ID。",
+  "After authorizing data set permissions through Meta Business Extension (MBE), we'll report offline order events to Meta. You can choose a Pixel ID as your dataset ID, the same as what you report on the Website data reporting.": "通过 MBE 授权数据集权限后将为您上报成单事件到 Meta。您可以选择和【Website 上报】一样的 Pixel ID 作为数据集 ID。",
   "Offline Conversions API": "Offline Conversions API",
   "Unauthorized": "未授权",
 
@@ -73,7 +73,7 @@ window.I18N.extend({
   "Messaging Event API": "Messaging Event API",
 
   // ============================== Add Pixel modal ==============================
-  "New FB Pixel and Conversion API tracking event": "新增 Facebook 像素 和 Conversion API 追踪事件",
+  "Add Facebook Pixel and Conversion API tracking event": "添加 Facebook 像素 和 Conversion API 追踪事件",
   "Select tracking event": "选择追踪事件",
   "A customer visits any webpage of the online store": "顾客造访网店内的任何网页",
   "A customer views a product or offer page": "顾客浏览商品或活动页面",
@@ -82,7 +82,7 @@ window.I18N.extend({
   "A customer fills in payment information": "顾客填写支付信息",
   "A customer completes a purchase": "顾客完成购买",
   "It's usually a JavaScript code snippet obtainable on the Meta platform.": "通常是一个 JavaScript 代码片段，需从 Facebook 平台上获取。",
-  "Paste your Facebook pixel, e.g.: 212313338444699": "请粘贴 Facebook 像素，如：212313338444699",
+  "Paste your Pixel ID, e.g.: 212313338444699": "请粘贴 Pixel ID，如：212313338444699",
   "Access Token": "Access Token",
   "What is Verification": "验证是什么",
   "Need help?": "需要帮助?",
@@ -95,17 +95,14 @@ window.I18N.extend({
   // Misc
   "Coming soon": "即将上线",
   "Help docs coming soon": "帮助文档即将上线",
-  "OAuth authorization flow — coming soon": "OAuth 授权流程 — 即将上线",
   "Edit pixel — coming soon": "编辑 Pixel — 即将上线",
   "Delete / Re-verify — coming soon": "删除 / 重新验证 — 即将上线",
   "Saved successfully": "保存成功",
-  "Please enter Facebook pixel": "请输入 Facebook 像素",
+  "Please enter Pixel ID": "请输入 Pixel ID",
 
   // ============================== Multi-Pixel table actions ==============================
   // Edit modal title (vs the "New ..." title for Add modal)
-  "Edit FB Pixel and Conversion API tracking event": "编辑 Facebook 像素 和 Conversion API 追踪事件",
-  // Token field hint (edit mode)
-  "Existing token shown masked — clear and re-enter to rotate.": "现有令牌以掩码显示——清空并重新输入即可更换。",
+  "Edit Facebook Pixel and Conversion API tracking event": "编辑 Facebook 像素 和 Conversion API 追踪事件",
   // "..." row menu options
   "Delete": "删除",
   // Toasts after row actions

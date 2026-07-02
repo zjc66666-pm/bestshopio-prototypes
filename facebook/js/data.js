@@ -171,7 +171,7 @@
         desc: 'Domain ownership lets you retain control over editing links or other content, hence safeguarding your domain from malicious activities.',
         enabled: false, illu: ILLU.domain },
       { id: 'pixel',     title: 'Data tracking', sub: 'Send conversion events back to Meta',
-        desc: 'Boost ad efficiency with Website Pixel, CAPI, and Offline CAPI by sending back conversion data to Meta. Connected accounts:',
+        desc: 'Boost ad efficiency with Facebook Pixel, CAPI, and Offline CAPI by sending back conversion data to Meta. Connected accounts:',
         enabled: true,  illu: ILLU.tracking, connectedHint: true },
       { id: 'shop',      title: 'Shop', titleBadge: 'NEW', sub: 'Sell your products on Facebook and Instagram',
         desc: 'Showcase your products on social media to increase brand awareness and sales.',
@@ -186,9 +186,9 @@
     ],
 
     // === Data tracking sub-page state — multi-Pixel array (Website data reporting)
-    // Each pixel has: pixelId / capiToken (masked or 'verified') / createSource / status
+    // Each pixel has: pixelId / capiToken (shown as-is, '—' when blank) / createSource
     pixels: [
-      { pixelId: '1665673578033672', capiToken: 'EAA*****DZD', createSource: 'Add manually', status: 'verified' },
+      { pixelId: '1665673578033672', capiToken: 'EAAGm0PX4ZCpsBO9ZCZBd8ZD', createSource: 'Add manually' },
     ],
 
     // NOTE: trackingEvents / pageTypes dropdown data removed — BestShopio fires all

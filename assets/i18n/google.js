@@ -89,6 +89,7 @@ window.I18N.extend({
   "Learn more":            "了解更多",
   "Stored securely · value is masked": "已安全存储 · 值已隐藏",
   "Saved successfully":    "保存成功",
+  "This field is required": "此项为必填",
   "Disconnected":          "已断开",
   "OAuth authorization flow — coming soon": "OAuth 授权流程 — 即将上线",
 

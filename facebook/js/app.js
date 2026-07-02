@@ -11,7 +11,8 @@
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
-  const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1900); };
+  // Success toast — matches the platform default (top, white card + green check), aligning with analytics.
+  const toast = (msg) => { const t = document.createElement('div'); t.innerHTML = '<span style="color:#1f8f4e;display:inline-flex;font-weight:700">✓</span><span>' + msg + '</span>'; t.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1f2433;border:1px solid #e6e8ee;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:200;box-shadow:0 6px 20px rgba(20,30,55,.14)'; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
 
   // Meta brand mark — used in the workspace title bar and module card title rows.
   const META_MARK = '<svg viewBox="0 0 24 24" width="22" height="22" fill="#1877F2"><path d="M22.675 0H1.325C.593 0 0 .593 0 1.325v21.351C0 23.408.593 24 1.325 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116c.73 0 1.323-.592 1.323-1.324V1.325C24 .593 23.407 0 22.675 0z"/></svg>';
@@ -82,20 +83,18 @@
     '.fb-hint .fb-tip{display:none;position:absolute;top:calc(100% + 9px);left:50%;transform:translateX(-50%);background:#3a3f4a;color:#fff;padding:9px 12px;border-radius:6px;font-size:12px;font-weight:400;line-height:1.55;width:280px;text-align:left;letter-spacing:0;z-index:200;box-shadow:0 4px 14px rgba(20,30,50,.22);white-space:normal;pointer-events:none}' +
     '.fb-hint .fb-tip::after{content:"";position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:#3a3f4a}' +
     '.fb-hint:hover .fb-tip,.fb-hint:focus .fb-tip{display:block}' +
-    '.fb-r-desc{font-size:13px;color:var(--ink-muted);line-height:1.6;margin-bottom:14px}' +
+    '.fb-r-desc{font-size:13px;color:var(--ink-muted);line-height:1.65;margin-bottom:14px}' +
     '.fb-r-desc .lnk{color:var(--brand);text-decoration:underline;text-underline-offset:2px}' +
     '.fb-r-actions{display:flex;gap:8px;flex:none}' +
     '.fb-r-actions .btn{padding:6px 16px;font-size:13px}' +
 
     /* Pixel table */
     '.fb-ptbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}' +
-    '.fb-ptbl th{text-align:left;padding:10px 4px;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-muted);border-bottom:1px solid var(--hair)}' +
+    '.fb-ptbl th{text-align:left;padding:10px 4px;font-size:12px;font-weight:600;color:var(--ink-muted);border-bottom:1px solid var(--hair)}' +
     '.fb-ptbl td{padding:14px 4px;border-bottom:1px solid var(--hair);vertical-align:middle}' +
     '.fb-ptbl tr:last-child td{border-bottom:none}' +
     '.fb-ptbl .pid{color:var(--ink);font-weight:500}' +
-    '.fb-ptbl .verif{display:inline-flex;align-items:center;gap:4px;color:#16a34a;font-size:12.5px;font-weight:500}' +
-    '.fb-ptbl .verif::before{content:"";width:6px;height:6px;border-radius:50%;background:#22c55e}' +
-    '.fb-ptbl .tok{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--ink-body);margin-left:8px}' +
+    '.fb-ptbl .tok{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--ink-body)}' +
     '.fb-row-act{display:flex;align-items:center;gap:8px}' +
     '.fb-iconbtn{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;border:none;background:transparent;color:var(--ink-muted);cursor:pointer}' +
     '.fb-iconbtn:hover{background:var(--panel);color:var(--ink)}' +
@@ -120,7 +119,7 @@
     '.fb-rowmenu-item.danger{color:var(--err)}' +
     '.fb-rowmenu-item.danger:hover{background:#fee}' +
     /* "Coming soon" pill — shared across workspace home + sub-page placeholders */
-    '.fb-soonpill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}';
+    '.fb-soonpill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:12px;font-weight:600;white-space:nowrap}';
 
   // Generic paint
   function paint(html) {
@@ -136,18 +135,20 @@
       // The "Shop" module shows F+IG pair instead of Meta mark; everything else uses Meta ∞
       const titleIcon = m.id === 'shop' ? FB_IG_PAIR : META_INF;
       const badge = m.titleBadge ? '<span class="fb-mhead-new">' + esc(m.titleBadge) + '</span>' : '';
-      // Status hint row — shown when the module is connected (currently only Data tracking)
-      const hint = (m.connectedHint && D.pixels.length)
-        ? '<div class="fb-mhint"><span class="ck">' + I.check + '</span>' +
-            'Connected Website Pixel ID: <b style="color:var(--ink);margin-left:3px">' + esc(D.pixels[0].pixelId) + '</b>' +
-          '</div>'
-        : '';
+      // Status hint row — shown when the module is connected (currently only Data tracking).
+      // One Pixel shows its ID; multiple show a count (full list lives on the sub-page).
+      let hint = '';
+      if (m.connectedHint && D.pixels.length) {
+        const innerHint = D.pixels.length === 1
+          ? 'Connected Pixel ID: <b style="color:var(--ink);margin-left:3px">' + esc(D.pixels[0].pixelId) + '</b>'
+          : 'Connected Pixel IDs: <b style="color:var(--ink);margin-left:3px">' + D.pixels.length + '</b>';
+        hint = '<div class="fb-mhint"><span class="ck">' + I.check + '</span>' + innerHint + '</div>';
+      }
       // CTA — Setup goes to sub-page; Original ad tools is the Advertising special label;
       // disabled modules show "Coming soon"
       let cta;
       if (m.enabled) {
-        cta = '<button class="btn btn-primary" data-go="' + esc(m.id) + '">Setup</button>' +
-              '<button class="btn btn-default" data-info style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:13px">' + I.info + 'Learn more</button>';
+        cta = '<button class="btn btn-primary" data-go="' + esc(m.id) + '">Setup</button>';
       } else if (m.ctaText) {
         // Advertising-style: deep-link to Meta's own Ads Manager (no in-app build).
         // External target so the merchant lands in their own Meta Business account.
@@ -210,17 +211,16 @@
               // tooltip body kept as a single text node so i18n overlay can match the full sentence
               '<div class="fb-r-title">Authorizing Pixel and Conversion API <span class="fb-hint" tabindex="0">?<span class="fb-tip">Pixel events fire from the storefront browser (Pixel) and our server-side Conversion API with a shared event_id — Meta dedupes automatically, so attribution survives iOS 14+ tracking blocks.</span></span></div>' +
               '<div class="fb-r-actions">' +
-                '<button class="btn btn-default" data-authorize>Authorize</button>' +
                 '<button class="btn btn-primary" data-add-pixel>Add</button>' +
               '</div>' +
             '</div>' +
-            '<div class="fb-r-desc">Add Pixel ID and access token to send all events through Facebook Pixel and Conversions API. This will enhance your marketing ability.<br>' +
-              'To connect, your BM needs shared access from the ad account owner <a href="' + esc(D.setupHelpUrl) + '" target="_blank" rel="noreferrer" class="lnk">Learn how to set this up</a>. Please do not select \'Instagram Account\' during authorization.</div>' +
+            '<div class="fb-r-desc"><div>Add Pixel ID and access token to send all events through Facebook Pixel and Conversions API. This will enhance your marketing ability.</div>' +
+              '<div style="margin-top:7px">To connect, your BM needs shared access from the ad account owner <a href="' + esc(D.setupHelpUrl) + '" target="_blank" rel="noreferrer" class="lnk">Learn how to set this up</a>. Please do not select \'Instagram Account\' during authorization.</div></div>' +
             // Pixel table
             '<table class="fb-ptbl"><thead><tr>' +
-              '<th>Facebook pixel</th><th>Conversion API Access Token</th><th>Create source</th><th style="text-align:right">Action</th>' +
+              '<th>Pixel ID</th><th>Conversion API access token</th><th>Create source</th><th style="text-align:right">Action</th>' +
             '</tr></thead><tbody id="fb-prows">' +
-              D.pixels.map(pixelRow).join('') +
+              pixelRowsHtml() +
             '</tbody></table>' +
             // Pixel Helper helper row
             '<div class="fb-helper">' +
@@ -243,9 +243,9 @@
         '<div class="fb-sec-r">' +
           '<div class="fb-r-card">' +
             '<div class="fb-r-title">Report offline conversion data with Offline Conversions API</div>' +
-            '<div class="fb-r-desc" style="margin-top:8px">After authorizing data set permissions through Meta Business Extension (MBE), we\'ll report offline order events to Meta. All offline orders from the previous day will be reported at 1 am UTC+8. You can choose a Pixel ID as your dataset ID, the same as what you report on the Website data reporting.</div>' +
+            '<div class="fb-r-desc" style="margin-top:8px">After authorizing data set permissions through Meta Business Extension (MBE), we\'ll report offline order events to Meta. You can choose a Pixel ID as your dataset ID, the same as what you report on the Website data reporting.</div>' +
             '<div class="fb-unauth">' +
-              '<div class="fb-unauth-l"><b>Offline Conversions API</b><span class="fb-pill-gray">Unauthorized</span></div>' +
+              '<div class="fb-unauth-l"><b>Offline Conversions API</b></div>' +
               '<span class="fb-soonpill">Coming soon</span>' +
             '</div>' +
           '</div>' +
@@ -263,7 +263,7 @@
             '<div class="fb-r-title">MBE authorization</div>' +
             '<div class="fb-r-desc" style="margin-top:8px">Once the authorization is enabled, the conversion actions of customers in live sales, post sales, message center will be synchronized with Meta, facilitating performance tracking and continuous optimization of Meta\'s ad performance.</div>' +
             '<div class="fb-unauth">' +
-              '<div class="fb-unauth-l"><b>Messaging Event API</b><span class="fb-pill-gray">Unauthorized</span></div>' +
+              '<div class="fb-unauth-l"><b>Messaging Event API</b></div>' +
               '<span class="fb-soonpill">Coming soon</span>' +
             '</div>' +
           '</div>' +
@@ -273,22 +273,27 @@
 
     const back = root.querySelector('[data-back]'); if (back) back.onclick = () => { location.hash = '#/facebook'; };
     const add  = root.querySelector('[data-add-pixel]'); if (add) add.onclick = () => openAddPixelModal();
-    const auth = root.querySelector('[data-authorize]'); if (auth) auth.onclick = () => toast('OAuth authorization flow — coming soon');
     wirePixelRows();
   }
 
   // One row of the pixel table
   function pixelRow(p, idx) {
-    const verif = '<span class="verif">Verified</span>';
     return '<tr data-pix="' + idx + '">' +
       '<td><span class="pid">' + esc(p.pixelId) + '</span></td>' +
-      '<td>' + (p.status === 'verified' ? verif : '') + '<span class="tok">' + esc(p.capiToken) + '</span></td>' +
+      '<td><span class="tok">' + esc(p.capiToken) + '</span></td>' +
       '<td class="muted">' + esc(p.createSource) + '</td>' +
       '<td style="text-align:right"><div class="fb-row-act" style="justify-content:flex-end">' +
         '<button class="fb-iconbtn" data-edit="' + idx + '" title="Edit">' + I.pencil + '</button>' +
         '<button class="fb-iconbtn" data-more="' + idx + '" title="More">' + I.dots + '</button>' +
       '</div></td>' +
     '</tr>';
+  }
+  // Table body — rows, or a centered empty state when no Pixel has been added yet.
+  function pixelRowsHtml() {
+    if (!D.pixels.length) {
+      return '<tr><td colspan="4" class="muted" style="text-align:center;padding:32px 4px;font-size:13px">No Pixel yet</td></tr>';
+    }
+    return D.pixels.map(pixelRow).join('');
   }
   function wirePixelRows() {
     root.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => {
@@ -331,7 +336,7 @@
   function refreshPixelRows() {
     const tbody = document.getElementById('fb-prows');
     if (tbody) {
-      tbody.innerHTML = D.pixels.map(pixelRow).join('');
+      tbody.innerHTML = pixelRowsHtml();
       wirePixelRows();
     }
   }
@@ -387,8 +392,8 @@
   function openPixelModal(idx) {
     const isEdit = typeof idx === 'number' && idx >= 0 && D.pixels[idx];
     const existing = isEdit ? D.pixels[idx] : null;
-    const title = isEdit ? 'Edit FB Pixel and Conversion API tracking event'
-                         : 'New FB Pixel and Conversion API tracking event';
+    const title = isEdit ? 'Edit Facebook Pixel and Conversion API tracking event'
+                         : 'Add Facebook Pixel and Conversion API tracking event';
     openPixelModalImpl(idx, isEdit, existing, title);
   }
   // Backwards-compat alias for the original entry point.
@@ -404,7 +409,7 @@
     // BestShopio auto-fires all 6 unified events on every page using a single
     // Pixel ID, so per-event / per-page Pixel splitting doesn't apply here.
     const prePixelId = isEdit ? existing.pixelId : '';
-    const preToken   = isEdit ? existing.capiToken : '';
+    const preToken   = isEdit && existing.capiToken !== '—' ? existing.capiToken : '';
 
     m.innerHTML =
       '<div class="modal-head flex items-center justify-between"><span>' + esc(title) + '</span>' +
@@ -412,13 +417,13 @@
       '</div>' +
       '<div class="modal-body" style="max-height:70vh;overflow:auto">' +
         '<div style="margin-bottom:14px">' +
-          '<div class="ctrl-label" style="text-transform:none;margin-bottom:4px">Facebook pixel</div>' +
+          '<div class="ctrl-label" style="text-transform:none;margin-bottom:4px">Pixel ID</div>' +
           '<div class="muted" style="font-size:11.5px;margin-bottom:6px">It\'s usually a JavaScript code snippet obtainable on the Meta platform.</div>' +
-          '<input class="input" value="' + esc(prePixelId) + '" placeholder="Paste your Facebook pixel, e.g.: 212313338444699" style="width:100%" /></div>' +
+          '<input class="input" data-pixel value="' + esc(prePixelId) + '" placeholder="Paste your Pixel ID, e.g.: 212313338444699" style="width:100%" />' +
+          '<div class="sh-fld-error" data-pixel-err></div></div>' +
         '<div style="margin-bottom:4px">' +
           '<div class="ctrl-label" style="text-transform:none;margin-bottom:6px">Access Token</div>' +
-          '<input class="input" value="' + esc(preToken) + '" type="password" placeholder="Paste your access token" style="width:100%" />' +
-          (isEdit ? '<div class="muted" style="font-size:11.5px;margin-top:4px">Existing token shown masked — clear and re-enter to rotate.</div>' : '') +
+          '<input class="input" value="' + esc(preToken) + '" placeholder="Paste your access token" style="width:100%" />' +
         '</div>' +
       '</div>' +
       '<div class="modal-foot" style="justify-content:flex-end">' +
@@ -433,20 +438,33 @@
     m.querySelector('[data-x]').onclick = close;
     m.querySelector('[data-cancel]').onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+
+    // Inline validation for the Pixel ID field — red border + red helper text
+    // (admin design system pattern), cleared as soon as the merchant types.
+    const pixelInput = m.querySelector('[data-pixel]');
+    const pixelErr   = m.querySelector('[data-pixel-err]');
+    pixelInput.oninput = () => {
+      if (pixelInput.classList.contains('has-error')) {
+        pixelInput.classList.remove('has-error');
+        pixelErr.textContent = '';
+      }
+    };
+
     m.querySelector('[data-ok]').onclick = () => {
       const inputs  = m.querySelectorAll('input');
       const pixelId = inputs[0].value.trim();
       const token   = inputs[1].value.trim();
-      if (!pixelId) { toast('Please enter Facebook pixel'); return; }
-      // Mask token at storage boundary — never persist plaintext in prototype state.
-      const maskedToken = token
-        ? (/[•*]/.test(token) ? token : token.slice(0, 3) + '*****' + token.slice(-3))
-        : '—';
+      if (!pixelId) {
+        pixelInput.classList.add('has-error');
+        pixelErr.textContent = 'Please enter Pixel ID';
+        pixelInput.focus();
+        return;
+      }
+      // Token shown as entered (no masking); '—' placeholder when left blank.
       const row = {
         pixelId,
-        capiToken: maskedToken,
+        capiToken: token || '—',
         createSource: isEdit ? existing.createSource : 'Add manually',
-        status: maskedToken === '—' ? 'pending' : 'verified',
       };
       if (isEdit) D.pixels[idx] = row; else D.pixels.push(row);
       close();

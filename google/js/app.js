@@ -31,7 +31,8 @@
   };
 
   // ---- toast ----
-  const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1900); };
+  // Success toast — matches the platform default (top, white card + green check), aligning with analytics.
+  const toast = (msg) => { const t = document.createElement('div'); t.innerHTML = '<span style="color:#1f8f4e;display:inline-flex;font-weight:700">✓</span><span>' + msg + '</span>'; t.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1f2433;border:1px solid #e6e8ee;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:200;box-shadow:0 6px 20px rgba(20,30,55,.14)'; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); };
 
   // ---- submit_status -> pill (mirrors statusNameMap / statusColorMap in table.tsx) ----
   // 0 All, 1 Unsubmitted, 2 Submitted, 3 Partial submitted, 4 Pending
@@ -1047,7 +1048,7 @@
     '.gw-millu{flex:none;width:240px;height:140px}' +
     '.gw-millu svg{display:block;width:100%;height:100%}' +
     /* "Coming soon" pill — matches the unified badge style across all channel workspaces */
-    '.gw-card-soon{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}' +
+    '.gw-card-soon{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:#f1f2f5;color:#6b7280;font-size:12px;font-weight:600;white-space:nowrap}' +
     /* Data tracking sub-page — left/right two-column section (mirrors Facebook .fb-sec) */
     '.gw-sec{display:grid;grid-template-columns:300px 1fr;gap:32px;margin-bottom:36px}' +
     '.gw-sec-l h2{font-size:17px;font-weight:600;color:var(--ink);margin:0 0 8px}' +
@@ -1086,7 +1087,8 @@
     const learn = opts.learnMore ? '<a class="lnk" href="' + esc(opts.learnMore) + '" target="_blank" rel="noreferrer" style="font-weight:400;float:right">Learn more</a>' : '';
     return '<div style="margin-bottom:14px">' +
       '<div class="ctrl-label" style="text-transform:none;margin-bottom:6px">' + esc(label) + req + learn + '</div>' +
-      '<input class="input" value="' + esc(v) + '" placeholder="' + esc(placeholder || '') + '"' + (opts.key ? ' data-key="' + esc(opts.key) + '"' : '') + ' />' +
+      '<input class="input" value="' + esc(v) + '" placeholder="' + esc(placeholder || '') + '"' + (opts.key ? ' data-key="' + esc(opts.key) + '"' : '') + (opts.optional ? '' : ' data-required="1"') + ' />' +
+      (opts.key ? '<div class="sh-fld-error" data-err-for="' + esc(opts.key) + '"></div>' : '') +
       (opts.secret && v ? '<div class="muted" style="font-size:11.5px;margin-top:4px">Stored securely · value is masked</div>' : '') +
       (opts.hint ? '<div class="muted" style="font-size:11.5px;margin-top:4px">' + esc(opts.hint) + '</div>' : '') +
       '</div>';
@@ -1202,7 +1204,28 @@
     m.querySelector('[data-x]').onclick = close;
     m.querySelector('[data-cancel]').onclick = close;
     backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+    // Inline required-field validation — red border + red helper text (admin pattern),
+    // cleared as soon as the merchant types into the field.
+    m.querySelectorAll('input[data-required]').forEach(input => {
+      input.oninput = () => {
+        if (input.classList.contains('has-error')) {
+          input.classList.remove('has-error');
+          const e = m.querySelector('[data-err-for="' + input.getAttribute('data-key') + '"]');
+          if (e) e.textContent = '';
+        }
+      };
+    });
     m.querySelector('[data-save]').onclick = () => {
+      let firstInvalid = null;
+      m.querySelectorAll('input[data-required]').forEach(input => {
+        if (!input.value.trim()) {
+          input.classList.add('has-error');
+          const e = m.querySelector('[data-err-for="' + input.getAttribute('data-key') + '"]');
+          if (e) e.textContent = 'This field is required';
+          if (!firstInvalid) firstInvalid = input;
+        }
+      });
+      if (firstInvalid) { firstInvalid.focus(); return; }
       const updates = {};
       m.querySelectorAll('input[data-key]').forEach(input => {
         const v = input.value;
