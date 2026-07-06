@@ -17,6 +17,10 @@ window.DATA_BUNDLES = {
     { id: 'BND-02', name: 'Coffee Lovers 3-Pack',        parentProduct: 'Signature Blend Coffee',     template: 'volume', status: 'draft',  tierCount: 3, orders: 0,   createdAt: '2026-06-01' },
     { id: 'BND-03', name: 'Complete Wellness Set',       parentProduct: 'High Waist Leggings',        template: 'ab',     status: 'active', tierCount: 2, orders: 148, createdAt: '2026-05-10' },
     { id: 'BND-04', name: 'Yoga Outfit — Top + Legging', parentProduct: 'High Waist Leggings',        template: 'ab',     status: 'draft',  tierCount: 2, orders: 0,   createdAt: '2026-06-09' },
+    { id: 'BND-05', name: 'Leggings Starter Kit',        parentProduct: 'High Waist Leggings',        template: 'volume', status: 'draft',  tierCount: 3, orders: 0,   createdAt: '2026-06-15' },
+    { id: 'BND-06', name: 'Focus Gum Trial Bundle',      parentProduct: 'Neurix Focus & Energy Gum', template: 'volume', status: 'draft',  tierCount: 2, orders: 0,   createdAt: '2026-06-16' },
+    { id: 'BND-07', name: 'Coffee Office Pack',          parentProduct: 'Signature Blend Coffee',     template: 'volume', status: 'active', tierCount: 3, orders: 42,  createdAt: '2026-06-17' },
+    { id: 'BND-08', name: 'Coffee Weekend Pack',         parentProduct: 'Signature Blend Coffee',     template: 'volume', status: 'draft',  tierCount: 2, orders: 0,   createdAt: '2026-06-18' },
   ],
 
   // detail samples loaded when editing / used as starting points

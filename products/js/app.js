@@ -235,15 +235,19 @@
     wireList();
   }
 
-  function activeBundleLinks(p) {
+  function bundleLinks(p) {
     const configured = ((p && p.po && p.po.bundles) || []);
     const live = (window.DATA_BUNDLES && window.DATA_BUNDLES.bundles) || [];
     if (!configured.length) return [];
-    if (!live.length) return configured;
-    return configured.filter((b) => {
+    if (!live.length) return configured.map((b) => Object.assign({ status: 'active' }, b));
+    return configured.map((b) => {
       const current = live.find((x) => String(x.id) === String(b.id));
-      return !current || current.status === 'active';
+      return Object.assign({}, b, current ? { name: current.name, status: current.status } : { status: b.status || 'active' });
     });
+  }
+
+  function activeBundleLinks(p) {
+    return bundleLinks(p).filter((b) => b.status === 'active');
   }
 
   // Cross-module purchase-option tags shown under the product name (subscription / active bundle awareness).
@@ -560,12 +564,19 @@
           (sub ? '<span class="muted" style="font-size:12px">' + esc(sub) + '</span>' : '') + '</span>' +
         '<span style="flex:none;color:var(--muted);font-size:16px">›</span>' +
       '</a>';
+    const statusBadge = (status) => '<span style="display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:500;background:' + (status === 'active' ? '#dcfce7;color:#166534' : '#f3f4f6;color:#596274') + '">' + (status === 'active' ? 'Activated' : 'Deactivated') + '</span>';
+    const bundleRow = (b) =>
+      '<a href="#/bundles/edit/' + b.id + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--hair);text-decoration:none;color:inherit">' +
+        '<span style="min-width:0"><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(b.name) + '</span>' +
+          '<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px"><span class="muted" style="font-size:12px">Bundle</span>' + statusBadge(b.status) + '</span></span>' +
+        '<span style="flex:none;color:var(--muted);font-size:16px">&rsaquo;</span>' +
+      '</a>';
     let rows = '';
     if (po.subscription) {
       const sub = [po.subscription.save, po.subscription.via ? 'via ' + po.subscription.via : ''].filter(Boolean).join(' · ');
       rows += row('#/subscriptions/plans/' + po.subscription.planId, 'Subscribe & Save', sub);
     }
-    activeBundleLinks(p).forEach((b) => { rows += row('#/bundles/edit/' + b.id, b.name, 'Bundle'); });
+    bundleLinks(p).forEach((b) => { rows += bundleRow(b); });
     const intro = '<div class="muted" style="font-size:12px;line-height:1.5;margin-bottom:2px">How customers can buy this beyond a one-time purchase.</div>';
     return card('Purchase options', intro + rows, null, true);
   }
