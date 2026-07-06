@@ -108,6 +108,35 @@
   const PLAN_STATUS = { active: 'Activated', draft: 'Deactivated' };
   const planPill = (s) => '<span class="pill ' + (s === 'draft' ? 'pill-gray' : 'pill-green') + '">' + (PLAN_STATUS[s] || s) + '</span>';
 
+  const planProductName = (p) => String((p && p.product) || '').trim();
+  function activePlanSiblingOf(plan, nextStatus) {
+    const product = planProductName(plan);
+    if (nextStatus !== 'active' || !product) return null;
+    const id = plan && plan.id != null ? String(plan.id) : '';
+    return D.plans.find((p) => String(p.id) !== id && planProductName(p) === product && p.status === 'active') || null;
+  }
+  function deactivateActivePlanSiblings(plan) {
+    const product = planProductName(plan);
+    if (!product) return;
+    const id = plan && plan.id != null ? String(plan.id) : '';
+    D.plans.forEach((p) => { if (String(p.id) !== id && planProductName(p) === product && p.status === 'active') p.status = 'draft'; });
+  }
+  function setPlanStatus(plan, nextStatus) {
+    if (!plan) return;
+    if (nextStatus === 'active') deactivateActivePlanSiblings(plan);
+    plan.status = nextStatus;
+  }
+  function confirmReplaceActivePlan(plan, onOk) {
+    const conflict = activePlanSiblingOf(plan, plan.status || 'active');
+    if (!conflict) { onOk(); return; }
+    window.UI.confirm({
+      title: 'Replace current active plan?',
+      content: planProductName(plan) + ' already has an active subscription plan: ' + (conflict.name || conflict.id) + '. Activating ' + (plan.name || 'this plan') + ' will deactivate the current active plan.',
+      okText: 'Replace and activate',
+      onOk: onOk,
+    });
+  }
+
   // ================= OVERVIEW =================
   function renderOverview() {
     const m = D.metrics;
@@ -474,7 +503,9 @@
             '</div>' +
           '</div>' +
           '<div class="detail-rail" style="width:400px;flex:0 0 400px">' +
-            card('Status', '<div style="display:flex;flex-direction:column;gap:11px;padding:2px 0">' + statusRadios + '</div>') +
+            card('Status', '<div style="display:flex;flex-direction:column;gap:11px;padding:2px 0">' + statusRadios +
+              '<div class="muted" style="font-size:12px;line-height:1.45;padding-top:2px">One product can have only one active subscription plan on the storefront. Draft/deactivated plans can be kept.</div>' +
+            '</div>') +
             card('Preview', '<div id="pl-preview">' + planPreview(p) + '</div>') +
             (isEdit ? card('Performance',
               '<div class="flex items-center justify-between" style="font-size:13.5px"><span class="muted">Active subscribers</span><span style="font-weight:600;color:var(--ink)">' + p.subscribers + '</span></div>' +
@@ -529,8 +560,30 @@
     if (!(p.name || '').trim()) return toast('Enter a plan name');
     if (p.compareAt == null || p.compareAt <= 0) return toast('Select a product or bundle first');
     p.price = recurringPrice(p);
-    if (isEdit) { const i = D.plans.findIndex((x) => x.id === EDIT_ID); if (i >= 0) D.plans[i] = Object.assign({}, D.plans[i], p); ORIGINAL = snap(EDIT); syncBar(); toast('Updated successfully'); }
-    else { p.id = 'PL-' + (1000 + D.plans.length + 1); D.plans.unshift(snap(p)); ORIGINAL = snap(p); toast('Created successfully'); location.hash = '#/subscriptions/plans'; }
+    const nextStatus = p.status || 'draft';
+    const nextId = isEdit ? EDIT_ID : 'PL-' + (1000 + D.plans.length + 1);
+    const nextPlan = Object.assign({}, p, { id: nextId, status: nextStatus });
+    const commit = () => {
+      if (isEdit) {
+        const i = D.plans.findIndex((x) => x.id === EDIT_ID);
+        if (i < 0) return toast('Plan not found');
+        D.plans[i] = Object.assign({}, D.plans[i], p, { id: EDIT_ID });
+        setPlanStatus(D.plans[i], nextStatus);
+        ORIGINAL = snap(EDIT);
+        syncBar();
+        toast('Updated successfully');
+        return;
+      }
+      p.id = nextId;
+      const created = snap(p);
+      D.plans.unshift(created);
+      setPlanStatus(created, nextStatus);
+      ORIGINAL = snap(p);
+      toast('Created successfully');
+      location.hash = '#/subscriptions/plans';
+    };
+    if (nextStatus === 'active') return confirmReplaceActivePlan(nextPlan, commit);
+    commit();
   }
 
   function renderMissing(what, backHash) {

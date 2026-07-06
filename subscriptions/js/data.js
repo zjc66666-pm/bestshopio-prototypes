@@ -77,6 +77,10 @@ window.DATA_SUBS = {
       product: 'High Waist Leggings', bundleId: 'BND-04', bundleTemplate: 'ab', tierIndex: 1,
       cycle: { every: 2, unit: 'month' }, price: 41.9, compareAt: 49.30, discountType: 'percent', discountValue: 15, currency: 'USD',
       trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 0, createdAt: '2026-06-18' },
+    { id: 'PL-1011', name: 'Coffee Club — Every 2 Months', status: 'draft', itemType: 'product',
+      product: 'Signature Blend Coffee 500g', sku: 'COF-500',
+      cycle: { every: 2, unit: 'month' }, price: 25.5, compareAt: 30, discountType: 'percent', discountValue: 15, currency: 'USD',
+      trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 0, createdAt: '2026-06-19' },
   ],
 
   // ---- Contracts (a customer's live subscription) ----
