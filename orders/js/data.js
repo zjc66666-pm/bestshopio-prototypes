@@ -67,6 +67,7 @@
         country: 'United States', phone_code: '1', phone: '619 555 0177', email: 'mia.a@example.com' },
       total: 41.99, order_status: 'to_ship', payment_status: 'paid', payment_method: 'Stripe Card',
       pay_time: '2026-06-18 10:31', delivery_time: null,
+      source: 'BestCheckout', shopify_writeback_status: 'pending', shopify_order_id: '', shopify_writeback_detail: 'Waiting for Shopify Admin API acceptance. Fulfillment is held until write-back succeeds.',
       sub: { id: 'SUB-20460', cycle: 1, next: '2026-06-23' },
     },
     {
@@ -87,6 +88,7 @@
         country: 'United States', phone_code: '1', phone: '312 555 0148', email: 'emma.whitfield@example.com' },
       total: 184.60, order_status: 'to_ship', payment_status: 'paid', payment_method: 'Stripe Card',
       pay_time: '2026-06-04 14:24', delivery_time: null,
+      source: 'BestCheckout', shopify_writeback_status: 'synced', shopify_order_id: '#SHP-89142', shopify_writeback_detail: 'Written back to Shopify and ready for the installed fulfillment app.',
     },
     {
       order_id: 5041, order_sn: 'SILIX1041', create_time: '2026-06-04 11:08', order_type: 0,
@@ -105,6 +107,7 @@
         country: 'United States', phone_code: '1', phone: '404 555 7781', email: 'olivia.martins@example.com' },
       total: 232.80, order_status: 'shipped', payment_status: 'paid', payment_method: 'PayPal',
       pay_time: '2026-06-03 19:43', delivery_time: '2026-06-04 09:15',
+      source: 'BestCheckout', shopify_writeback_status: 'failed', shopify_order_id: '', shopify_writeback_detail: 'Shopify rejected the write-back because shipping profile data is stale. Retry after fixing Connection.',
     },
     {
       order_id: 5039, order_sn: 'SILIX1039', create_time: '2026-06-03 08:55', order_type: 1,
@@ -256,6 +259,7 @@
       order_id: 5044, order_sn: 'SILIX1057', status: 'to_ship', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-18 10:30', pay_time: '2026-06-18 10:31',
+      source: 'BestCheckout', shopify_writeback_status: 'pending', shopify_order_id: '', shopify_writeback_detail: 'Waiting for Shopify Admin API acceptance. Fulfillment is held until write-back succeeds.',
       payment_method: 'Stripe Card', delivery_name: '', delivery_id: '',
       user: { nickname: 'Mia Anderson', uid: 80460 },
       shipping: { first_name: 'Mia', last_name: 'Anderson', detail: '19 Willow Ct', detail2: '',
@@ -274,7 +278,9 @@
       ],
       timeline: [
         { label: 'Order placed', time: '2026-06-18 10:30' },
+        { label: 'Captured by BestCheckout funnel', time: '2026-06-18 10:30' },
         { label: 'Payment captured · Stripe Card', time: '2026-06-18 10:31' },
+        { label: 'Shopify write-back pending', time: '2026-06-18 10:31' },
         { label: 'Subscription SUB-20460 started (Signature Blend Coffee)', time: '2026-06-18 10:31' },
       ],
     },
@@ -310,6 +316,7 @@
       order_id: 5042, order_sn: 'SILIX1042', status: 'to_ship', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-04 14:22', pay_time: '2026-06-04 14:24',
+      source: 'BestCheckout', shopify_writeback_status: 'synced', shopify_order_id: '#SHP-89142', shopify_writeback_detail: 'Written back to Shopify and ready for the installed fulfillment app.',
       payment_method: 'Stripe Card',
       delivery_name: '', delivery_id: '',
       user: { nickname: 'Emma Whitfield', uid: 81245 },
@@ -336,7 +343,10 @@
       ],
       timeline: [
         { label: 'Order placed', time: '2026-06-04 14:22' },
+        { label: 'Captured by BestCheckout funnel', time: '2026-06-04 14:22' },
         { label: 'Payment captured · Stripe Card', time: '2026-06-04 14:24' },
+        { label: 'Written back to Shopify · #SHP-89142', time: '2026-06-04 14:24' },
+        { label: 'Fulfillment app notified from Shopify', time: '2026-06-04 14:24' },
         { label: 'Buyer notified', time: '2026-06-04 14:24' },
       ],
     },
@@ -344,6 +354,7 @@
       order_id: 5040, order_sn: 'SILIX1040', status: 'shipped', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-03 19:41', pay_time: '2026-06-03 19:43',
+      source: 'BestCheckout', shopify_writeback_status: 'failed', shopify_order_id: '', shopify_writeback_detail: 'Shopify rejected the write-back because shipping profile data is stale. Retry after fixing Connection.',
       payment_method: 'PayPal',
       delivery_name: 'FedEx', delivery_id: 'FX774120938455',
       user: { nickname: 'Olivia Martins', uid: 80877 },
@@ -366,7 +377,9 @@
       ],
       timeline: [
         { label: 'Order placed', time: '2026-06-03 19:41' },
+        { label: 'Captured by BestCheckout funnel', time: '2026-06-03 19:41' },
         { label: 'Payment captured · PayPal', time: '2026-06-03 19:43' },
+        { label: 'Shopify write-back failed · shipping profile stale', time: '2026-06-03 19:44' },
         { label: 'Fulfilled · FedEx FX774120938455', time: '2026-06-03 22:10' },
       ],
     },

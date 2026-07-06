@@ -24,6 +24,12 @@
     tag: svg('<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.3"/>', 13),
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
   };
+  const WRITEBACK_STATUS = {
+    synced:  { text: 'synced',  cls: 'pill-green' },
+    pending: { text: 'pending', cls: 'pill-orange' },
+    failed:  { text: 'failed',  cls: 'pill-red' },
+    none:    { text: '--', dash: true },
+  };
 
   // ---- toast ----
   const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1900); };
@@ -63,6 +69,14 @@
     if (orderStatus === 'refund') return '--';
     if (orderStatus === 'shipped' || orderStatus === 'review' || orderStatus === 'archived') return 'fulfilled';
     return 'unfulfilled';
+  }
+
+  function orderSource(o) {
+    return o.source || 'Online store';
+  }
+
+  function writebackPill(o) {
+    return pill(WRITEBACK_STATUS, o.shopify_writeback_status || 'none');
   }
 
   // ---- count rows per tab (for tab badges) ----
@@ -180,16 +194,16 @@
         '</div>' +
         // table (table.tsx columns + leading row-selection checkbox)
         '<div style="overflow-x:auto">' +
-        '<table class="tbl" style="min-width:1320px">' +
+        '<table class="tbl" style="min-width:1460px">' +
           '<thead><tr>' +
             '<th style="width:48px;text-align:center"><input type="checkbox" class="ord-check-all" /></th>' +
             '<th>Order number</th><th>Order date</th><th>User</th><th>Shipping address</th>' +
-            '<th>Total</th><th>Order status</th><th>Payment status</th>' +
+            '<th>Total</th><th>Source</th><th>Shopify write-back</th><th>Order status</th><th>Payment status</th>' +
             '<th>Payment method</th><th>Fulfillment status</th><th style="text-align:center">Action</th>' +
           '</tr></thead>' +
           '<tbody id="ord-tbody">' +
             (pageRows.length ? pageRows.map(rowHtml).join('')
-              : '<tr><td colspan="11" style="text-align:center;padding:40px" class="muted">No orders match these filters.</td></tr>') +
+              : '<tr><td colspan="13" style="text-align:center;padding:40px" class="muted">No orders match these filters.</td></tr>') +
           '</tbody>' +
         '</table>' +
         '</div>' +
@@ -228,6 +242,8 @@
         '</span>' +
       '</td>' +
       '<td style="font-weight:600;color:var(--ink)">' + money(o.total) + '</td>' +
+      '<td>' + esc(orderSource(o)) + '</td>' +
+      '<td>' + writebackPill(o) + '</td>' +
       '<td>' + pill(ORDER_STATUS, o.order_status) + '</td>' +
       '<td>' + pill(PAY_STATUS, o.payment_status) + '</td>' +
       '<td class="muted">' + esc(o.payment_method) + '</td>' +
@@ -385,7 +401,7 @@
             '<div class="flex items-center gap-2" style="flex-wrap:wrap">' +
               '<span class="page-title">' + esc(o.order_sn) + '</span>' +
               '<button class="back-btn" data-act="copy" title="Copy" style="width:30px;height:30px;background:transparent">' + I.copy + '</button>' +
-              pill(ORDER_STATUS, o.status) + pill(PAY_STATUS, o.payment_status) + pill(FULFILL_STATUS, fulfillment) +
+              pill(ORDER_STATUS, o.status) + pill(PAY_STATUS, o.payment_status) + pill(FULFILL_STATUS, fulfillment) + (o.source ? '<span class="pill pill-blue"><span class="dot"></span>' + esc(o.source) + '</span>' : '') + (o.shopify_writeback_status ? writebackPill(o) : '') +
             '</div>' +
           '</div>' +
           '<div class="flex items-center gap-2">' + actions + '</div>' +
@@ -397,6 +413,7 @@
             amountCard(o) +
             shippingAddressCard(o) +
             shippingLogisticsCard(o) +
+            integrationCard(o) +
             timelineCard(o) +
           '</div>' +
           '<div class="detail-rail">' +
@@ -551,6 +568,18 @@
           '<div class="subtle flex items-center gap-2" style="font-size:13px">' + (tn ? esc(tn) : '--') + ' ' + track + '</div></div>' +
       '</div>';
     return cardOpen('<span>Shipping logistics</span>') + grid + '</div>';
+  }
+
+  function integrationCard(o) {
+    if (!o.source && !o.shopify_writeback_status) return '';
+    const wb = o.shopify_writeback_status || 'none';
+    const detail = o.shopify_writeback_detail || (wb === 'synced' ? 'Order has been written back to Shopify.' : wb === 'pending' ? 'Write-back is queued.' : wb === 'failed' ? 'Write-back needs attention.' : 'No Shopify write-back status.');
+    const shopifyId = o.shopify_order_id ? '<span class="muted" style="margin-left:6px">' + esc(o.shopify_order_id) + '</span>' : '';
+    return cardOpen('<span>Integration</span>' + writebackPill(o)) +
+      descRow('Source', esc(orderSource(o))) +
+      descRow('Shopify write-back', writebackPill(o) + shopifyId) +
+      '<div class="subtle" style="font-size:12.5px;line-height:1.55;margin-top:6px">' + esc(detail) + '</div>' +
+    '</div>';
   }
 
   // ---- Timeline card (TimelineCard.tsx): label left, time right; Ant Empty when none ----

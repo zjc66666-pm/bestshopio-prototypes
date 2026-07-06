@@ -52,6 +52,8 @@ window.I18N.extend({
   "Fulfillment status": "发货状态",
   "Action": "操作",
   "No orders match these filters.": "没有符合筛选条件的订单。",
+  "Source": "来源",
+  "Shopify write-back": "Shopify 回写",
 
   // ---- order status / payment status / fulfillment pills ----
   "To pay": "待付款",
@@ -67,6 +69,11 @@ window.I18N.extend({
   // ---- inline order source tags ----
   "Bundle": "捆绑销售",
   "View contract": "查看合约",
+  "BestCheckout": "BestCheckout",
+  "Online store": "在线商店",
+  "synced": "已同步",
+  "pending": "待处理",
+  "failed": "失败",
 
   // ---- detail header actions ----
   "Verify order": "核销订单",
@@ -78,6 +85,7 @@ window.I18N.extend({
   "Product": "商品",
   "Amount": "金额",
   "Shipping logistics": "物流信息",
+  "Integration": "集成状态",
   "Timeline": "动态时间线",
   "Notes": "备注",
 
@@ -99,6 +107,18 @@ window.I18N.extend({
 
   // ---- timeline card ----
   "No data": "暂无数据",
+  "Captured by BestCheckout funnel": "由 BestCheckout 漏斗捕获",
+  "Shopify write-back pending": "Shopify 回写待处理",
+  "Written back to Shopify · #SHP-89142": "已回写 Shopify · #SHP-89142",
+  "Fulfillment app notified from Shopify": "Shopify 已通知履约 App",
+  "Shopify write-back failed · shipping profile stale": "Shopify 回写失败 · 运费配置过期",
+  "Waiting for Shopify Admin API acceptance. Fulfillment is held until write-back succeeds.": "等待 Shopify Admin API 接收。回写成功前暂不触发履约。",
+  "Written back to Shopify and ready for the installed fulfillment app.": "已回写 Shopify，可由已安装的履约 App 继续处理。",
+  "Shopify rejected the write-back because shipping profile data is stale. Retry after fixing Connection.": "Shopify 因运费配置过期拒绝回写。请修复 Connection 后重试。",
+  "Order has been written back to Shopify.": "订单已回写 Shopify。",
+  "Write-back is queued.": "回写已排队。",
+  "Write-back needs attention.": "回写需要处理。",
+  "No Shopify write-back status.": "暂无 Shopify 回写状态。",
 
   // ---- notes card ----
   "No notes": "暂无备注",

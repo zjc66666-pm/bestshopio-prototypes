@@ -98,57 +98,70 @@ window.DATA_BC = {
 
   // ---- Connection hub (the Shopify bridge — Phase 1 only, removed at Phase 2) ----
   // The four bridge concerns that a full BestShopio merchant never sees, all in one place:
-  // ① authorization (OAuth)  ② two-way data sync  ③ checkout injection (App Embed)  ④ checkout domain.
+  // ① authorization (OAuth)  ② Shopify data auto-sync  ③ checkout injection (App Embed)  ④ checkout domain.
   CONNECT: {
-    platform: 'Shopify', shop: 'lovocross.myshopify.com', status: 'connected',
+    platform: 'Shopify', shop: 'lovocross.myshopify.com', status: 'needs attention',
     mode: 'External checkout (redirect)', plan: 'Shopify Basic', connectedSince: '2026-05-28', lastSync: '2 min ago',
+    health: {
+      status: 'Needs attention', tone: 'amber',
+      title: '4 areas need attention',
+      detail: 'Checkout is still available, but a few Shopify bridge checks need a quick fix before you ramp traffic.',
+    },
+    authorization: {
+      status: 'authorized', tone: 'green',
+      title: 'Authorization active',
+      detail: 'BestCheckout was authorized during setup. No merchant action is needed unless the app is uninstalled or Shopify reports missing permissions.',
+      secondary: 'Review scopes',
+    },
     // ① OAuth scopes granted at install (custom distribution — no App Store review)
     scopes: [
-      { name: 'read_products, write_products',   why: 'Two-way sync of products, variants & collections' },
+      { name: 'read_products',                  why: 'Auto-sync products, variants & collections from Shopify' },
       { name: 'read_orders, write_orders',       why: 'Write paid orders back to Shopify to trigger fulfillment' },
       { name: 'read_inventory',                  why: 'Read inventory — Shopify stays source of truth' },
-      { name: 'read_price_rules, write_price_rules', why: 'Two-way sync of discounts' },
-      { name: 'read_shipping',                   why: 'Read shipping zones & rates' },
-      { name: 'read_customers, write_customers', why: 'Two-way sync of customers' },
+      { name: 'read_price_rules',              why: 'Auto-sync discounts from Shopify' },
+      { name: 'read_shipping',                   why: 'Auto-sync shipping zones & rates from Shopify' },
+      { name: 'read_customers',                why: 'Auto-sync customers for checkout and A/B rules' },
     ],
-    // ② two-way data sync — dir: two-way | pull (Shopify→BestShopio) | push (BestShopio→Shopify); sot = source of truth
+    // ② Shopify data auto-sync — dir: pull (Shopify→BestCheckout) for catalog data; push only for paid orders
     entities: [
-      { name: 'Products & variants', dir: 'two-way', sot: 'BestShopio',   count: 1310, last: '2 min ago',  status: 'in sync' },
-      { name: 'Collections',         dir: 'two-way', sot: 'BestShopio',   count: 48,   last: '2 min ago',  status: 'in sync' },
-      { name: 'Discounts',           dir: 'two-way', sot: 'BestShopio',   count: 23,   last: '12 min ago', status: 'in sync' },
-      { name: 'Shipping rates',      dir: 'two-way', sot: 'BestShopio',   count: 9,    last: '1 hr ago',   status: 'in sync' },
-      { name: 'Inventory',           dir: 'pull',    sot: 'Shopify',      count: 1310, last: '4 min ago',  status: 'in sync', note: 'Fulfillment apps decrement stock on Shopify, so Shopify stays the source of truth.' },
-      { name: 'Orders',              dir: 'push',    sot: 'BestCheckout', count: 8420, last: 'just now',   status: 'in sync', note: 'Paid BestCheckout orders write back to Shopify and trigger the installed fulfillment app.' },
-      { name: 'Customers',           dir: 'two-way', sot: 'BestShopio',   count: 215,  last: '1 hr ago',   status: 'in sync' },
+      { name: 'Products & variants', dir: 'pull', sot: 'Shopify',      count: 1310, last: '2 min ago',       status: 'in sync' },
+      { name: 'Collections',         dir: 'pull', sot: 'Shopify',      count: 48,   last: 'queued',          status: 'pending', tone: 'amber', issue: 'Automatic sync is queued. No action is needed.' },
+      { name: 'Discounts',           dir: 'pull', sot: 'Shopify',      count: 23,   last: 'failed 18 min ago', status: 'failed', tone: 'red', issue: 'Automatic sync failed. We will keep retrying on schedule; you can retry now.', action: 'Retry auto-sync' },
+      { name: 'Shipping rates',      dir: 'pull', sot: 'Shopify',      count: 9,    last: 'failed 12 min ago', status: 'failed', tone: 'red', issue: 'Automatic sync failed. We will keep retrying on schedule; you can retry now.', action: 'Retry auto-sync' },
+      { name: 'Inventory',           dir: 'pull', sot: 'Shopify',      count: 1310, last: '4 min ago',       status: 'in sync', note: 'Fulfillment apps decrement stock on Shopify, so Shopify stays the source of truth.' },
+      { name: 'Orders',              dir: 'push', sot: 'BestCheckout', count: 8420, last: 'just now',        status: 'in sync', note: 'Paid BestCheckout orders write back to Shopify and trigger the installed fulfillment app.' },
+      { name: 'Customers',           dir: 'pull', sot: 'Shopify',      count: 215,  last: 'queued',          status: 'pending', tone: 'amber', issue: 'Automatic sync is queued. No action is needed.' },
     ],
     webhooks: [
       { topic: 'orders/create', last: '2 min ago', ok: true },
-      { topic: 'products/update', last: '11 min ago', ok: true },
+      { topic: 'orders/paid', last: 'failed 6 min ago', ok: false, error: 'Callback signature failed after webhook secret rotation.', action: 'Retry webhook' },
+      { topic: 'products/update', last: 'failed 11 min ago', ok: false, error: 'Callback signature failed after the OAuth token refresh window.', action: 'Retry webhook' },
       { topic: 'inventory_levels/update', last: '4 min ago', ok: true },
       { topic: 'customers/update', last: '1 hr ago', ok: true },
     ],
     // ③ checkout injection — Theme App Extension (App Embed), no theme code edits
     embed: {
-      enabled: true, theme: 'Shrine PRO', lastSeen: '1 min ago',
+      enabled: true, health: 'not detected', tone: 'red', theme: 'Shrine PRO', lastSeen: '17 min ago',
+      issue: 'The App Embed was not detected on the live Shopify theme. It may have been removed during a theme change; reinstall it to restore checkout interception.',
       intercept: ['Cart page — “Checkout” button', 'Product page — “Buy it now”', 'Cart drawer — express checkout'],
       ab: { split: 50, sendToBestCheckout: 'Repeat customers · AOV ≥ $80 · EU cards', sendToShopify: 'Everyone else (control group)' },
     },
     // ④ checkout domain — the branded subdomain orders redirect to (Phase 1; replaced by main-domain switch at Phase 2)
-    domain: { sub: 'checkout.lovocross.com', cname: 'cname.bestcheckout.app', ssl: 'active', status: 'live' },
+    domain: { sub: 'checkout.lovocross.com', cname: 'cname.bestcheckout.app', status: 'DNS not verified', tone: 'amber', issue: 'CNAME is not resolving yet. Buyers stay on Shopify checkout until this domain is verified.' },
   },
 
   // ---- Migration (Phase 1 → Phase 2): unlock the full platform, switch the main domain ----
   MIGRATE: {
     share: 68, // % of orders now running through BestCheckout
     preflight: [
-      { name: 'Products & variants', detail: '1,310 already live in BestShopio', ok: true },
-      { name: 'Collections',         detail: '48 synced',                        ok: true },
-      { name: 'Discounts',           detail: '23 rules synced',                  ok: true },
-      { name: 'Shipping rates',      detail: '9 rates synced',                   ok: true },
+      { name: 'Products & variants', detail: '1,310 auto-synced from Shopify', ok: true },
+      { name: 'Collections',         detail: '48 auto-synced',                        ok: true },
+      { name: 'Discounts',           detail: '23 rules auto-synced',                  ok: true },
+      { name: 'Shipping rates',      detail: '9 rates auto-synced',                   ok: true },
       { name: 'Orders & customers',  detail: '8,420 orders · 215 customers',     ok: true },
     ],
     steps: [
-      { n: '1', tone: 'g', title: 'Your data is already here', detail: 'Products, discounts, shipping, orders and customers have been syncing the whole time. Nothing to move.' },
+      { n: '1', tone: 'g', title: 'Your data is already here', detail: 'Products, discounts, shipping and customers sync automatically from Shopify. Paid BestCheckout orders are already here and write back to Shopify.' },
       { n: '2', tone: 'b', title: 'Stand up your storefront', detail: 'Spin up a BestShopio storefront with the same visual builder, pre-filled with your catalog. Adjust the theme — no rebuild.' },
       { n: '3', tone: 'a', title: 'Switch your main domain', detail: 'Repoint your main domain (now on Shopify) to BestShopio, with automatic SSL. This is the one real cut-over.' },
     ],

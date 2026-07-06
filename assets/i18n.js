@@ -86,8 +86,8 @@
 
     // ---- changelog items (nav.js) ----
     'New app (sits under Bundles): connect a Shopify store and sell through a faster external checkout with one-click post-purchase upsells and multi-MID payment routing': '新增应用（位于「捆绑销售」下方）：接入 Shopify 店铺，通过更快的外部结账页销售，支持一键购后追加与多 MID 收款路由',
-    'Two-way sync — products, collections, discounts and shipping are editable here in BestShopio and sync back to Shopify; paid orders write back to trigger the merchant’s existing fulfillment apps': '双向同步——商品、商品系列、折扣与运费均可在 BestShopio 内编辑并回传 Shopify；已付款订单回写以触发商家现有的发货应用',
-    'Connection hub gathers the whole Shopify bridge — authorization (OAuth), data sync, checkout injection (App Embed) and the checkout domain — and retires at migration': '连接中心汇集整条 Shopify 通道——授权（OAuth）、数据同步、结账注入（App Embed）与结账域名——迁移完成后即退役',
+    'Shopify auto-sync — products, collections, discounts, shipping and customers are read from Shopify for checkout; paid orders write back to trigger the merchant’s existing fulfillment apps': 'Shopify 自动同步——商品、商品系列、折扣、运费与客户从 Shopify 读取供结账使用；已付款订单回写以触发商家现有的发货应用',
+    'Connection hub gathers the whole Shopify bridge — authorization (OAuth), Shopify data auto-sync, checkout injection (App Embed) and the checkout domain — and retires at migration': '连接中心汇集整条 Shopify 通道——授权（OAuth）、Shopify 数据自动同步、结账注入（App Embed）与结账域名——迁移完成后即退役',
     'One-domain-switch migration to a native BestShopio store; subscriptions reuse the Subscriptions app rather than a second engine': '一次切换域名即可迁移为原生 BestShopio 店铺；订阅复用「订阅」应用，无需第二套引擎',
     'Subscriptions: a new top-level workspace — click it for the Overview (MRR / active / upcoming charges / churn)': '订阅：全新一级工作区——点击查看概览（MRR / 活跃 / 即将扣款 / 流失）',
     'Plans, Subscriptions (contracts), Orders and Settings sit under it': '套餐、订阅（合约）、订单与设置均归于其下',

@@ -7,6 +7,7 @@
 (function () {
   const D = window.DATA_BC;
   let root, chart = null;
+  let dnsVerifyAttempts = 0;
   // Shopify-connected state. The merchant always sees the FULL BestShopio platform (no install-scope
   // narrowing) — this flag is only whether THIS store has linked a Shopify store; it drives the
   // first-run welcome vs the live dashboard and the "migrate" prompt. Default = connected (demo lands
@@ -27,9 +28,9 @@
   // `custom:'payment'` triggers the inline "which accounts do you have?" branch question.
   var SETUP_STEPS = [
     { id: 'connect',  label: 'Shopify connected',       required: true,  hint: '',                                                                    cta: 'Reconnect',         hash: '#/bestcheckout/connect', check: function (s) { return bcConnected(); } },
-    { id: 'sync',     label: 'Data synced',             required: true,  hint: 'Products, inventory, discounts pulled from Shopify',                  cta: 'View sync status',  hash: '#/bestcheckout/connect', check: function (s) { return s.sync_done; } },
+    { id: 'sync',     label: 'Shopify data auto-synced',             required: true,  hint: 'Products, inventory, discounts and customers sync automatically from Shopify',                  cta: 'View sync status',  hash: '#/bestcheckout/connect', check: function (s) { return s.sync_done; } },
     { id: 'payment',  label: 'Configure payments',      required: true,  hint: 'Card processor (Airwallex / Stripe / PayPal Advanced) + PayPal wallet', custom: 'payment',                                       check: function (s) { return s.payment_done; } },
-    { id: 'embed',    label: 'Enable checkout intercept', required: true, hint: 'App Embed catches your cart Checkout button — no theme edits',         cta: 'Open Shopify theme', hash: '#/bestcheckout/connect', check: function (s) { return s.embed_enabled; } },
+    { id: 'embed',    label: 'Checkout intercept installed', required: true, hint: 'App Embed is installed automatically; restore it here if it is removed',         cta: 'View App Embed', hash: '#/bestcheckout/connect', check: function (s) { return s.embed_enabled; } },
     { id: 'shipping', label: 'Shipping rules',          required: true,  hint: 'Inherits Shopify shipping by default — confirm or customize',         cta: 'Review',            hash: '#/settings/shipping',    check: function (s) { return s.shipping_configured; } },
     { id: 'domain',   label: 'Custom checkout domain',  required: false, hint: 'checkout.yourbrand.com — branded, auto-SSL',                          cta: 'Set CNAME',         hash: '#/bestcheckout/connect', check: function (s) { return s.domain_set; } },
     { id: 'smtp',     label: 'Sender email / SMTP',     required: false, hint: 'Order confirmations from your own domain (lifts deliverability)',     cta: 'Configure',         hash: '#/settings/notifications', check: function (s) { return s.smtp_configured; } },
@@ -291,6 +292,17 @@
     } catch (e) { return new Set(); }
   }
   function fnPublish(s) { s._pub = fnSnap(s); bcFunnelSave(s); }
+  function fnDiscardChanges(s) {
+    try {
+      var pub = JSON.parse(s._pub || '');
+      s.nodes = pub.nodes || [];
+      s.edges = pub.edges || [];
+      fnMigrateRules(s);
+      s._pub = fnSnap(s);
+      bcFunnelSave(s);
+      return true;
+    } catch (e) { return false; }
+  }
 
   function bcFunnel() {
     try {
@@ -411,6 +423,7 @@
   // ---- Funnel canvas (Shopify source → pages; add/remove pages; in-node A/B with auto-winner) ----
   function renderFunnel() {
     var st = bcFunnel();
+    var dirty = fnHasChanges(st);
     fcEdges = st.edges || [];
     var node = function (nd) {
       var pos = nd.pos || { x: 40, y: 40 };
@@ -459,8 +472,8 @@
       '</div>';
     };
     var nodes = (st.nodes || []).map(node).join('');
-    root.innerHTML = wrap(GSTYLE + FSTYLE + XSTYLE + head(t('Funnel')) +
-      '<div class="muted" style="font-size:13px;margin:2px 0 14px;line-height:1.6;max-width:820px">' + t('Your funnel as a canvas. Cart traffic splits at your Shopify store — part runs through the BestCheckout funnel, the rest stays on Shopify’s native checkout as the control. Branch any node with Add page or the ⌁ handle; drag to rearrange.') + '</div>' +
+    root.innerHTML = (window.UI && window.UI.unsavedBar ? window.UI.unsavedBar({ show: dirty, saveLabel: 'Publish', saveAct: 'funnel-publish', discardAct: 'funnel-discard' }) : '') + wrap(GSTYLE + FSTYLE + XSTYLE + head(t('Funnel')) +
+      '<div class="muted" style="font-size:13px;margin:2px 0 14px;line-height:1.6;width:100%">' + t('Your funnel as a canvas. Cart traffic splits at your Shopify store — part runs through the BestCheckout funnel, the rest stays on Shopify’s native checkout as the control. Branch any node with Add page or the ⌁ handle; drag to rearrange.') + '</div>' +
       '<div class="fc-bar">' +
         '<button class="btn btn-primary" id="fc-addbtn">+ ' + t('Add page') + '</button>' +
         '<span class="fc-sep"></span>' +
@@ -468,11 +481,6 @@
 // removed, so an explicit "tidy" button is redundant; "reset" was a developer convenience that
 // merchants would only ever hit by accident.
 '<button class="btn btn-default" data-z="out" title="Zoom out">−</button><span class="fc-zval" id="fc-z">100%</span><button class="btn btn-default" data-z="in" title="Zoom in">+</button><button class="btn btn-default" data-z="fit">' + t('Fit') + '</button>' +
-        // Publish status — Publish (purple) when there are unsaved edits, Published (gray) otherwise
-        '<span class="fc-sep"></span>' +
-        (fnHasChanges(bcFunnel())
-          ? '<button class="btn" id="fc-publish" style="background:#7b4bd0;color:#fff;border-color:#7b4bd0">' + t('Publish changes') + '</button>'
-          : '<button class="btn btn-default" id="fc-publish" disabled style="opacity:.6;cursor:default">' + t('Published') + '</button>') +
         '<span class="fc-hint" id="fc-hint">' + t('Click a node to branch from it · drag the title bar to move') + '</span></div>' +
       '<div class="fc-scroll" id="fc-scroll"><div class="fc-sizer" id="fc-sizer"><div class="fc-canvas" id="fc-canvas" style="width:' + FC_W + 'px;height:' + FC_H + 'px">' +
         '<svg class="fc-edges" id="fc-edges"></svg><div class="fc-labels" id="fc-labels"></div>' + nodes +
@@ -497,9 +505,15 @@
       fcSel = null; applySel();
     });
     var addBtn = root.querySelector('#fc-addbtn'); if (addBtn) addBtn.onclick = function () { openPagePicker({ mode: 'add' }); };
-    var pubBtn = root.querySelector('#fc-publish');
-    if (pubBtn && !pubBtn.disabled) pubBtn.onclick = function () {
+    var pubBtn = root.querySelector('[data-act="funnel-publish"]');
+    if (pubBtn) pubBtn.onclick = function () {
       var s = bcFunnel(); fnPublish(s); toast(t('Published')); renderFunnel();
+    };
+    var discardBtn = root.querySelector('[data-act="funnel-discard"]');
+    if (discardBtn) discardBtn.onclick = function () {
+      var s = bcFunnel();
+      if (fnDiscardChanges(s)) toast(t('Changes discarded'));
+      renderFunnel();
     };
     root.querySelectorAll('[data-swap]').forEach(function (a) { a.onclick = function (e) { e.preventDefault(); var s = bcFunnel(), n = fnNode(s, a.getAttribute('data-swap')); if (n) openPagePicker({ mode: 'swap', id: n.id, type: n.type }); }; });
     var applyZoom = function () { canvas.style.transform = 'scale(' + fcZoom + ')'; var sz = root.querySelector('#fc-sizer'); if (sz) { sz.style.width = (FC_W * fcZoom) + 'px'; sz.style.height = (FC_H * fcZoom) + 'px'; } var zl = root.querySelector('#fc-z'); if (zl) zl.textContent = Math.round(fcZoom * 100) + '%'; };
@@ -1029,7 +1043,9 @@
       var up = function () {
         document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
         node.style.zIndex = '';
+        var moved = node.offsetLeft !== ol || node.offsetTop !== ot;
         var s = bcFunnel(), n = fnNode(s, id); if (n) { n.pos = { x: node.offsetLeft, y: node.offsetTop }; bcFunnelSave(s); }
+        if (moved && window.UI && window.UI.setUnsavedBar) window.UI.setUnsavedBar(document, true);
       };
       document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
     });
@@ -1133,7 +1149,7 @@
     'done': '已完成', 'Collapse': '折叠', 'Required to launch': '上线还差', 'more steps': '步',
     'All required steps done — your funnel is ready to take orders.': '必填项全部完成——漏斗已可接单。',
     'Shopify connected': 'Shopify 已连接', 'Reconnect': '重新连接',
-    'Data synced': '数据已同步', 'Products, inventory, discounts pulled from Shopify': '商品、库存、折扣从 Shopify 同步过来', 'View sync status': '查看同步状态',
+    'Shopify data auto-synced': '数据已自动同步', 'Products, inventory, discounts and customers sync automatically from Shopify': '商品、库存、折扣与客户从 Shopify 自动同步', 'View sync status': '查看同步状态',
     'Configure payments': '配置支付', 'Card processor (Airwallex / Stripe / PayPal Advanced) + PayPal wallet': '卡通道(Airwallex / Stripe / PayPal Advanced)+ PayPal 钱包',
     'Enable checkout intercept': '启用结账拦截', 'App Embed catches your cart Checkout button — no theme edits': 'App Embed 拦截购物车「Checkout」按钮——不改主题代码', 'Open Shopify theme': '打开 Shopify 主题',
     'Shipping rules': '物流规则', 'Inherits Shopify shipping by default — confirm or customize': '默认继承 Shopify 运费——确认或自定义', 'Review': '查看',
@@ -1167,7 +1183,7 @@
     'The funnel': '转化漏斗', 'Checkout': '结账', 'Upsell': '追加', 'Downsell': '降级', 'Thank you': '致谢页', 'Order bump': '凑单',
     'Single-page · order bump': '单页 · 凑单', 'One-click, no re-enter card': '一键，无需重输卡', 'On decline of the upsell': '追加被拒时', 'Write order back to Shopify': '订单写回 Shopify',
     'Offers': '报价', 'New offer': '新建报价', 'Offer': '报价', 'Type': '类型', 'Trigger': '触发', 'Take rate': '接受率', 'Edit': '编辑',
-    'Connected': '已连接', 'OK': '正常', 'Re-sync now': '立即重新同步', 'Disconnect': '断开连接', 'Sync status': '同步状态', 'Entity': '实体', 'Direction': '方向', 'Synced': '已同步', 'Mapped': '已映射', 'Webhooks': 'Webhooks',
+    'Connected': '已连接', 'OK': '正常', 'Sync status': '同步状态', 'Disconnect': '断开连接', 'Entity': '实体', 'Direction': '方向', 'Synced': '已同步', 'Mapped': '已映射', 'Webhooks': 'Webhooks', 'Managed in Authorization': '在店铺授权中管理', 'Update permissions': '更新权限', 'Manage connection': '管理连接',
     'Retention — cycle by cycle': '留存 — 逐周期', 'Attempted': '尝试', 'Approvals': '通过', 'Recycle saves': '回收救回', 'Retention': '留存', 'Net': '净额',
     'Card processing — by BIN': '过单 — 按 BIN', 'BIN': 'BIN', 'Brand': '卡组织', 'Issuer': '发卡行', 'Rebill appr.': '续费过单', 'CB %': '拒付率', 'Overall': '综合',
     'Page types': '页面类型', 'Funnel': '漏斗', 'Settings': '设置', 'Save': '保存', 'Preview': '预览', 'Locked': '锁定',
@@ -1182,15 +1198,15 @@
     'Headline': '标题', 'Text': '文本', 'Image': '图片', 'Button': '按钮', 'Yes / No buttons': '是 / 否按钮', 'Countdown timer': '倒计时', 'Reviews': '评价', 'Feature list': '功能列表', 'Hero': '主视觉', 'Logo': 'Logo', 'Contact': '联系方式', 'Shipping': '配送', 'Payment': '支付', 'Order summary': '订单摘要', 'Tracking': '物流追踪',
     'Subtitle': '副标题', 'Button label': '按钮文字', 'Product name': '产品名称', 'Compare-at (optional)': '原价（可选）', 'Label': '文字', 'Color': '颜色', 'Yes button': '“是”按钮', 'Decline link': '拒绝链接', 'Title': '标题', 'Add-on price': '加购价格', 'Minutes': '分钟', 'Brand text': '品牌文字', 'Section title': '区块标题',
     'Welcome to BestCheckout': '欢迎使用 BestCheckout',
-    'Connect your Shopify store to start — your storefront stays on Shopify, orders sync back.': '先连接你的 Shopify 店铺即可开始——店铺前台仍在 Shopify,订单自动回写。',
+    'Connect your Shopify store to start — your storefront stays on Shopify, orders write back.': '先连接你的 Shopify 店铺即可开始——店铺前台仍在 Shopify,订单自动回写。',
     'Connect your Shopify store': '连接你的 Shopify 店铺', 'Connect Shopify': '连接 Shopify', 'Connected to Shopify': '已连接 Shopify',
     'We never touch your Shopify storefront checkout. BestCheckout runs your funnel, subscriptions and post-purchase, then writes orders back to Shopify via API — no App Store review needed.': '我们不碰你 Shopify 店铺前台的原生结账。BestCheckout 负责漏斗、订阅与购后,再通过 API 把订单写回 Shopify——无需经过 App Store 审核。',
-    'OAuth — read products, write orders back.': 'OAuth——读取商品,回写订单。', 'Add a payment MID': '接入支付 MID', 'Connect a gateway so routing can begin.': '连接一个网关,路由即可开始。',
-    'Sync products from Shopify': '从 Shopify 同步商品', 'Mirror your catalog (read-only) for funnels.': '镜像你的商品(只读)供漏斗使用。',
+    'OAuth — auto-sync Shopify data, write orders back.': 'OAuth——自动同步 Shopify 数据,回写订单。', 'Add a payment MID': '接入支付 MID', 'Connect a gateway so routing can begin.': '连接一个网关,路由即可开始。',
+    'Auto-sync products from Shopify': '从 Shopify 自动同步商品', 'Mirror your catalog (read-only) for funnels.': '镜像你的商品(只读)供漏斗使用。',
     'Build your first funnel': '搭建首个漏斗', 'Checkout + one-click upsell in the editor.': '在编辑器里做结账 + 一键追加。', 'Go live': '上线', 'Send traffic to your BestCheckout funnel.': '把流量导向你的 BestCheckout 漏斗。',
     '68% of your orders now run through BestCheckout': '你已有 68% 的订单跑在 BestCheckout', 'Bring your whole store onto BestShopio — your data is already here.': '把整个店铺也搬到 BestShopio——你的数据本就在这里。', 'See 1-click migration': '看看一键迁移',
     'Migrate to BestShopio': '迁移到 BestShopio', 'Back to overview': '返回总览',
-    'Your data: zero migration': '你的数据:零搬迁', 'Products, customers, orders and subscriptions already live in BestShopio — they have been syncing the whole time. Nothing to move.': '商品、客户、订单与订阅本就在 BestShopio 里——一路都在同步,无需搬迁。',
+    'Your data: zero migration': '你的数据:零搬迁', 'Products, discounts, shipping and customers sync automatically from Shopify; paid orders already write back. Nothing to move for the checkout MVP.': '商品、折扣、运费与客户从 Shopify 自动同步；已付款订单自动回写。结账 MVP 无需搬迁数据。',
     'Your storefront: one-click stand-up': '你的店铺前台:一键起底', 'We spin up a BestShopio storefront with the same visual builder, pre-filled with your catalog. Adjust the theme, no rebuild from scratch.': '用同一套可视化搭建引擎为你起一个 BestShopio 店铺前台,商品预填好。调主题即可,无需从零重做。',
     'Your domain: guided switch': '你的域名:向导式切换', 'A wizard repoints your domain with automatic SSL, with redirects in place. This is the only real cut-over moment.': '向导帮你把域名重新指向并自动签发 SSL,并做好重定向。这是唯一真正的切换时刻。',
     'Because you came in through BestCheckout, this is an unlock — not the cold Shopify-to-BestShopio migration. That is the moat a standalone checkout tool can never offer.': '因为你是从 BestCheckout 进来的,这一步是"解锁"而非 Shopify→BestShopio 的冷迁移。这正是独立结账工具永远给不了的护城河。',
@@ -1206,7 +1222,7 @@
     'Customers': '客户', 'All Customers': '全部客户', 'New Customers Only': '仅新客户', 'Repeat Customers Only': '仅复购客户', 'Delete connection': '删除连线',
     'New': '新客', 'Repeat': '复购', 'Click a target page to connect': '点击目标页面以连接', 'Already connected': '已存在连线', 'Connection added': '已添加连线', 'Connection removed': '已删除连线', 'Page added': '已添加页面', 'Page removed': '已删除页面',
     'Presell page': '预售页', 'Lead page': '引导页', 'Checkout page': '结账页', 'Upsell page': '追加页', 'Downsell page': '降级页', 'Thank you page': '致谢页',
-    'Configure your new checkout': '配置你的新结账', 'Set up your store connection, domain and accounts — your storefront stays on Shopify, orders sync back.': '配置店铺连接、域名与各项账户——店铺前台仍在 Shopify，订单自动回写。',
+    'Configure your new checkout': '配置你的新结账', 'Set up your store connection, domain and accounts — your storefront stays on Shopify, orders write back.': '配置店铺连接、域名与各项账户——店铺前台仍在 Shopify，订单自动回写。',
     'Choose checkout': '选择结账平台', 'Domain entry': '域名录入', 'Merchant account': '收单账户', 'PayPal account': 'PayPal 账户', 'Fulfillment': '履约',
     'Route your Shopify cart to BestCheckout for checkout': '将 Shopify 购物车路由到 BestCheckout 结账', 'Route your WooCommerce cart to BestCheckout': '将 WooCommerce 购物车路由到 BestCheckout', 'Route your BigCommerce cart to BestCheckout': '将 BigCommerce 购物车路由到 BestCheckout', 'Custom / API integration': '自定义 / API 接入',
     'Selected': '已选择', 'Choose': '选择', 'Store URL': '店铺 URL',
@@ -1219,7 +1235,7 @@
     'Fulfillment provider': '履约服务商', 'Orders captured by BestCheckout route to fulfillment and write back to Shopify.': 'BestCheckout 捕获的订单进入履约，并回写到 Shopify。',
     'Back': '上一步', 'Continue': '下一步', 'Finish setup': '完成设置', 'Setup complete': '设置完成',
     // ---- Connection hub ----
-    'Connection': '连接', 'The Shopify bridge': 'Shopify 接入桥', 'Two-way': '双向',
+    'Connection': '连接',
     'Checkout design': '结账页装修', 'Thank-you design': '致谢页装修', 'Open the theme builder': '打开装修器',
     // Checkout template gallery
     'Use this template': '使用此模板', 'Most popular': '最受欢迎',
@@ -1336,41 +1352,58 @@
     'Checkout template — Pack & Save vs Express Funnel': '结账模板 — Pack & Save vs Express Funnel', 'Guarantee — 90-day vs 120-day': '退款保证 — 90 天 vs 120 天', 'Urgency bar — on vs off': '倒计时条 — 开 vs 关',
     '90-day guarantee': '90 天保证', '120-day guarantee': '120 天保证', 'With countdown': '有倒计时', 'No countdown': '无倒计时',
     'Edit on the shared store theme builder — the same system as your storefront theme. Checkout & Thank-you are pages in it.': '在共享的店铺 theme 装修器里编辑——和店铺前台主题同一套体系。结账页与致谢页都是其中的页面。',
-    'Everything on this page connects you to Shopify. A full BestShopio store never sees it — and it all goes away when you migrate.': '本页的一切都用于对接 Shopify。完整的 BestShopio 店铺看不到它——迁移之后整块拆除。',
-    'Mode': '模式', 'connected since': '连接于', 'last sync': '上次同步', 'last received': '上次接收',
-    'Authorization': '店铺授权', 'Data sync': '数据同步', 'Checkout injection': '结账注入', 'Checkout domain': '结账域名',
+    'Mode': '模式', 'connected since': '连接于', 'last activity': '上次活动', 'last received': '上次接收',
+    'Authorization': '店铺授权', 'Data auto-sync': '数据自动同步', 'Checkout injection': '结账注入', 'Checkout domain': '结账域名', 'Webhooks': 'Webhooks', 'App Embed': 'App Embed', 'Domain': '域名',
     'Installed via a private app (OAuth + Admin API) — no Shopify App Store listing or review. These are the permissions you granted at install:': '通过私有应用安装（OAuth + Admin API）——不上 Shopify App Store、不走审核。你在安装时授予了以下权限：',
-    'Two-way sync of products, variants & collections': '双向同步商品、变体与集合', 'Write paid orders back to Shopify to trigger fulfillment': '把已付款订单写回 Shopify 以触发履约',
-    'Read inventory — Shopify stays source of truth': '读取库存——库存以 Shopify 为准', 'Two-way sync of discounts': '双向同步促销',
-    'Read shipping zones & rates': '读取运费区与费率', 'Two-way sync of customers': '双向同步客户',
+    'Auto-sync products, variants & collections from Shopify': '从 Shopify 自动同步商品、变体与集合', 'Write paid orders back to Shopify to trigger fulfillment': '把已付款订单写回 Shopify 以触发履约',
+    'Read inventory — Shopify stays source of truth': '读取库存——库存以 Shopify 为准', 'Auto-sync discounts from Shopify': '从 Shopify 自动同步促销',
+    'Auto-sync shipping zones & rates from Shopify': '从 Shopify 自动同步运费区与费率', 'Auto-sync customers from Shopify': '从 Shopify 自动同步客户',
     'Re-authorize': '重新授权',
+    'Update permissions': '更新权限', 'Update permissions on Shopify': '在 Shopify 上更新权限',
     'Re-opens the Shopify OAuth consent screen to refresh the access token and scopes. Your store stays connected — nothing is removed.': '重新打开 Shopify OAuth 授权页,刷新访问令牌与权限范围。店铺保持连接——不会移除任何东西。',
-    'Two-way sync · products, collections, discounts, shipping': '双向同步 · 商品、专辑、折扣、运费', 'Write paid orders back to Shopify': '已付款订单写回 Shopify', 'Read customers (for the New vs Returning A/B)': '读取客户(用于 新客/老客 A/B)',
-    'Re-authorize on Shopify': '在 Shopify 上重新授权', 'Token refreshed · scopes re-granted': '令牌已刷新 · 权限已重新授予',
+    'Opens the Shopify OAuth consent screen so the merchant can grant the updated scopes. The store stays connected; nothing is removed.': '打开 Shopify OAuth 授权页，让商家授予更新后的权限范围。店铺保持连接，不会移除任何内容。',
+    'Shopify auto-sync · products, collections, discounts, shipping': 'Shopify 自动同步 · 商品、商品系列、折扣、运费', 'Write paid orders back to Shopify': '已付款订单写回 Shopify', 'Read customers (for the New vs Returning A/B)': '读取客户(用于 新客/老客 A/B)',
+    'Re-authorize on Shopify': '在 Shopify 上重新授权', 'Update on Shopify': '在 Shopify 上更新', 'Permissions updated · scopes re-granted': '权限已更新 · 范围已重新授予', 'Token refreshed · scopes re-granted': '令牌已刷新 · 权限已重新授予',
     'Deep-links to Online Store → Themes → Customize → App embeds. Turn the BestCheckout embed on — it intercepts the cart “Checkout” button without editing theme code.': '深链到 网上商店 → 模板 → 自定义 → App 嵌入。打开 BestCheckout 嵌入即可拦截购物车「结账」按钮,无需改主题代码。',
     'Enabled': '已启用', 'Open Shopify': '打开 Shopify', 'Opening Shopify theme editor…': '正在打开 Shopify 主题编辑器……',
-    'two-way · BestShopio is your workspace': '双向 · 把 BestShopio 当作日常操作台',
-    'Edit products, collections, discounts and shipping right here in BestShopio — changes sync back to Shopify automatically. Your team moves into BestShopio now, so migrating later is just a domain switch.': '商品、集合、促销、运费都直接在 BestShopio 里改——改动会自动同步回 Shopify。让团队现在就搬进 BestShopio，日后迁移只剩切个域名。',
-    'Source of truth': '数据真源', 'Items': '条目', 'Last sync': '上次同步',
+    'Shopify auto-sync · orders write back': 'Shopify 自动同步 · 订单回写',
+    'Products, collections, discounts, shipping and customers sync automatically from Shopify. BestCheckout uses them for checkout, while paid orders write back to Shopify for fulfillment.': '商品、集合、促销、运费与客户从 Shopify 自动同步。BestCheckout 用这些数据完成结账，已付款订单再回写 Shopify 触发履约。',
+    'Source of truth': '数据真源', 'Items': '条目', 'Last activity': '上次活动',
     'Fulfillment apps decrement stock on Shopify, so Shopify stays the source of truth.': '已装的发货 App 在 Shopify 侧扣减库存，故库存以 Shopify 为准。',
     'Paid BestCheckout orders write back to Shopify and trigger the installed fulfillment app.': 'BestCheckout 的已付款订单写回 Shopify，触发商家已装的发货 App。',
     'A one-line App Embed block in your live theme adds a "Checkout" interceptor — no theme code edits, survives theme updates.': '在当前主题里启用一个 App Embed 区块即可拦截「结账」——不改主题代码，主题更新也不会被覆盖。',
     'Live theme': '当前主题', 'last seen': '上次检测', 'Intercepts': '拦截位置', 'Enabled': '已启用',
     'Open in Shopify theme editor': '在 Shopify 主题编辑器中打开', 'split': '分流',
     'Send a slice of carts to BestCheckout; keep the rest on Shopify as a control. Ramp up as approval & AOV prove out.': '先把一部分购物车导向 BestCheckout，其余留在 Shopify 作为对照。过单率与客单价跑赢后再逐步放量。',
-    'Edit routing rules': '编辑分流规则', 'replaced by main-domain switch at migration': '迁移时由主域名切换取代',
+    'Edit routing rules': '编辑分流规则',
     'Your branded checkout lives on this subdomain. Point one CNAME at us and we issue & renew SSL automatically.': '你的品牌化结账跑在这个子域名上。把一条 CNAME 指向我们，SSL 自动签发与续期。',
     'Type': '类型', 'Host': '主机记录', 'Value': '记录值', 'Copy': '复制',
-    'At migration, this subdomain is retired — your main domain points straight at the BestShopio storefront instead. See Migrate.': '迁移时这个子域名退役——主域名直接指向 BestShopio 店面。详见「迁移」。',
-    'Queued a full re-sync': '已排入一次全量重新同步', 'Demo: disconnect confirmation': '演示：断开连接确认',
+    'Auto-sync retry queued': '已排入自动同步重试', 'Automatic sync retry is queued. No action is needed.': '自动同步重试已排队，无需操作。', 'Demo: disconnect confirmation': '演示：断开连接确认',
+    'Needs attention': '需要处理', 'Review issues': '查看问题', '5 areas need attention': '5 个区域需要处理', '4 areas need attention': '4 个区域需要处理',
+    'Checkout is still available, but a few Shopify bridge checks need a quick fix before you ramp traffic.': '结账仍可用，但在放量前有几项 Shopify 接入检查需要快速修复。',
+    'authorized': '已授权', 'Authorization active': '授权正常', 'BestCheckout was authorized during setup. No merchant action is needed unless the app is uninstalled or Shopify reports missing permissions.': 'BestCheckout 已在首次设置时完成授权。除非应用被卸载或 Shopify 报告权限缺失，否则商家无需操作。',
+    'scopes need update': '权限需更新', 'Permission update needed': '需要更新权限', 'BestCheckout needs updated Shopify permissions for order write-back. Automatic sync continues, but write-back can fail until you re-authorize.': 'BestCheckout 需要更新 Shopify 权限以完成订单回写。自动同步会继续，但更新前订单回写可能失败。',
+    'This stops BestCheckout routing, Shopify data auto-sync, webhooks, and order write-back. Your Shopify native checkout stays available, and you will need to re-authorize to reconnect.': '这会停止 BestCheckout 路由、Shopify 数据自动同步、Webhooks 和订单回写。你的 Shopify 原生结账仍可用；重新连接时需要再次授权。',
+    'expires soon': '需要更新', 'Authorization expires in 3 days': '需要更新权限',
+    'Shopify is asking for a fresh OAuth grant. Automatic sync continues for now, but order write-back can stop if this is ignored.': 'Shopify 需要重新 OAuth 授权。自动同步目前仍在继续，但如果忽略，订单回写可能停止。',
+    'Review scopes': '查看权限', 'in sync': '正常', 'failed': '失败', 'pending': '待处理', 'Sync messages': '同步提示',
+    'Automatic sync failed. We will keep retrying on schedule; you can retry now.': '自动同步失败。系统会按计划继续重试；你也可以现在重试。',
+    'Automatic sync is queued. No action is needed.': '自动同步排队中，无需操作。',
+    'Retry auto-sync': '重试自动同步',
+    'Webhook delivery': 'Webhook 投递', 'Delivery issues': '投递问题', 'Callback signature failed after the OAuth token refresh window.': 'OAuth 令牌刷新窗口后回调签名校验失败。', 'Callback signature failed after webhook secret rotation.': 'Webhook secret 轮换后回调签名校验失败。',
+    'Retry webhook': '重试 Webhook', 'not detected': '未检测到', 'Check again': '重新检测',
+    'BestCheckout is enabled here, but the App Embed is not detected on the published Shopify theme.': '这里已启用 BestCheckout，但在已发布的 Shopify 主题中未检测到 App Embed。',
+    'pending DNS': 'DNS 待生效', 'DNS not verified': 'DNS 未验证', 'DNS verified': 'DNS 已验证', 'CNAME is not resolving yet. Buyers stay on Shopify checkout until this domain is verified.': 'CNAME 尚未解析成功。该域名验证前，买家会继续留在 Shopify 结账。',
+    'Verify DNS': '验证 DNS', 'DNS verified. Buyers can now use this checkout domain.': 'DNS 已验证，买家现在可以使用这个结账域名。', 'Auto-sync retry queued': '已排入自动同步重试', 'Automatic sync retry is queued. No action is needed.': '自动同步重试已排队，无需操作。', 'Webhook retry queued': 'Webhook 重试已排队', 'Waiting for Shopify to redeliver this webhook.': '等待 Shopify 重新投递该 Webhook。',
+    'Theme check queued': '主题检测已排队', 'DNS verification queued': 'DNS 验证已排队',
     'Demo: re-opens the Shopify OAuth consent screen': '演示：重新打开 Shopify OAuth 授权页',
     'Demo: deep-links to Online Store → Themes → Customize → App embeds': '演示：深链到 Online Store → Themes → Customize → App embeds',
     'Demo: opens the A/B routing-rule builder': '演示：打开 A/B 分流规则编辑器', 'Copied': '已复制',
     // ---- Overview onboarding / migrate ----
     'Connect your store, sell through your new checkout, and move into BestShopio at your own pace.': '连接店铺、用新结账卖货，再按你自己的节奏搬进 BestShopio。',
     'Your activation path': '你的上手路径', 'Done': '完成', 'Start': '开始',
-    'Synced from Shopify': '已从 Shopify 同步', 'products': '个商品', 'discounts': '条促销', 'shipping rates': '条运费',
-    'Connect Shopify & sync your store': '连接 Shopify 并同步店铺', 'OAuth in one click; we pull products, discounts and shipping.': '一键 OAuth；我们拉取商品、促销与运费。',
+    'Auto-synced from Shopify': '已从 Shopify 自动同步', 'products': '个商品', 'discounts': '条促销', 'shipping rates': '条运费',
+    'Connect Shopify & sync your data': '连接 Shopify 并同步数据', 'OAuth in one click; products, discounts, shipping and customers sync automatically from Shopify.': '一键 OAuth；商品、促销、运费与客户会从 Shopify 自动同步。',
     'Connect your payment accounts': '连接你的收款账户', 'Reuse your Airwallex / Stripe / PayPal.': '复用你的 Airwallex / Stripe / PayPal。',
     'Set your checkout domain': '设置结账域名', 'Point checkout.yourbrand.com at BestCheckout — auto-SSL.': '把 checkout.yourbrand.com 指向 BestCheckout——自动 SSL。',
     'Turn on checkout injection': '开启结账注入', 'Enable the App Embed and start with a small A/B split.': '启用 App Embed，先用小比例 A/B 起步。',
@@ -1381,30 +1414,30 @@
     'Switch the main domain': '切换主域名', 'Stand up the storefront': '一键起店面',
     'This is the one real cut-over — repoint your main domain from Shopify to BestShopio.': '这是唯一真正的切换——把主域名从 Shopify 重新指向 BestShopio。',
     'Your data is already here': '数据本就在这里',
-    'Products, discounts, shipping, orders and customers have been syncing the whole time. Nothing to move.': '商品、促销、运费、订单与客户一路都在同步，无需搬迁。',
+    'Products, discounts, shipping and customers sync automatically from Shopify. Paid BestCheckout orders are already here and write back to Shopify.': '商品、促销、运费与客户从 Shopify 自动同步。BestCheckout 已付款订单已在这里，并会回写 Shopify。',
     'Stand up your storefront': '起一个店面',
     'Spin up a BestShopio storefront with the same visual builder, pre-filled with your catalog. Adjust the theme — no rebuild.': '用同一套可视化搭建器起一个 BestShopio 店面，商品预填好。调主题即可——无需重做。',
     'Switch your main domain': '切换主域名',
     'Repoint your main domain (now on Shopify) to BestShopio, with automatic SSL. This is the one real cut-over.': '把主域名（现在 Shopify 上）重新指向 BestShopio，自动 SSL。这是唯一真正的切换。',
-    'Demo: spins up a BestShopio storefront from your synced catalog': '演示：用你已同步的目录起一个 BestShopio 店面',
+    'Demo: spins up a BestShopio storefront from your synced catalog': '演示：用你已自动同步的目录起一个 BestShopio 店面',
     // ---- Shopify OAuth consent (the "this is Shopify's page" step) ----
     'Continue to Shopify': '前往 Shopify 授权',
     'Install BestCheckout?': '安装 BestCheckout？', 'by Bestfulfill': '由 Bestfulfill 提供',
     'BestCheckout will be able to:': 'BestCheckout 将可以：',
-    'Products & collections': '商品与商品系列', 'View and edit products, collections and inventory': '查看与编辑商品、商品系列与库存',
+    'Products & collections': '商品与商品系列', 'View products, collections and inventory': '查看商品、商品系列与库存',
     'Orders': '订单', 'View and create orders — write paid orders back for fulfillment': '查看与创建订单——把已付款订单回写以触发发货',
-    'Discounts': '折扣', 'View and edit discounts and price rules': '查看与编辑折扣与价格规则',
+    'Discounts': '折扣', 'View discounts and price rules': '查看折扣与价格规则',
     'Shipping': '配送', 'View shipping zones and rates': '查看配送区域与运费',
-    'Customers': '客户', 'View and edit customers': '查看与编辑客户',
+    'Customers': '客户', 'View customers': '查看客户',
     'This is a custom (private) app installed via a one-time link — it is not listed on the Shopify App Store. By clicking Install, you grant the access above; you can uninstall anytime from Settings → Apps.': '这是通过一次性链接安装的自定义（私有）应用——未在 Shopify App Store 上架。点击「安装」即授予以上权限；你可随时在 设置 → 应用 中卸载。',
     'Install app': '安装应用',
-    // ---- init flow: store / importing / connected steps ----
-    'BestCheckout installs as a private app via OAuth — no App Store listing, no review. We import your products, discounts and shipping, and write orders back to Shopify.': 'BestCheckout 通过 OAuth 以私有应用方式安装——不上架、不审核。我们会导入你的商品、折扣与运费，并把订单回写到 Shopify。',
+    // ---- init flow: store / auto-sync / connected steps ----
+    'BestCheckout installs as a private app via OAuth — no App Store listing, no review. We auto-sync products, discounts, shipping and customers from Shopify, and write paid orders back to Shopify.': 'BestCheckout 通过 OAuth 以私有应用方式安装——不上架、不审核。系统会从 Shopify 自动同步商品、折扣、运费与客户，并把已付款订单回写到 Shopify。',
     'Your Shopify store URL': '你的 Shopify 店铺网址', 'soon': '即将上线',
-    'Connecting to': '正在连接', 'Syncing your catalog and registering webhooks — this usually takes a few seconds.': '正在同步你的目录并注册 webhooks——通常只需几秒。',
-    'Access granted (OAuth)': '已授权（OAuth）', 'Importing products': '导入商品', 'Importing collections': '导入商品系列', 'Importing discounts': '导入折扣', 'Importing shipping rates': '导入运费', 'Registering webhooks': '注册 webhooks', 'Building the catalog mapping': '建立目录映射',
+    'Connecting to': '正在连接', 'Syncing your catalog and registering webhooks — this usually takes a few seconds.': '正在自动同步你的目录并注册 webhooks——通常只需几秒。',
+    'Access granted (OAuth)': '已授权（OAuth）', 'Syncing products': '同步商品', 'Syncing collections': '同步商品系列', 'Syncing discounts': '同步折扣', 'Syncing shipping rates': '同步运费', 'Registering webhooks': '注册 webhooks', 'Building the catalog mapping': '建立目录映射',
     'You’re connected!': '连接成功！',
-    'Your Shopify catalog is now in BestShopio — edit it right here and changes sync back to Shopify. Orders you capture write back automatically.': '你的 Shopify 目录现已在 BestShopio——直接在这里编辑，改动会同步回 Shopify；你捕获的订单也会自动回写。',
+    'Your Shopify catalog is now synced into BestShopio. BestCheckout uses it for checkout, while paid orders write back automatically.': '你的 Shopify 目录已自动同步到 BestShopio。BestCheckout 用它完成结账，已付款订单会自动回写。',
     'collections': '个商品系列',
     'Next: connect payments · set your checkout domain · turn on checkout injection · build your first funnel.': '接下来：接入收款 · 设置结账域名 · 开启结账注入 · 搭建首个漏斗。',
     'Enter BestCheckout': '进入 BestCheckout',
@@ -1426,6 +1459,21 @@
     'order completed, written back to Shopify (#1042)': '订单完成，已回写 Shopify（#1042）',
     'new Daily Greens monthly started from the checkout': '从结账页发起了 Daily Greens 月度订阅',
   };
+  Object.assign(ZH, {
+    'BestCheckout installs the App Embed automatically. If it is removed during a theme change, reinstall it here to restore checkout interception.': 'BestCheckout 默认自动注入 App Embed。如果主题变更时被移除，可以在这里重新安装，恢复结账拦截。',
+    'Restore App Embed': '重新安装 App Embed',
+    'Checkout intercept installed': '结账拦截已安装',
+    'App Embed is installed automatically; restore it here if it is removed': 'App Embed 默认自动安装；如果被移除，可在这里恢复。',
+    'View App Embed': '查看 App Embed',
+    'detected': '已检测到',
+    'The App Embed was not detected on the live Shopify theme. It may have been removed during a theme change; reinstall it to restore checkout interception.': '当前发布主题中未检测到 App Embed，可能是在主题变更时被移除。重新安装后即可恢复结账拦截。',
+    'App Embed reinstalled and detected.': 'App Embed 已重新安装并检测成功。',
+    'CNAME still is not resolving. Check the host and target, then verify again.': 'CNAME 仍未解析成功。请检查主机记录和目标值，然后再次验证。',
+    'DNS verification failed. Check the DNS record, then verify again.': 'DNS 验证失败。请检查 DNS 记录后再次验证。'
+    , 'You have unsaved changes': '你有未保存的改动'
+    , 'Discard': '放弃'
+    , 'Changes discarded': '已放弃改动'
+  });
   const t = (s) => (window.I18N && window.I18N.lang === 'zh' && ZH[s]) ? ZH[s] : s;
   function bcI18n(scope) {
     if (!window.I18N || window.I18N.lang !== 'zh') return;
@@ -1451,10 +1499,17 @@
     dot: svg('<circle cx="12" cy="12" r="3"/>', 8),
     check: svg('<path d="M20 6 9 17l-5-5"/>', 14),
   };
-  const toast = (msg) => { const t = document.createElement('div'); t.textContent = msg; t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#242833;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:90;box-shadow:var(--float-shadow)'; document.body.appendChild(t); setTimeout(() => t.remove(), 1800); };
+  const toast = (msg, type) => {
+    const level = type || (/failed|失败|error/i.test(String(msg)) ? 'error' : 'success');
+    const t = document.createElement('div');
+    t.className = 'bc-message ' + level;
+    t.innerHTML = '<span class="bc-message-ico">' + (level === 'error' ? '×' : level === 'warning' ? '!' : '✓') + '</span><span>' + esc(msg) + '</span>';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2000);
+  };
 
   const STYLE = '<style>' +
-    '.bc-head{margin-bottom:8px}.bc-h1{font-size:22px;font-weight:700;color:var(--ink)}.bc-sub{font-size:13px;color:var(--ink-muted);margin-top:3px}' +
+    '.bc-message{position:fixed;top:16px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;max-width:min(560px,calc(100vw - 48px));padding:9px 16px;background:#fff;color:rgba(0,0,0,.88);border-radius:8px;font-size:14px;line-height:1.45;box-shadow:0 6px 16px 0 rgb(0 0 0/8%),0 3px 6px -4px rgb(0 0 0/12%),0 9px 28px 8px rgb(0 0 0/5%);z-index:300}.bc-message-ico{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:12px;font-weight:700;line-height:1;color:#fff;flex:none}.bc-message.success .bc-message-ico{background:#52c41a}.bc-message.error .bc-message-ico{background:#ff4d4f}.bc-message.warning .bc-message-ico{background:#faad14}.bc-head{margin-bottom:8px}.bc-h1{font-size:22px;font-weight:700;color:var(--ink)}.bc-sub{font-size:13px;color:var(--ink-muted);margin-top:3px}.bc-dot{display:inline-flex;align-items:center;justify-content:center;margin:0 7px;color:#9aa3ad;font-weight:500}' +
     '.bc-subnav{display:flex;gap:2px;border-bottom:1px solid var(--hair);margin:14px 0 20px;flex-wrap:wrap}' +
     '.bc-tab{padding:9px 14px;font-size:13.5px;color:var(--ink-muted);border-bottom:2px solid transparent;text-decoration:none;white-space:nowrap}' +
     '.bc-tab:hover{color:var(--ink)}.bc-tab.active{color:var(--ink);font-weight:600;border-bottom-color:var(--brand)}' +
@@ -1719,8 +1774,11 @@
   const subnav = () => '';
   // Use t() up-front for the surrounding English text so the bcI18n textNode walker
   // doesn't choke on a "漏斗 · External checkout on" mixed string it can't dict-match.
-  const head = (sub) => '<div class="bc-head"><div class="bc-h1">BestCheckout</div>' +
-    '<div class="bc-sub">' + sub + '　·　' + t('External checkout on') + ' <b>lovocross.myshopify.com</b> · ' + t('orders write back to Shopify') + '</div></div>';
+  const head = (sub) => {
+    const title = (sub === t('Funnel') || sub === 'Funnel' || sub === 'Shopify connection') ? sub : 'BestCheckout';
+    const meta = title === 'BestCheckout' ? '<div class="bc-sub">' + sub + '<span class="bc-dot">·</span>' + t('External checkout on') + ' <b>lovocross.myshopify.com</b><span class="bc-dot">·</span>' + t('orders write back to Shopify') + '</div>' : '';
+    return '<div class="bc-head"><div class="bc-h1">' + title + '</div>' + meta + '</div>';
+  };
   const chip = (text, cls) => '<span class="bc-chip ' + cls + '"><span class="d"></span>' + esc(text) + '</span>';
   const wrap = (inner) => '<div class="view-wrap">' + STYLE + inner + '</div>';
   const money = (n) => '$' + Number(n).toFixed(2);
@@ -1779,7 +1837,7 @@
   const cfDots = (n) => '<div class="cf-steps">' + [0, 1, 2, 3].map((i) => '<span class="cf-dot' + (i === n ? ' on' : '') + '"></span>').join('') + '</div>';
   function cfStepStore() {
     return cfDots(0) + '<div class="cf-sb">S</div><div class="cf-h">' + t('Connect your Shopify store') + '</div>' +
-      '<div class="cf-p">' + t('BestCheckout installs as a private app via OAuth — no App Store listing, no review. We import your products, discounts and shipping, and write orders back to Shopify.') + '</div>' +
+      '<div class="cf-p">' + t('BestCheckout installs as a private app via OAuth — no App Store listing, no review. We auto-sync products, discounts, shipping and customers from Shopify, and write paid orders back to Shopify.') + '</div>' +
       '<div class="cf-fl">' + t('Your Shopify store URL') + '</div><input class="cf-in" id="cf-store" value="' + esc(CF.store) + '" placeholder="your-store.myshopify.com">' +
       '<div class="cf-plats"><div class="cf-plat on">Shopify</div><div class="cf-plat soon">WooCommerce · ' + t('soon') + '</div><div class="cf-plat soon">BigCommerce · ' + t('soon') + '</div></div>' +
       '<div class="cf-foot"><span></span><button class="btn btn-primary" data-cf="authorize">' + t('Continue to Shopify') + '</button></div>';
@@ -1788,11 +1846,11 @@
   // Shopify's own OAuth consent screen (in reality Shopify hosts this, not BestShopio).
   function cfStepAuthorize() {
     const access = [
-      ['Products & collections', 'View and edit products, collections and inventory'],
+      ['Products & collections', 'View products, collections and inventory'],
       ['Orders', 'View and create orders — write paid orders back for fulfillment'],
-      ['Discounts', 'View and edit discounts and price rules'],
+      ['Discounts', 'View discounts and price rules'],
       ['Shipping', 'View shipping zones and rates'],
-      ['Customers', 'View and edit customers'],
+      ['Customers', 'View customers'],
     ];
     const list = access.map((a) => '<div class="cf-oauth-row">' + I.check + '<div><b style="font-weight:600">' + t(a[0]) + '</b> — <span style="color:#6d7175">' + t(a[1]) + '</span></div></div>').join('');
     return '<div class="cf-sf">' +
@@ -1807,7 +1865,7 @@
     '</div>';
   }
   function cfStepSyncing() {
-    const items = [t('Access granted (OAuth)'), t('Importing products') + ' (1,310)', t('Importing collections') + ' (48)', t('Importing discounts') + ' (23)', t('Importing shipping rates') + ' (9)', t('Registering webhooks'), t('Building the catalog mapping')];
+    const items = [t('Access granted (OAuth)'), t('Syncing products') + ' (1,310)', t('Syncing collections') + ' (48)', t('Syncing discounts') + ' (23)', t('Syncing shipping rates') + ' (9)', t('Registering webhooks'), t('Building the catalog mapping')];
     const rows = items.map((it, i) => '<div class="cf-sync"><span class="ck" style="animation-delay:' + (0.15 + i * 0.27).toFixed(2) + 's">' + I.check + '</span>' + esc(it) + '</div>').join('');
     return cfDots(2) + '<div class="cf-h">' + t('Connecting to') + ' ' + esc(CF.store) + '…</div>' +
       '<div class="cf-p">' + t('Syncing your catalog and registering webhooks — this usually takes a few seconds.') + '</div>' +
@@ -1816,7 +1874,7 @@
   function cfStepDone() {
     const chips = ['1,310 ' + t('products'), '48 ' + t('collections'), '23 ' + t('discounts'), '9 ' + t('shipping rates')].map((c) => chip(c, 'green')).join('');
     return cfDots(3) + '<div class="cf-done-ic">' + I.check + '</div><div class="cf-h">' + t('You’re connected!') + '</div>' +
-      '<div class="cf-p">' + t('Your Shopify catalog is now in BestShopio — edit it right here and changes sync back to Shopify. Orders you capture write back automatically.') + '</div>' +
+      '<div class="cf-p">' + t('Your Shopify catalog is now synced into BestShopio. BestCheckout uses it for checkout, while paid orders write back automatically.') + '</div>' +
       '<div class="cf-sum">' + chips + '</div>' +
       '<div class="cf-next">' + t('Next: connect payments · set your checkout domain · turn on checkout injection · build your first funnel.') + '</div>' +
       '<div class="cf-foot" style="justify-content:center"><button class="btn btn-primary" data-cf="enter">' + t('Enter BestCheckout') + '</button></div>';
@@ -1991,8 +2049,10 @@
 
   // ===================== CONNECTION HUB (the Shopify bridge — Phase 1 only) =====================
   // Everything a full BestShopio merchant never needs lives here, in one removable place:
-  // ① authorization (OAuth)  ② two-way data sync  ③ checkout injection (App Embed)  ④ checkout domain.
+  // ① authorization (OAuth)  ② Shopify data auto-sync  ③ checkout injection (App Embed)  ④ checkout domain.
   const CSTYLE = '<style>' +
+    '.cn-intro{display:flex;align-items:flex-start;gap:8px;margin:2px 0 14px;color:var(--ink-muted);font-size:12.5px;line-height:1.45}' +
+    '.cn-intro .ic{width:22px;height:22px;border-radius:6px;background:#eef4ff;color:var(--brand);display:inline-flex;align-items:center;justify-content:center;flex:none;margin-top:1px}.cn-intro .txt{flex:1;min-width:0}.cn-intro .l{font-weight:700;color:var(--ink-body);margin-right:6px}.cn-intro .d{color:var(--ink-muted)}' +
     '.cn-secnav{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 18px}' +
     '.cn-secnav button{font-size:12.5px;color:var(--ink-body);background:var(--panel);border:1px solid var(--hair);border-radius:999px;padding:6px 13px;cursor:pointer}' +
     '.cn-secnav button:hover{border-color:var(--brand);color:var(--brand)}' +
@@ -2001,72 +2061,91 @@
     '.cn-sb{width:40px;height:40px;border-radius:11px;background:#95bf47;color:#fff;display:inline-flex;align-items:center;justify-content:center;flex:none;font-weight:800}' +
     '.cn-dir{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600}' +
     '.cn-dir.two{color:#2b62d6}.cn-dir.pull{color:#1f8f4e}.cn-dir.push{color:#7b4bd0}' +
+    '.cn-entity{display:flex;align-items:center;gap:6px;min-width:0}.cn-help{position:relative;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#eef4ff;color:var(--brand);font-size:11px;font-weight:800;line-height:1;cursor:help;flex:none}.cn-help:focus{outline:2px solid #cfe1ff;outline-offset:2px}.cn-help:hover .cn-tip,.cn-help:focus .cn-tip{opacity:1;visibility:visible;transform:translate(0,0)}.cn-tip{position:absolute;left:22px;bottom:50%;transform:translate(0,4px);width:280px;max-width:min(70vw,360px);padding:9px 10px;border:1px solid var(--hair);border-radius:8px;background:#242833;color:#fff;font-size:12px;font-weight:500;line-height:1.45;box-shadow:var(--float-shadow);opacity:0;visibility:hidden;transition:.12s;z-index:120;white-space:normal}.cn-tip:after{content:"";position:absolute;left:-5px;bottom:10px;transform:rotate(45deg);width:10px;height:10px;background:#242833}' +
     '.cn-ab{display:flex;height:32px;border-radius:9px;overflow:hidden;border:1px solid var(--hair);margin:2px 0 12px}.cn-ab>div{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}.cn-ab .a{background:#e8f0fe;color:#2b62d6}.cn-ab .b{background:var(--panel);color:var(--ink-muted)}' +
     '.cn-dns{display:grid;grid-template-columns:84px 120px 1fr auto;border:1px solid var(--hair);border-radius:9px;overflow:hidden;font-size:12.5px}.cn-dns>div{padding:9px 11px}.cn-dns .h{background:var(--panel);color:var(--ink-muted);font-weight:600;border-bottom:1px solid var(--hair)}.cn-dns .v{font-family:ui-monospace,Menlo,monospace;color:var(--ink);border-bottom:1px solid var(--hair)}.cn-dns .cp{border-bottom:1px solid var(--hair)}' +
+    '.cn-rulegrid{display:grid;grid-template-columns:1fr;gap:10px;margin:10px 0 12px}.cn-rule{border:1px solid var(--hair);background:var(--panel);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--ink-body);line-height:1.5}.cn-rule b{display:block;font-size:12.5px;color:var(--ink);margin-bottom:2px}' +
+    '.cn-table-frame{border:1px solid var(--hair);border-radius:10px;background:#fff;overflow-x:auto;overflow-y:visible}.cn-table-frame .tbl{border-collapse:separate;border-spacing:0}.cn-table-frame .tbl tbody tr:last-child td{border-bottom:0}.cn-table-frame .tbl thead th:first-child{border-top-left-radius:10px}.cn-table-frame .tbl thead th:last-child{border-top-right-radius:10px}' +
     '.cn-scope{display:flex;gap:12px;padding:9px 0;border-top:1px solid var(--hair)}.cn-scope:first-child{border-top:0}.cn-scope .k{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ink);min-width:250px;flex:none}.cn-scope .w{font-size:12px;color:var(--ink-muted)}' +
     '.cn-li{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-body);padding:4px 0}.cn-li svg{color:#1f8f4e;flex:none}' +
-    '@media(max-width:760px){.cn-scope{flex-direction:column;gap:2px}.cn-scope .k{min-width:0}.cn-dns{grid-template-columns:1fr 1fr}}' +
+    '.cn-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #f0d49a;background:#fff8eb;border-radius:10px;padding:11px 12px;margin-bottom:12px}.cn-alert.red{border-color:#f3c6bf;background:#fff3f1}.cn-alert.green{border-color:#cdeedb;background:#f2fbf6}.cn-alert .t{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--ink)}.cn-alert .d{font-size:12.5px;color:var(--ink-body);line-height:1.5;margin-top:2px}.cn-alert .btn{height:28px;font-size:12px;padding:0 10px;flex:none}' +
+    '.cn-sync-issues{margin-top:14px;padding:8px;border:1px solid var(--hair);border-radius:8px;background:#fff;display:flex;flex-direction:column;gap:8px}.cn-sync-issues-h{font-size:12px;font-weight:700;color:var(--ink-muted);padding:1px 3px 0}.cn-sync-issues .cn-fix{border:0;border-radius:7px;margin:0;padding:10px 12px}.cn-sync-issues .cn-fix .m{display:block}' +
+    '.cn-fix{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 12px;padding:11px 12px;border:1px solid var(--hair);border-radius:10px;font-size:12.5px}.cn-fix.red{background:#fff7f5;border-color:#f3c6bf}.cn-fix.amber{background:#fffaf0;border-color:#f0d49a}.cn-fix .m{display:flex;flex-direction:column;gap:2px;color:var(--ink-body);line-height:1.45}.cn-fix .m b{color:var(--ink);font-size:13px}.cn-fix .btn{height:28px;font-size:12px;padding:0 10px;flex:none}' +
+    '.cn-hook-issues{margin-top:12px;padding:10px 12px;border:1px solid #f3c6bf;border-radius:10px;background:#fff7f5;display:flex;flex-direction:column;gap:0}.cn-hook-issues-h{font-size:12px;font-weight:700;color:#991b1b;padding-bottom:7px}.cn-hook-issue{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid #fde2df}.cn-hook-issue .m{display:flex;flex-direction:column;gap:2px;color:var(--ink-body);font-size:12.5px;line-height:1.45}.cn-hook-issue .m b{color:var(--ink);font-size:13px}.cn-hook-issue .btn{height:28px;font-size:12px;padding:0 10px;flex:none}' +
+    '@media(max-width:760px){.cn-scope{flex-direction:column;gap:2px}.cn-scope .k{min-width:0}.cn-dns,.cn-rulegrid{grid-template-columns:1fr}.cn-alert,.cn-fix,.cn-hook-issue{flex-direction:column;align-items:flex-start}}' +
   '</style>';
-  const dirCell = (e) => e.dir === 'two-way'
-    ? '<span class="cn-dir two">⇄ ' + t('Two-way') + '</span>'
-    : e.dir === 'pull'
-      ? '<span class="cn-dir pull">↓ Shopify → BestShopio</span>'
-      : '<span class="cn-dir push">↑ BestShopio → Shopify</span>';
+  const dirCell = (e) => e.dir === 'pull'
+    ? '<span class="cn-dir pull">↓ Shopify → BestShopio</span>'
+    : e.dir === 'push'
+      ? '<span class="cn-dir push">↑ BestShopio → Shopify</span>'
+      : '<span class="cn-dir pull">Shopify auto-sync</span>';
   const sotChip = (s) => chip(s, s === 'BestShopio' ? 'blue' : s === 'Shopify' ? 'green' : 'violet');
+  const statusTone = (x, fallback) => x && x.tone ? x.tone : fallback;
+  const connectStatusChip = (text, tone) => chip(t(text || 'OK'), tone || 'green');
+  const cnAlert = (x, action, attr) => x ? '<div class="cn-alert ' + statusTone(x, 'amber') + '"><div><div class="t">' + connectStatusChip(x.status, statusTone(x, 'amber')) + '<span>' + t(x.title || '') + '</span></div><div class="d">' + t(x.detail || '') + '</div></div>' + (action ? '<button class="btn btn-default" ' + attr + '>' + t(action) + '</button>' : '') + '</div>' : '';
+  const cnFix = (x, attr) => x && x.issue ? '<div class="cn-fix ' + statusTone(x, 'amber') + '"><div class="m"><b>' + esc(x.name || x.topic || '') + '</b><span>' + t(x.issue || x.error || '') + '</span></div>' + (x.action ? '<button class="btn btn-default" ' + attr + '>' + t(x.action) + '</button>' : '') + '</div>' : '';
+  const entityStatusChip = (e) => connectStatusChip(e.status, e.tone || (e.status === 'in sync' ? 'green' : e.status === 'pending' ? 'amber' : 'red'));
+  const hookStatusChip = (w) => connectStatusChip(w.status || (w.ok ? 'OK' : 'failed'), w.tone || (w.ok ? 'green' : 'red'));
+  const domainTone = (d) => d.tone || (d.status === 'DNS verified' || d.status === 'live' ? 'green' : 'amber');
   function renderConnect() {
     const C = D.CONNECT;
+    const entities = C.entities;
     const scopes = C.scopes.map((s) => '<div class="cn-scope"><span class="k">' + esc(s.name) + '</span><span class="w">' + t(s.why) + '</span></div>').join('');
-    const ents = C.entities.map((e) => '<tr><td style="font-weight:500;color:var(--ink)">' + esc(e.name) + '</td>' +
+    const entityName = (e) => '<div class="cn-entity"><span>' + esc(e.name) + '</span>' + (e.note ? '<span class="cn-help" tabindex="0">?<span class="cn-tip">' + esc(t(e.note)) + '</span></span>' : '') + '</div>';
+    const ents = entities.map((e) => '<tr><td style="font-weight:500;color:var(--ink)">' + entityName(e) + '</td>' +
       '<td>' + dirCell(e) + '</td><td>' + sotChip(e.sot) + '</td>' +
       '<td class="num">' + e.count.toLocaleString() + '</td><td class="muted" style="font-size:12px">' + esc(e.last) + '</td>' +
-      '<td>' + chip(e.status, 'green') + '</td></tr>').join('');
-    const notes = C.entities.filter((e) => e.note).map((e) => '<div class="bc-note" style="margin-top:8px"><b>' + esc(e.name) + ':</b> ' + t(e.note) + '</div>').join('');
-    const hooks = C.webhooks.map((w) => '<div class="bc-act"><span class="av bc-chip green" style="border-radius:50%">' + (w.ok ? '✓' : '!') + '</span><div class="at"><b>' + esc(w.topic) + '</b><div class="aw">' + t('last received') + ' ' + esc(w.last) + '</div></div>' + chip(w.ok ? 'OK' : 'Error', w.ok ? 'green' : 'red') + '</div>').join('');
+      '<td>' + entityStatusChip(e) + '</td></tr>').join('');
+    const syncFixes = entities.filter((e) => e.issue).map((e, idx) => cnFix(e, 'data-sync-fix="' + idx + '"')).join('');
+    const hooks = C.webhooks.map((w) => '<div class="bc-act"><span class="av bc-chip ' + (w.tone || (w.ok ? 'green' : 'red')) + '" style="border-radius:50%">' + (w.ok ? '✓' : w.status === 'pending' ? '…' : '!') + '</span><div class="at"><b>' + esc(w.topic) + '</b><div class="aw">' + t('last received') + ' ' + esc(w.last) + (w.error ? ' · ' + t(w.error) : '') + '</div></div>' + hookStatusChip(w) + '</div>').join('');
+    const hookFixes = C.webhooks.filter((w) => !w.ok && w.status !== 'pending').map((w, idx) => '<div class="cn-hook-issue"><div class="m"><b>' + esc(w.topic) + '</b><span>' + t(w.error || '') + '</span></div>' + (w.action ? '<button class="btn btn-default" data-hook-fix="' + idx + '">' + t(w.action) + '</button>' : '') + '</div>').join('');
     const intercept = C.embed.intercept.map((i) => '<div class="cn-li">' + I.check + esc(i) + '</div>').join('');
     const ab = C.embed.ab;
 
     root.innerHTML = wrap(CSTYLE +
-      head('Connection') + subnav('connect') +
-      // bridge banner
-      '<div class="bc-mig-banner" style="background:linear-gradient(90deg,#fff6e8,#fffaf2);border-color:#f0d49a;margin-bottom:16px"><span class="ic" style="background:#e0900e">' + I.link + '</span>' +
-        '<div class="m"><div class="l">' + t('The Shopify bridge') + '</div><div class="d">' + t('Everything on this page connects you to Shopify. A full BestShopio store never sees it — and it all goes away when you migrate.') + '</div></div></div>' +
+      head('Shopify connection') + subnav('connect') +
+      cnAlert(C.health, 'Review issues', 'data-cn="sync"') +
       // store header
       '<div class="panel card-pad" style="margin-bottom:16px"><div class="flex items-center justify-between" style="flex-wrap:wrap;gap:12px">' +
         '<div class="flex items-center gap-3"><span class="cn-sb">S</span>' +
-        '<div><div style="font-size:15px;font-weight:600;color:var(--ink)">' + esc(C.shop) + '　' + chip('Connected', 'green') + '</div>' +
-        '<div class="muted" style="font-size:12.5px;margin-top:2px">' + esc(C.plan) + ' · ' + t('Mode') + ': <b>' + esc(C.mode) + '</b> · ' + t('connected since') + ' ' + esc(C.connectedSince) + ' · ' + t('last sync') + ' ' + esc(C.lastSync) + '</div></div></div>' +
-        '<div class="flex gap-2"><button class="btn btn-default" data-resync>' + t('Re-sync now') + '</button><button class="btn btn-default" data-disc>' + t('Disconnect') + '</button></div></div></div>' +
+        '<div><div style="font-size:15px;font-weight:600;color:var(--ink)">' + esc(C.shop) + '　' + chip('Connected', 'green') + (C.health ? ' ' + connectStatusChip(C.health.status, statusTone(C.health, 'amber')) : '') + '</div>' +
+        '<div class="muted" style="font-size:12.5px;margin-top:2px">' + esc(C.plan) + '<span class="bc-dot">·</span>' + t('Mode') + ': <b>' + esc(C.mode) + '</b><span class="bc-dot">·</span>' + t('connected since') + ' ' + esc(C.connectedSince) + '<span class="bc-dot">·</span>' + t('last activity') + ' ' + esc(C.lastSync) + '</div></div></div></div></div>' +
       // section nav
       '<div class="cn-secnav">' +
         '<button data-cn="auth">① ' + t('Authorization') + '</button>' +
-        '<button data-cn="sync">② ' + t('Data sync') + '</button>' +
-        '<button data-cn="inject">③ ' + t('Checkout injection') + '</button>' +
-        '<button data-cn="domain">④ ' + t('Checkout domain') + '</button></div>' +
+        '<button data-cn="sync">② ' + t('Data auto-sync') + '</button>' +
+        '<button data-cn="hooks">③ ' + t('Webhooks') + '</button>' +
+        '<button data-cn="inject">④ ' + t('App Embed') + '</button>' +
+        '<button data-cn="domain">⑤ ' + t('Domain') + '</button></div>' +
 
       // ① Authorization
       '<div class="cn-sec" id="cn-auth"><div class="cn-sec-h"><span class="cn-sec-n">1</span><span class="cn-sec-t">' + t('Authorization') + '</span><span class="cn-sec-x">OAuth · custom distribution</span></div>' +
         '<div class="panel card-pad">' +
+          cnAlert(C.authorization, C.authorization && C.authorization.primary, 'data-reauth') +
           '<div class="bc-note" style="margin-bottom:12px">' + t('Installed via a private app (OAuth + Admin API) — no Shopify App Store listing or review. These are the permissions you granted at install:') + '</div>' +
           scopes +
-          '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-default" data-reauth>' + t('Re-authorize') + '</button><button class="btn btn-default" data-disc>' + t('Disconnect') + '</button></div>' +
         '</div></div>' +
 
-      // ② Data sync
-      '<div class="cn-sec" id="cn-sync"><div class="cn-sec-h"><span class="cn-sec-n">2</span><span class="cn-sec-t">' + t('Data sync') + '</span><span class="cn-sec-x">' + t('two-way · BestShopio is your workspace') + '</span></div>' +
-        '<div class="bc-note" style="margin-bottom:12px">' + t('Edit products, collections, discounts and shipping right here in BestShopio — changes sync back to Shopify automatically. Your team moves into BestShopio now, so migrating later is just a domain switch.') + '</div>' +
-        '<div class="panel" style="margin-bottom:0"><div style="overflow-x:auto"><table class="tbl" style="min-width:720px"><thead><tr><th>' + t('Entity') + '</th><th style="width:150px">' + t('Direction') + '</th><th style="width:120px">' + t('Source of truth') + '</th><th class="num" style="width:90px">' + t('Items') + '</th><th style="width:110px">' + t('Last sync') + '</th><th style="width:90px">' + t('Status') + '</th></tr></thead><tbody>' + ents + '</tbody></table></div></div>' +
-        notes +
-        '<div class="panel card-pad" style="margin-top:14px"><div class="card-title" style="margin-bottom:6px">Webhooks</div>' + hooks + '</div>' +
+      // ② Data auto-sync
+      '<div class="cn-sec" id="cn-sync"><div class="cn-sec-h"><span class="cn-sec-n">2</span><span class="cn-sec-t">' + t('Data auto-sync') + '</span><span class="cn-sec-x">' + t('Shopify auto-sync · orders write back') + '</span></div>' +
+        '<div class="bc-note" style="margin-bottom:12px">' + t('Products, collections, discounts, shipping and customers sync automatically from Shopify. BestCheckout uses them for checkout, while paid orders write back to Shopify for fulfillment.') + '</div>' +
+        '<div class="cn-table-frame"><table class="tbl" style="min-width:720px"><thead><tr><th>' + t('Entity') + '</th><th style="width:150px">' + t('Direction') + '</th><th style="width:120px">' + t('Source of truth') + '</th><th class="num" style="width:90px">' + t('Items') + '</th><th style="width:110px">' + t('Last activity') + '</th><th style="width:90px">' + t('Status') + '</th></tr></thead><tbody>' + ents + '</tbody></table></div>' +
+        (syncFixes ? '<div class="cn-sync-issues"><div class="cn-sync-issues-h">' + t('Sync messages') + '</div>' + syncFixes + '</div>' : '') +
       '</div>' +
 
-      // ③ Checkout injection
-      '<div class="cn-sec" id="cn-inject"><div class="cn-sec-h"><span class="cn-sec-n">3</span><span class="cn-sec-t">' + t('Checkout injection') + '</span><span class="cn-sec-x">Theme App Extension (App Embed)</span></div>' +
+      // ③ Webhooks
+      '<div class="cn-sec" id="cn-hooks"><div class="cn-sec-h"><span class="cn-sec-n">3</span><span class="cn-sec-t">' + t('Webhooks') + '</span><span class="cn-sec-x">Shopify Admin API callbacks</span></div>' +
+        '<div class="panel card-pad"><div class="card-title" style="margin-bottom:6px">' + t('Webhook delivery') + '</div>' + hooks + (hookFixes ? '<div class="cn-hook-issues"><div class="cn-hook-issues-h">' + t('Delivery issues') + '</div>' + hookFixes + '</div>' : '') + '</div>' +
+      '</div>' +
+      // ④ App Embed
+      '<div class="cn-sec" id="cn-inject"><div class="cn-sec-h"><span class="cn-sec-n">4</span><span class="cn-sec-t">' + t('App Embed') + '</span><span class="cn-sec-x">Theme App Extension</span></div>' +
         '<div class="bc-grid2b">' +
-          '<div class="panel card-pad"><div class="flex items-center justify-between" style="margin-bottom:8px"><div class="card-title">App Embed　' + (C.embed.enabled ? chip('Enabled', 'green') : chip('Off', 'gray')) + '</div></div>' +
-            '<div class="muted" style="font-size:12.5px;line-height:1.55;margin-bottom:10px">' + t('A one-line App Embed block in your live theme adds a "Checkout" interceptor — no theme code edits, survives theme updates.') + '</div>' +
+          '<div class="panel card-pad"><div class="flex items-center justify-between" style="margin-bottom:8px"><div class="card-title">App Embed　' + connectStatusChip(C.embed.health || (C.embed.enabled ? 'Enabled' : 'Off'), statusTone(C.embed, C.embed.enabled ? 'green' : 'gray')) + '</div></div>' +
+            '<div class="muted" style="font-size:12.5px;line-height:1.55;margin-bottom:10px">' + t('BestCheckout installs the App Embed automatically. If it is removed during a theme change, reinstall it here to restore checkout interception.') + '</div>' +
+            (C.embed.issue ? cnFix({ name: 'App Embed', issue: C.embed.issue, action: 'Restore App Embed', tone: statusTone(C.embed, 'red') }, 'data-embed-restore') : '') +
             '<div class="cn-li">' + I.check + t('Live theme') + ': <b style="color:var(--ink)">' + esc(C.embed.theme) + '</b> · ' + t('last seen') + ' ' + esc(C.embed.lastSeen) + '</div>' +
             '<div class="bc-kpi-s" style="margin:8px 0 4px;font-weight:600;color:var(--ink-muted)">' + t('Intercepts') + '</div>' + intercept +
-            '<div style="margin-top:12px"><button class="btn btn-default" data-embed>' + t('Open in Shopify theme editor') + '</button></div></div>' +
+            '</div>' +
           '<div class="panel card-pad"><div class="card-title" style="margin-bottom:8px">A/B ' + t('split') + '</div>' +
             '<div class="muted" style="font-size:12.5px;margin-bottom:6px">' + t('Send a slice of carts to BestCheckout; keep the rest on Shopify as a control. Ramp up as approval & AOV prove out.') + '</div>' +
             '<div class="cn-ab"><div class="a" style="width:' + ab.split + '%">BestCheckout ' + ab.split + '%</div><div class="b" style="width:' + (100 - ab.split) + '%">Shopify ' + (100 - ab.split) + '%</div></div>' +
@@ -2075,19 +2154,38 @@
             '<div style="margin-top:12px"><button class="btn btn-default" data-ab>' + t('Edit routing rules') + '</button></div></div>' +
         '</div></div>' +
 
-      // ④ Checkout domain
-      '<div class="cn-sec" id="cn-domain"><div class="cn-sec-h"><span class="cn-sec-n">4</span><span class="cn-sec-t">' + t('Checkout domain') + '</span><span class="cn-sec-x">Phase 1 · ' + t('replaced by main-domain switch at migration') + '</span></div>' +
+      // ⑤ Domain
+      '<div class="cn-sec" id="cn-domain"><div class="cn-sec-h"><span class="cn-sec-n">5</span><span class="cn-sec-t">' + t('Domain') + '</span></div>' +
         '<div class="panel card-pad">' +
-          '<div class="flex items-center justify-between" style="flex-wrap:wrap;gap:10px;margin-bottom:12px"><div style="font-size:14px;font-weight:600;color:var(--ink)">' + esc(C.domain.sub) + '　' + chip('SSL ' + C.domain.ssl, 'green') + '　' + chip(C.domain.status, 'blue') + '</div></div>' +
+          '<div class="flex items-center justify-between" style="flex-wrap:wrap;gap:10px;margin-bottom:12px"><div style="font-size:14px;font-weight:600;color:var(--ink)">' + esc(C.domain.sub) + '　' + connectStatusChip(C.domain.status, domainTone(C.domain)) + '</div></div>' +
           '<div class="muted" style="font-size:12.5px;margin-bottom:10px">' + t('Your branded checkout lives on this subdomain. Point one CNAME at us and we issue & renew SSL automatically.') + '</div>' +
+          (C.domain.issue ? cnFix({ name: C.domain.sub, issue: C.domain.issue, action: 'Verify DNS', tone: domainTone(C.domain) }, 'data-domain-fix') : '') +
           '<div class="cn-dns"><div class="h">' + t('Type') + '</div><div class="h">' + t('Host') + '</div><div class="h">' + t('Value') + '</div><div class="h cp"></div>' +
             '<div class="v">CNAME</div><div class="v">checkout</div><div class="v">' + esc(C.domain.cname) + '</div><div class="cp"><button class="btn btn-default" data-copy style="height:28px;padding:0 10px;font-size:12px">' + t('Copy') + '</button></div></div>' +
-          '<div class="bc-note" style="margin-top:12px">' + t('At migration, this subdomain is retired — your main domain points straight at the BestShopio storefront instead. See Migrate.') + '</div>' +
         '</div></div>'
     );
     root.querySelectorAll('[data-cn]').forEach((b) => b.onclick = () => { const el = root.querySelector('#cn-' + b.getAttribute('data-cn')); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
-    root.querySelectorAll('[data-resync]').forEach((b) => b.onclick = () => toast(t('Queued a full re-sync')));
-    // Disconnecting Shopify breaks the entire bridge (sync + order write-back).
+    root.querySelectorAll('[data-sync-fix]').forEach((b) => b.onclick = () => { const withIssue = C.entities.filter((e) => e.issue); const e = withIssue[Number(b.getAttribute('data-sync-fix')) || 0]; if (!e) return; e.status = 'pending'; e.tone = 'amber'; e.last = 'retry queued'; e.issue = 'Automatic sync retry is queued. No action is needed.'; e.action = ''; renderConnect(); toast(t('Auto-sync retry queued')); });
+    root.querySelectorAll('[data-hook-fix]').forEach((b) => b.onclick = () => { const failed = C.webhooks.filter((w) => !w.ok && w.status !== 'pending'); const w = failed[Number(b.getAttribute('data-hook-fix')) || 0]; if (!w) return; w.status = 'pending'; w.tone = 'amber'; w.last = 'retry queued'; w.error = 'Waiting for Shopify to redeliver this webhook.'; w.action = ''; renderConnect(); toast(t('Webhook retry queued')); });
+    root.querySelectorAll('[data-embed-restore]').forEach((b) => b.onclick = () => {
+      C.embed.health = 'detected'; C.embed.tone = 'green'; C.embed.issue = ''; C.embed.lastSeen = 'just now';
+      const setup = bcSetup(); setup.embed_enabled = true; bcSetupSave(setup);
+      renderConnect(); toast(t('App Embed reinstalled and detected.'));
+    });
+    root.querySelectorAll('[data-domain-fix]').forEach((b) => b.onclick = () => {
+      dnsVerifyAttempts += 1;
+      if (dnsVerifyAttempts < 2) {
+        C.domain.status = 'DNS not verified';
+        C.domain.tone = 'amber';
+        C.domain.issue = 'CNAME still is not resolving. Check the host and target, then verify again.';
+        renderConnect(); toast(t('DNS verification failed. Check the DNS record, then verify again.'));
+        return;
+      }
+      C.domain.status = 'DNS verified'; C.domain.tone = 'green'; C.domain.issue = '';
+      const setup = bcSetup(); setup.domain_set = true; bcSetupSave(setup);
+      renderConnect(); toast(t('DNS verified. Buyers can now use this checkout domain.'));
+    });
+    // Disconnecting Shopify breaks the entire bridge (Shopify auto-syncs + order write-back).
     // Styled confirm modal (matches admin visual language + i18n-translatable).
     root.querySelectorAll('[data-disc]').forEach((b) => b.onclick = () => {
       const backdrop = h('<div class="modal-backdrop"></div>');
@@ -2096,7 +2194,7 @@
         '<div class="modal-head flex items-center justify-between"><span>' + t('Disconnect Shopify') + '</span>' +
           '<span class="drawer-x" data-x style="cursor:pointer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>' +
         '</div>' +
-        '<div class="modal-body" style="padding:18px 22px;font-size:13.5px;line-height:1.6;color:var(--ink-body)">' + t('This will stop all data sync (products / discounts / shipping / customers) and order write-back. You will need to re-authorize to reconnect.') + '</div>' +
+        '<div class="modal-body" style="padding:18px 22px;font-size:13.5px;line-height:1.6;color:var(--ink-body)">' + t('This stops BestCheckout routing, Shopify data auto-sync, webhooks, and order write-back. Your Shopify native checkout stays available, and you will need to re-authorize to reconnect.') + '</div>' +
         '<div class="modal-foot" style="justify-content:flex-end"><div class="flex gap-2">' +
           '<button class="btn btn-default" data-cancel>' + t('Cancel') + '</button>' +
           '<button class="btn" style="background:var(--err);color:#fff" data-ok>' + t('Disconnect') + '</button>' +
@@ -2111,15 +2209,11 @@
         setBcConnected(false); CF.step = 'store'; toast(t('Disconnected — reconnect from the start')); location.hash = '#/bestcheckout'; renderOverview();
       };
     });
-    const ra = root.querySelector('[data-reauth]'); if (ra) ra.onclick = () => bcModal(t('Re-authorize'),
-      '<div class="fab-note">' + t('Re-opens the Shopify OAuth consent screen to refresh the access token and scopes. Your store stays connected — nothing is removed.') + '</div>' +
-      '<ul class="bm-scopes"><li>' + t('Two-way sync · products, collections, discounts, shipping') + '</li><li>' + t('Write paid orders back to Shopify') + '</li><li>' + t('Read customers (for the New vs Returning A/B)') + '</li></ul>',
-      t('Re-authorize on Shopify'), () => toast(t('Token refreshed · scopes re-granted')));
-    const em = root.querySelector('[data-embed]'); if (em) em.onclick = () => bcModal(t('Open in Shopify theme editor'),
-      '<div class="fab-note">' + t('Deep-links to Online Store → Themes → Customize → App embeds. Turn the BestCheckout embed on — it intercepts the cart “Checkout” button without editing theme code.') + '</div>' +
-      '<div class="bm-embed"><span class="bm-toggle"></span><b>BestCheckout</b> · App embed · <span style="color:#1f8f4e;font-weight:600">' + t('Enabled') + '</span></div>',
-      t('Open Shopify'), () => toast(t('Opening Shopify theme editor…')));
-    const ab2 = root.querySelector('[data-ab]'); if (ab2) ab2.onclick = () => toast(t('Demo: opens the A/B routing-rule builder'));
+    root.querySelectorAll('[data-reauth]').forEach((ra) => ra.onclick = () => bcModal(t('Update permissions'),
+      '<div class="fab-note">' + t('Opens the Shopify OAuth consent screen so the merchant can grant the updated scopes. The store stays connected; nothing is removed.') + '</div>' +
+      '<ul class="bm-scopes"><li>' + t('Shopify auto-sync · products, collections, discounts, shipping') + '</li><li>' + t('Write paid orders back to Shopify') + '</li><li>' + t('Read customers (for the New vs Returning A/B)') + '</li></ul>',
+      t('Update on Shopify'), () => toast(t('Permissions updated · scopes re-granted'))));
+    const ab2 = root.querySelector('[data-ab]'); if (ab2) ab2.onclick = () => { location.hash = '#/bestcheckout/funnel'; };
     const cp = root.querySelector('[data-copy]'); if (cp) cp.onclick = () => toast(t('Copied'));
   }
 

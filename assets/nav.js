@@ -79,8 +79,8 @@ window.PLUGGABLE_APPS = [
   {
     id: 'bestcheckout', name: 'BestCheckout', icon: 'card', builtin: true, category: 'Selling', status: 'available',
     tagline: 'High-converting external checkout for your Shopify store — and your on-ramp to BestShopio.',
-    blurb: 'Bring your Shopify store: products, discounts and shipping sync both ways and stay editable here, orders write back to Shopify for fulfillment. Sell through a faster checkout with one-click post-purchase upsells and multi-MID payment routing, then migrate to a native BestShopio store with a single domain switch. Subscriptions reuse the Subscriptions app.',
-    permissions: ['Connect a Shopify store (OAuth)', 'Two-way sync of products, collections, discounts and shipping', 'Write paid orders back to Shopify to trigger fulfillment', 'Use connected payment gateways for checkout & routing'],
+    blurb: 'Bring your Shopify store: products, discounts, shipping and customers sync automatically from Shopify for checkout. Paid orders write back to Shopify for fulfillment. Sell through a faster checkout with one-click post-purchase upsells and multi-MID payment routing, then migrate to a native BestShopio store with a single domain switch. Subscriptions reuse the Subscriptions app.',
+    permissions: ['Connect a Shopify store (OAuth)', 'Auto-sync products, collections, discounts, shipping and customers from Shopify', 'Write paid orders back to Shopify to trigger fulfillment', 'Use connected payment gateways for checkout & routing'],
     // App workspace with a second-level menu (like Subscriptions / Analytics): parent = Overview, children below.
     menu: { id: 'bestcheckout', label: 'BestCheckout', icon: 'card', route: '#/bestcheckout', desc: 'External high-converting checkout, payment routing & post-purchase for a connected Shopify store.',
       children: [
@@ -152,8 +152,8 @@ window.CHANGELOG = [
     modules: [],
     items: [
       'New app (sits under Bundles): connect a Shopify store and sell through a faster external checkout with one-click post-purchase upsells and multi-MID payment routing',
-      'Two-way sync — products, collections, discounts and shipping are editable here in BestShopio and sync back to Shopify; paid orders write back to trigger the merchant’s existing fulfillment apps',
-      'Connection hub gathers the whole Shopify bridge — authorization (OAuth), data sync, checkout injection (App Embed) and the checkout domain — and retires at migration',
+      'Shopify auto-sync — products, collections, discounts, shipping and customers are read from Shopify for checkout; paid orders write back to trigger the merchant’s existing fulfillment apps',
+      'Connection hub gathers the whole Shopify bridge — authorization (OAuth), Shopify data auto-sync, checkout injection (App Embed) and the checkout domain — and retires at migration',
       'One-domain-switch migration to a native BestShopio store; subscriptions reuse the Subscriptions app rather than a second engine',
     ],
   },
