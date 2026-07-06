@@ -27,6 +27,34 @@
   const byId = (id) => D.bundles.find((b) => String(b.id) === String(id));
   const tplOf = (v) => D.templates.find((t) => t.value === v) || D.templates[0];
   const STATUS = { active: { label: 'Activated', cls: 'pill-green' }, draft: { label: 'Deactivated', cls: 'pill-gray' } };
+  const parentName = (b) => String((b && b.parentProduct) || '').trim();
+  function activeSiblingOf(bundle, nextStatus) {
+    const parent = parentName(bundle);
+    if (nextStatus !== 'active' || !parent) return null;
+    const id = bundle && bundle.id != null ? String(bundle.id) : '';
+    return D.bundles.find((b) => String(b.id) !== id && parentName(b) === parent && b.status === 'active') || null;
+  }
+  function deactivateActiveSiblings(bundle) {
+    const parent = parentName(bundle);
+    if (!parent) return;
+    const id = bundle && bundle.id != null ? String(bundle.id) : '';
+    D.bundles.forEach((b) => { if (String(b.id) !== id && parentName(b) === parent && b.status === 'active') b.status = 'draft'; });
+  }
+  function setBundleStatus(bundle, nextStatus) {
+    if (!bundle) return;
+    if (nextStatus === 'active') deactivateActiveSiblings(bundle);
+    bundle.status = nextStatus;
+  }
+  function confirmReplaceActive(bundle, onOk) {
+    const conflict = activeSiblingOf(bundle, bundle.status || 'active');
+    if (!conflict) { onOk(); return; }
+    window.UI.confirm({
+      title: 'Replace current active Bundle?',
+      content: parentName(bundle) + ' already has an active Bundle: ' + (conflict.name || conflict.id) + '. Activating ' + (bundle.name || 'this Bundle') + ' will deactivate the current active Bundle.',
+      okText: 'Replace and activate',
+      onOk: onOk,
+    });
+  }
   const pill = (m) => '<span class="pill ' + m.cls + '">' + esc(m.label) + '</span>';
   const IMG = (px) => '<span style="width:' + (px || 40) + 'px;height:' + (px || 40) + 'px;border-radius:6px;background:#e9ecf2;color:#9aa3b2;display:grid;place-items:center;font-size:9px;font-weight:600;flex:none">IMG</span>';
   // Placeholder product photos — deterministic per product name (same name -> same photo); swap for real product main images when wired to data.
@@ -209,8 +237,27 @@
         window.UI.confirm({ title: 'Delete bundles', content: 'Delete ' + ids.length + ' bundle' + (ids.length > 1 ? 's' : '') + '? This can\'t be undone.', okText: 'Delete', danger: true, onOk: () => { D.bundles = D.bundles.filter((b) => ids.indexOf(String(b.id)) < 0); LST.sel = {}; toast('Deleted successfully'); renderList(); } });
         return;
       }
-      ids.forEach((id) => { const b = byId(id); if (b) b.status = act === 'activate' ? 'active' : 'draft'; });
-      LST.sel = {}; toast(act === 'activate' ? 'Activated' : 'Deactivated'); renderList();
+      const selected = ids.map((id) => byId(id)).filter(Boolean);
+      if (act !== 'activate') {
+        selected.forEach((b) => { b.status = 'draft'; });
+        LST.sel = {}; toast('Deactivated'); renderList();
+        return;
+      }
+      const seenParents = {};
+      const duplicateParent = selected.find((b) => { const p = parentName(b); if (!p) return false; if (seenParents[p]) return true; seenParents[p] = true; return false; });
+      if (duplicateParent) return toast('Only one Bundle can be activated per parent product');
+      const conflicts = selected.map((b) => activeSiblingOf(b, 'active')).filter(Boolean);
+      const applyActivate = () => { selected.forEach((b) => setBundleStatus(b, 'active')); LST.sel = {}; toast('Activated'); renderList(); };
+      if (conflicts.length) {
+        window.UI.confirm({
+          title: 'Replace current active Bundle?',
+          content: conflicts.length + ' parent product' + (conflicts.length > 1 ? 's already have' : ' already has') + ' an active Bundle. Activating the selected Bundle' + (selected.length > 1 ? 's' : '') + ' will deactivate the current active Bundle for each affected product.',
+          okText: 'Replace and activate',
+          onOk: applyActivate,
+        });
+        return;
+      }
+      applyActivate();
     });
     root.querySelectorAll('#bn-tbody tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('[data-stop]')) return; location.hash = '#/bundles/edit/' + tr.getAttribute('data-id'); });
     root.querySelectorAll('.bn-view').forEach((el) => el.onclick = (e) => { e.stopPropagation(); location.hash = '#/bundles/edit/' + el.getAttribute('data-view'); });
@@ -322,6 +369,7 @@
             card('Status', '<div style="display:flex;flex-direction:column;gap:11px;padding:2px 0">' +
               '<label class="flex items-center gap-2" style="cursor:pointer;font-size:13.5px;color:var(--ink)"><input type="radio" name="bn-status" class="bn-statusr" value="active"' + (EDIT.status === 'active' ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:var(--brand);cursor:pointer" /> Activated</label>' +
               '<label class="flex items-center gap-2" style="cursor:pointer;font-size:13.5px;color:var(--ink)"><input type="radio" name="bn-status" class="bn-statusr" value="draft"' + (EDIT.status === 'draft' ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:var(--brand);cursor:pointer" /> Deactivated</label>' +
+              '<div class="muted" style="font-size:12px;line-height:1.45;padding-top:2px">One parent product can have only one active Bundle. Draft/deactivated Bundles can be kept.</div>' +
             '</div>') +
             card('Preview', '<div id="bn-preview">' + previewInner() + '</div>') +
           '</div>' +
@@ -560,8 +608,28 @@
   function doSave(isEdit) {
     if (!(EDIT.name || '').trim()) return toast('Enter a bundle name');
     if (!(EDIT.parentProduct || '').trim()) return toast('Select a parent product first');
-    if (isEdit) { const i = D.bundles.findIndex((x) => x.id === EDIT_ID); if (i >= 0) Object.assign(D.bundles[i], { name: EDIT.name, parentProduct: EDIT.parentProduct, template: EDIT.template, status: EDIT.status, tierCount: (EDIT.tiers || []).length }); EDIT_ORIGIN = snapshot(); syncUnsaved(); toast('Updated successfully'); }
-    else { const id = 'BND-' + String(D.bundles.length + 1).padStart(2, '0'); D.bundles.unshift({ id: id, name: EDIT.name, parentProduct: EDIT.parentProduct, template: EDIT.template, status: EDIT.status || 'active', tierCount: (EDIT.tiers || []).length, orders: 0, createdAt: '2026-06-19' }); toast('Created successfully'); location.hash = '#/bundles'; }
+    const nextStatus = EDIT.status || 'active';
+    const nextId = isEdit ? EDIT_ID : 'BND-' + String(D.bundles.length + 1).padStart(2, '0');
+    const nextBundle = { id: nextId, name: EDIT.name, parentProduct: EDIT.parentProduct, template: EDIT.template, status: nextStatus, tierCount: (EDIT.tiers || []).length };
+    const commit = () => {
+      if (isEdit) {
+        const i = D.bundles.findIndex((x) => x.id === EDIT_ID);
+        if (i < 0) return toast('Bundle not found');
+        Object.assign(D.bundles[i], { name: nextBundle.name, parentProduct: nextBundle.parentProduct, template: nextBundle.template, tierCount: nextBundle.tierCount });
+        setBundleStatus(D.bundles[i], nextStatus);
+        EDIT_ORIGIN = snapshot();
+        syncUnsaved();
+        toast('Updated successfully');
+        return;
+      }
+      const created = Object.assign({}, nextBundle, { orders: 0, createdAt: '2026-06-19' });
+      D.bundles.unshift(created);
+      setBundleStatus(created, nextStatus);
+      toast('Created successfully');
+      location.hash = '#/bundles';
+    };
+    if (nextStatus === 'active') return confirmReplaceActive(nextBundle, commit);
+    commit();
   }
 
   // ================= ROUTER =================

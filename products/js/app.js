@@ -235,13 +235,24 @@
     wireList();
   }
 
-  // Cross-module purchase-option tags shown under the product name (subscription / bundle awareness).
+  function activeBundleLinks(p) {
+    const configured = ((p && p.po && p.po.bundles) || []);
+    const live = (window.DATA_BUNDLES && window.DATA_BUNDLES.bundles) || [];
+    if (!configured.length) return [];
+    if (!live.length) return configured;
+    return configured.filter((b) => {
+      const current = live.find((x) => String(x.id) === String(b.id));
+      return !current || current.status === 'active';
+    });
+  }
+
+  // Cross-module purchase-option tags shown under the product name (subscription / active bundle awareness).
   function poTags(p) {
     if (!p.po) return '';
     const tag = (txt, bg, fg) => '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + '">' + txt + '</span>';
     let out = '';
     if (p.po.subscription) out += tag('Subscription', '#e6f0ff', '#1d6fe0');
-    if (p.po.bundles && p.po.bundles.length) out += tag('Bundle', '#eef0f4', '#525a6b');
+    if (activeBundleLinks(p).length) out += tag('Bundle', '#eef0f4', '#525a6b');
     return out ? '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">' + out + '</div>' : '';
   }
 
@@ -554,7 +565,7 @@
       const sub = [po.subscription.save, po.subscription.via ? 'via ' + po.subscription.via : ''].filter(Boolean).join(' · ');
       rows += row('#/subscriptions/plans/' + po.subscription.planId, 'Subscribe & Save', sub);
     }
-    (po.bundles || []).forEach((b) => { rows += row('#/bundles/edit/' + b.id, b.name, 'Bundle'); });
+    activeBundleLinks(p).forEach((b) => { rows += row('#/bundles/edit/' + b.id, b.name, 'Bundle'); });
     const intro = '<div class="muted" style="font-size:12px;line-height:1.5;margin-bottom:2px">How customers can buy this beyond a one-time purchase.</div>';
     return card('Purchase options', intro + rows, null, true);
   }
