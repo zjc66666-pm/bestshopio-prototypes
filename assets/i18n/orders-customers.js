@@ -52,6 +52,7 @@ window.I18N.extend({
   "Fulfillment status": "发货状态",
   "Action": "操作",
   "No orders match these filters.": "没有符合筛选条件的订单。",
+  "Channel": "渠道",
   "Source": "来源",
   "Shopify write-back": "Shopify 回写",
 

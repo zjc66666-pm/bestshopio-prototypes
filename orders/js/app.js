@@ -75,6 +75,23 @@
     return o.source || 'Online store';
   }
 
+  function orderChannelCell(o) {
+    if (o.source === 'BestCheckout') {
+      const wb = o.shopify_writeback_status;
+      const wbTone = wb === 'failed' ? { bg: '#fff1f0', bd: '#ffccc7', fg: '#cf1322', text: 'failed' } : { bg: '#fff7e6', bd: '#ffd591', fg: '#ad6800', text: 'pending' };
+      const wbTag = (wb === 'pending' || wb === 'failed') ? '<span style="display:inline-flex;align-items:center;height:18px;margin-left:6px;padding:0 6px;border-radius:4px;border:1px solid ' + wbTone.bd + ';background:' + wbTone.bg + ';color:' + wbTone.fg + ';font-size:11px;font-weight:600;line-height:1">' + wbTone.text + '</span>' : '';
+      return '<div><div style="display:flex;align-items:center;gap:0;white-space:nowrap">Shopify' + wbTag + '</div><div class="muted" style="font-size:12px;margin-top:2px">via BestCheckout</div></div>';
+    }
+    return esc(o.channel || o.source || 'Online store');
+  }
+
+  function orderChannelDetail(o) {
+    if (o.source === 'BestCheckout') {
+      return '<span>Shopify</span><span class="muted" style="margin-left:6px;font-size:12px">via BestCheckout</span>';
+    }
+    return esc(o.channel || o.source || 'Online store');
+  }
+
   function writebackPill(o) {
     return pill(WRITEBACK_STATUS, o.shopify_writeback_status || 'none');
   }
@@ -194,16 +211,16 @@
         '</div>' +
         // table (table.tsx columns + leading row-selection checkbox)
         '<div style="overflow-x:auto">' +
-        '<table class="tbl" style="min-width:1460px">' +
+        '<table class="tbl" style="min-width:1380px">' +
           '<thead><tr>' +
             '<th style="width:48px;text-align:center"><input type="checkbox" class="ord-check-all" /></th>' +
             '<th>Order number</th><th>Order date</th><th>User</th><th>Shipping address</th>' +
-            '<th>Total</th><th>Source</th><th>Shopify write-back</th><th>Order status</th><th>Payment status</th>' +
+            '<th>Total</th><th>Channel</th><th>Order status</th><th>Payment status</th>' +
             '<th>Payment method</th><th>Fulfillment status</th><th style="text-align:center">Action</th>' +
           '</tr></thead>' +
           '<tbody id="ord-tbody">' +
             (pageRows.length ? pageRows.map(rowHtml).join('')
-              : '<tr><td colspan="13" style="text-align:center;padding:40px" class="muted">No orders match these filters.</td></tr>') +
+              : '<tr><td colspan="12" style="text-align:center;padding:40px" class="muted">No orders match these filters.</td></tr>') +
           '</tbody>' +
         '</table>' +
         '</div>' +
@@ -242,8 +259,7 @@
         '</span>' +
       '</td>' +
       '<td style="font-weight:600;color:var(--ink)">' + money(o.total) + '</td>' +
-      '<td>' + esc(orderSource(o)) + '</td>' +
-      '<td>' + writebackPill(o) + '</td>' +
+      '<td>' + orderChannelCell(o) + '</td>' +
       '<td>' + pill(ORDER_STATUS, o.order_status) + '</td>' +
       '<td>' + pill(PAY_STATUS, o.payment_status) + '</td>' +
       '<td class="muted">' + esc(o.payment_method) + '</td>' +
@@ -542,6 +558,12 @@
       '<div class="subtle" style="font-size:13px;min-width:0;word-break:break-word">' + (val || '--') + '</div></div>';
   }
 
+  function integrationRow(label, val, topAlign) {
+    return '<div style="display:flex;align-items:' + (topAlign ? 'flex-start' : 'center') + ';padding:6px 0">' +
+      '<div class="muted" style="width:120px;flex:none;font-size:13px;line-height:22px">' + label + '</div>' +
+      '<div class="subtle" style="display:flex;align-items:center;min-height:22px;font-size:13px;min-width:0;word-break:break-word">' + (val || '--') + '</div></div>';
+  }
+
   // ---- Shipping address card (ShippingAddressCard.tsx): 2-col, no inline edit ----
   function shippingAddressCard(o) {
     const s = o.shipping;
@@ -575,9 +597,9 @@
     const wb = o.shopify_writeback_status || 'none';
     const detail = o.shopify_writeback_detail || (wb === 'synced' ? 'Order has been written back to Shopify.' : wb === 'pending' ? 'Write-back is queued.' : wb === 'failed' ? 'Write-back needs attention.' : 'No Shopify write-back status.');
     const shopifyId = o.shopify_order_id ? '<span class="muted" style="margin-left:6px">' + esc(o.shopify_order_id) + '</span>' : '';
-    return cardOpen('<span>Integration</span>' + writebackPill(o)) +
-      descRow('Source', esc(orderSource(o))) +
-      descRow('Shopify write-back', writebackPill(o) + shopifyId) +
+    return cardOpen('<span>Integration</span>') +
+      integrationRow('Channel', orderChannelDetail(o)) +
+      integrationRow('Shopify write-back', writebackPill(o) + shopifyId) +
       '<div class="subtle" style="font-size:12.5px;line-height:1.55;margin-top:6px">' + esc(detail) + '</div>' +
     '</div>';
   }
