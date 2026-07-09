@@ -237,9 +237,9 @@
   // Inline source tags under the order number (Subscriptions / Bundles awareness).
   // Subscription tag jumps to its contract; bundle tag is a passive marker.
   function orderTags(o) {
-    const tag = (txt, bg, fg, attr) => '<span ' + (attr || '') + ' style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + '">' + txt + '</span>';
+    const tag = (txt, bg, fg, attr, extraStyle) => '<span ' + (attr || '') + ' style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + ';' + (extraStyle || '') + '">' + txt + '</span>';
     let out = '';
-    if (o.sub) out += tag('Subscription · cycle ' + o.sub.cycle, '#e6f0ff', '#1d6fe0', 'class="ord-sub-tag" data-sub="' + esc(o.sub.id) + '" title="View contract" style="cursor:pointer"');
+    if (o.sub) out += tag('Subscription · cycle ' + o.sub.cycle, '#e6f0ff', '#1d6fe0', 'class="ord-sub-tag" data-sub="' + esc(o.sub.id) + '" title="View contract"', 'cursor:pointer');
     if (o.bundle) out += tag('Bundle', '#eef0f4', '#525a6b');
     return out ? '<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;font-weight:400">' + out + '</div>' : '';
   }
@@ -501,7 +501,24 @@
   }
   // Bundle group block — component SKUs (+ gifts) under one header with a subtotal.
   function bundleGroupHtml(name, group) {
-    const sub = group.reduce((s, it) => s + (Number(it.line_total) || 0), 0);
+    const compareTotal = group.reduce((s, it) => s + (Number(it.line_total) || 0), 0);
+    const paidTotal = group.reduce((s, it) => s + (Number(it.product_price) || 0), 0);
+    const hasSub = group.some((it) => it.subLine);
+    const meta = (group.find((it) => it.bundleMeta) || {}).bundleMeta || {};
+    const discountLines = [];
+    if (meta.bundleDiscount) discountLines.push(meta.bundleDiscount);
+    if (meta.subscriptionLabel) discountLines.push(meta.subscriptionLabel);
+    if (!discountLines.length) {
+      group.forEach((it) => (it.discounts || []).forEach((d) => discountLines.push(esc(d.name) + ' (-' + money(d.amount) + ')')));
+    }
+    const seen = {};
+    const discountHtml = discountLines.filter((txt) => {
+      const key = String(txt);
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).map((txt) =>
+      '<div class="flex items-center gap-1" style="font-size:12px;color:#8B8B8B;line-height:1.45">' + I.tag + '<span>' + esc(txt) + '</span></div>').join('');
     const rows = group.map((it, gi) =>
       '<div style="display:grid;grid-template-columns:minmax(0,1fr) 90px 70px;gap:12px;align-items:center;padding:9px 0' + (gi > 0 ? ';border-top:1px solid var(--hair)' : '') + '">' +
         '<div class="flex items-center gap-3" style="min-width:0">' +
@@ -514,9 +531,10 @@
       '</div>').join('');
     return '<div style="border:1.5px solid #d6e4ff;border-radius:10px;overflow:hidden">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:#eef4ff">' +
-        '<span style="font-weight:600;font-size:13px;color:#1d4ed8">' + esc(name) + ' <span style="font-weight:700;font-size:10px;background:#dbe7ff;color:#1d4ed8;border-radius:4px;padding:2px 6px;margin-left:4px;letter-spacing:.03em">BUNDLE</span></span>' +
-        '<span style="font-weight:700;font-size:13.5px;color:var(--ink)">' + money(sub) + '</span>' +
+        '<span style="font-weight:600;font-size:13px;color:#1d4ed8">' + esc(name) + ' <span style="font-weight:700;font-size:10px;background:#dbe7ff;color:#1d4ed8;border-radius:4px;padding:2px 6px;margin-left:4px;letter-spacing:.03em">BUNDLE</span>' + (hasSub ? ' <span style="font-weight:700;font-size:10px;background:#e6f0ff;color:#1d6fe0;border-radius:4px;padding:2px 6px;margin-left:4px;letter-spacing:.03em">SUBSCRIPTION</span>' : '') + '</span>' +
+        '<span style="font-weight:700;font-size:13.5px;color:var(--ink)">' + money(paidTotal) + (compareTotal > paidTotal + 0.001 ? '<span class="muted" style="font-weight:500;text-decoration:line-through;margin-left:6px">' + money(compareTotal) + '</span>' : '') + '</span>' +
       '</div>' +
+      (discountHtml ? '<div style="padding:8px 14px 0;background:#fff">' + discountHtml + '</div>' : '') +
       '<div style="padding:2px 14px 8px">' + rows + '</div>' +
     '</div>';
   }

@@ -50,6 +50,18 @@
     // sub = recurring/initial order tied to a contract (list shows "Subscription · cycle N" tag -> jumps to the contract).
     // bundle = order containing a bundle (list shows "Bundle" tag; detail groups the bundle's SKUs).
     {
+      order_id: 5046, order_sn: 'SILIX1059-R1', create_time: '2026-06-20 09:18', order_type: 0,
+      user: { nickname: 'Grace Lee', uid: 80612 },
+      shipping: { name: 'Grace Lee', first_name: 'Grace', last_name: 'Lee',
+        detail: '118 King Street', detail2: 'Suite 6', city: 'Seattle', province: 'WA', post_code: '98101',
+        country: 'United States', phone_code: '1', phone: '206 555 0188', email: 'grace.lee@example.com' },
+      total: 48.00, order_status: 'to_ship', payment_status: 'paid', payment_method: 'Airwallex Card',
+      pay_time: '2026-06-20 09:19', delivery_time: null,
+      source: 'BestCheckout', shopify_writeback_status: 'synced', shopify_order_id: '#SHP-89161', shopify_writeback_detail: 'Written back to Shopify with bundle and subscription snapshots for fulfillment.',
+      sub: { id: 'SUB-20471', cycle: 1, next: '2026-08-20', deliveryLabel: 'Delivery every 2 months (-$13.99)' },
+      bundle: { id: 'BND-07', name: 'Coffee Office Pack' },
+    },
+    {
       order_id: 5045, order_sn: 'SILIX1056-R3', create_time: '2026-06-19 06:00', order_type: 0,
       user: { nickname: 'Liam Smith', uid: 80452 },
       shipping: { name: 'Liam Smith', first_name: 'Liam', last_name: 'Smith',
@@ -229,6 +241,41 @@
       '<text x="22" y="27" font-family="Inter,Arial" font-size="13" font-weight="600" fill="' + fg + '" text-anchor="middle">' + t + '</text></svg>');
 
   const DETAILS = {
+    // Bundle subscription initial order — bundle components are sold under one subscription contract.
+    5046: {
+      order_id: 5046, order_sn: 'SILIX1059-R1', status: 'to_ship', paid: 1, order_type: 0,
+      payment_status: 'paid', verify_code: '',
+      create_time: '2026-06-20 09:18', pay_time: '2026-06-20 09:19',
+      source: 'BestCheckout', shopify_writeback_status: 'synced', shopify_order_id: '#SHP-89161', shopify_writeback_detail: 'Written back to Shopify with bundle and subscription snapshots for fulfillment.',
+      payment_method: 'Airwallex Card', delivery_name: '', delivery_id: '',
+      user: { nickname: 'Grace Lee', uid: 80612 },
+      shipping: { first_name: 'Grace', last_name: 'Lee', detail: '118 King Street', detail2: 'Suite 6',
+        city: 'Seattle', province: 'WA', post_code: '98101', country: 'United States',
+        phone_code: '1', phone: '206 555 0188', email: 'grace.lee@example.com' },
+      note: 'Bundle subscription first order. Preserve bundle and subscription snapshots for future renewals.',
+      sub: { id: 'SUB-20471', cycle: 1, next: '2026-08-20', deliveryLabel: 'Delivery every 2 months (-$13.99)' },
+      bundle: { id: 'BND-07', name: 'Coffee Office Pack' },
+      total_num: 3, subtotal: 48.00, shipping_fee: 0.00, total: 48.00, paid_amount: 48.00,
+      order_discounts: [], shipping_discounts: [], total_savings: 21.97,
+      items: [
+        { title: 'Signature Blend Coffee 500g', sku: 'Whole bean, 2 Pack', image: IMG('#f3ece1', '#7a5c3a', 'C'),
+          unit_price: 34.99, qty: 2, line_total: 69.97, product_price: 48.00,
+          discounts: [{ name: 'Bundle discount', amount: 7.98 }, { name: 'Delivery every 2 months', amount: 13.99 }],
+          bundle: 'Coffee Office Pack', subLine: true,
+          bundleMeta: { bundleDiscount: 'Bundle discount (-$7.98)', subscriptionLabel: 'Delivery every 2 months (-$13.99)' } },
+        { title: 'Coffee Brew Guide', sku: 'Digital download', image: IMG('#eef4ff', '#1d4ed8', 'G'),
+          unit_price: 0, qty: 1, line_total: 0, product_price: 0, discounts: [],
+          bundle: 'Coffee Office Pack', gift: true,
+          bundleMeta: { bundleDiscount: 'Bundle discount (-$7.98)', subscriptionLabel: 'Delivery every 2 months (-$13.99)' } },
+      ],
+      timeline: [
+        { label: 'Order placed', time: '2026-06-20 09:18' },
+        { label: 'Captured by BestCheckout funnel', time: '2026-06-20 09:18' },
+        { label: 'Payment captured · Airwallex Card', time: '2026-06-20 09:19' },
+        { label: 'Subscription SUB-20471 started (Coffee Office Pack)', time: '2026-06-20 09:19' },
+        { label: 'Shopify write-back synced · #SHP-89161', time: '2026-06-20 09:19' },
+      ],
+    },
     // Subscription renewal order (cycle 3 of contract SUB-20452) — single recurring product.
     5045: {
       order_id: 5045, order_sn: 'SILIX1056-R3', status: 'shipped', paid: 1, order_type: 0,
