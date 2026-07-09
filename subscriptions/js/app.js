@@ -663,7 +663,7 @@
 
   // ================= SUBSCRIPTION (contract) — detail + at-merchant actions =================
   function summaryHtml(c) {
-    const plan = D.plans.find((p) => p.name === c.plan);
+    const plan = contractPlan(c);
     return row2('Plan', esc(c.plan)) + row2('Product', esc(c.product)) + row2('Quantity', c.qty) +
       row2('Billing cycle', plan ? cycleLabel(plan.cycle) : '—') + row2('Amount per cycle', money(c.amount)) +
       row2('Started', fmtDate(c.startedAt)) + row2('Charges completed', c.cyclesDone);

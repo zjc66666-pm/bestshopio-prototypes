@@ -81,6 +81,10 @@ window.DATA_SUBS = {
       product: 'Signature Blend Coffee 500g', sku: 'COF-500',
       cycle: { every: 2, unit: 'month' }, price: 25.5, compareAt: 30, discountType: 'percent', discountValue: 15, currency: 'USD',
       trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 0, createdAt: '2026-06-19' },
+    { id: 'PL-1012', name: 'Coffee Office Pack - Every 2 Months', status: 'active', itemType: 'bundle',
+      product: 'Signature Blend Coffee', bundleId: 'BND-07', bundleTemplate: 'volume', tierIndex: 1,
+      cycle: { every: 2, unit: 'month' }, price: 48, compareAt: 69.97, discountType: 'fixed', discountValue: 13.99, currency: 'USD',
+      trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 1, createdAt: '2026-06-20' },
   ],
 
   // ---- Contracts (a customer's live subscription) ----
@@ -106,6 +110,8 @@ window.DATA_SUBS = {
       history: [ { id: '#0951-R9', date: '2026-05-21', amount: 58, status: 'paid', cycle: 9 } ] },
     { id: 'SUB-20460', customer: 'Mia Anderson',   email: 'mia.a@example.com',    plan: 'Coffee Club — Monthly',      planId: 'PL-1001', product: 'Signature Blend Coffee 500g', status: 'active',   next: '2026-06-23', amount: 24, currency: 'USD', cyclesDone: 2, gateway: 'airwallex', method: 'Visa ···· 4242',       qty: 1, startedAt: '2026-04-23', address: '19 Willow Ct, San Diego, CA 92101, US',
       history: [ { id: '#1066-R2', date: '2026-05-23', amount: 24, status: 'paid', cycle: 2 } ] },
+    { id: 'SUB-20471', customer: 'Grace Lee',      email: 'grace.lee@example.com', plan: 'Coffee Office Pack - Every 2 Months', planId: 'PL-1012', product: 'Coffee Office Pack', status: 'active', next: '2026-08-20', amount: 48, currency: 'USD', cyclesDone: 1, gateway: 'airwallex', method: 'Visa ···· 4242', qty: 1, startedAt: '2026-06-20', address: '118 King Street, Suite 6, Seattle, WA 98101, US',
+      history: [ { id: '#1059-R1', date: '2026-06-20', amount: 48, status: 'paid', cycle: 1 } ] },
     // past_due — its cycle-3 renewal (#1010-R3) is failing; pairs with the recurring order below so the dunning queue reconciles.
     { id: 'SUB-20461', customer: 'Lucas Moore',    email: 'lucas.m@example.com',  plan: 'Protein Resupply — Monthly', planId: 'PL-1005', product: 'Whey Protein 1kg', status: 'past_due', next: '2026-05-12', amount: 39, currency: 'USD', cyclesDone: 2, gateway: 'paypal',    method: 'PayPal',               qty: 1, startedAt: '2026-03-12', address: '88 Cedar St, Austin, TX 78701, US',
       history: [ { id: '#1010-R2', date: '2026-04-12', amount: 39, status: 'paid', cycle: 2 }, { id: '#1010-R1', date: '2026-03-12', amount: 39, status: 'paid', cycle: 1 } ] },
@@ -122,6 +128,7 @@ window.DATA_SUBS = {
     { id: '#1029-R6', contract: 'SUB-20456', customer: 'Sophia Lee',      plan: 'Protein Resupply — Monthly', date: '2026-05-25', amount: 39, currency: 'USD', status: 'paid',     cycle: 6, gateway: 'paypal',    mainOrder: '#1029' },
     { id: '#0951-R9', contract: 'SUB-20459', customer: 'James Taylor',    plan: 'Pet Food — Monthly',         date: '2026-05-21', amount: 58, currency: 'USD', status: 'paid',     cycle: 9, gateway: 'stripe', mainOrder: '#0951' },
     { id: '#1066-R2', contract: 'SUB-20460', customer: 'Mia Anderson',    plan: 'Coffee Club — Monthly',      date: '2026-05-23', amount: 24, currency: 'USD', status: 'paid',     cycle: 2, gateway: 'airwallex', mainOrder: '#1066' },
+    { id: '#1059-R1', contract: 'SUB-20471', customer: 'Grace Lee',       plan: 'Coffee Office Pack - Every 2 Months', date: '2026-06-20', amount: 48, currency: 'USD', status: 'paid', cycle: 1, gateway: 'airwallex', mainOrder: '#1059' },
     { id: '#0980-R8', contract: 'SUB-20458', customer: 'Isabella Martin', plan: 'Skincare Refill — Bimonthly', date: '2026-03-10', amount: 45, currency: 'USD', status: 'refunded', cycle: 8, gateway: 'airwallex', mainOrder: '#0980' },
     { id: '#1070-R1', contract: 'SUB-20457', customer: 'Mason Garcia',    plan: 'Daily Vitamins — Monthly',   date: '2026-05-20', amount: 32, currency: 'USD', status: 'paid',     cycle: 1, gateway: 'paypal',    mainOrder: '#1070' },
     { id: '#1010-R3', contract: 'SUB-20461', customer: 'Lucas Moore',     plan: 'Protein Resupply — Monthly', date: '2026-05-12', amount: 39, currency: 'USD', status: 'failed',   cycle: 3, gateway: 'paypal',    mainOrder: '#1010', reason: 'Insufficient funds' },
