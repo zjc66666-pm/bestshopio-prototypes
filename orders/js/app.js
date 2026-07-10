@@ -234,12 +234,11 @@
     wireList();
   }
 
-  // Inline source tags under the order number (Subscriptions / Bundles awareness).
-  // Subscription tag jumps to its contract; bundle tag is a passive marker.
+  // Inline source tags under the order number: keep the list compact; contract/cycle details live in the detail page.
   function orderTags(o) {
-    const tag = (txt, bg, fg, attr, extraStyle) => '<span ' + (attr || '') + ' style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + ';' + (extraStyle || '') + '">' + txt + '</span>';
+    const tag = (txt, bg, fg) => '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + '">' + txt + '</span>';
     let out = '';
-    if (o.sub) out += tag('Subscription · cycle ' + o.sub.cycle, '#e6f0ff', '#1d6fe0', 'class="ord-sub-tag" data-sub="' + esc(o.sub.id) + '" title="View contract"', 'cursor:pointer');
+    if (o.sub) out += tag('Subscription', '#e6f0ff', '#1d6fe0');
     if (o.bundle) out += tag('Bundle', '#eef0f4', '#525a6b');
     return out ? '<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;font-weight:400">' + out + '</div>' : '';
   }
@@ -248,7 +247,7 @@
     const ful = deriveFulfillment(o.order_status);
     return '<tr data-id="' + o.order_id + '">' +
       '<td style="text-align:center"><input type="checkbox" class="ord-check" data-id="' + o.order_id + '" /></td>' +
-      '<td style="font-weight:600;color:var(--brand)">' + esc(o.order_sn) + orderTags(o) + '</td>' +
+      '<td style="font-weight:600;color:var(--brand)"><span style="white-space:nowrap">' + esc(o.order_sn) + '</span>' + orderTags(o) + '</td>' +
       '<td class="muted">' + esc(o.create_time) + '</td>' +
       '<td>' + esc(o.user.nickname) + '</td>' +
       // shipping address: name + chevron, click opens full-address popover (table.tsx Popover)
@@ -318,11 +317,9 @@
     root.querySelectorAll('.pg-item[data-page]').forEach((el) => el.onclick = () => { LST.page = Number(el.getAttribute('data-page')); renderList(); });
     // row click -> detail (but not when clicking checkbox / ship popover / view button)
     root.querySelectorAll('#ord-tbody tr[data-id]').forEach((tr) => tr.onclick = (e) => {
-      if (e.target.closest('.ord-check') || e.target.closest('.ship-cell') || e.target.closest('[data-view]') || e.target.closest('.ord-sub-tag')) return;
+      if (e.target.closest('.ord-check') || e.target.closest('.ship-cell') || e.target.closest('[data-view]')) return;
       goDetail(tr.getAttribute('data-id'));
     });
-    // subscription tag -> jump to the contract in the Subscriptions app
-    root.querySelectorAll('.ord-sub-tag').forEach((t) => t.onclick = (e) => { e.stopPropagation(); location.hash = '#/subscriptions/contracts/' + t.getAttribute('data-sub'); });
     root.querySelectorAll('[data-view]').forEach((b) => b.onclick = (e) => { e.stopPropagation(); goDetail(b.getAttribute('data-view')); });
     // shipping-address popover
     root.querySelectorAll('.ship-cell').forEach((c) => c.onclick = (e) => { e.stopPropagation(); openShipPopover(c, c.getAttribute('data-ship')); });

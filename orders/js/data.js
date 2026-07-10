@@ -47,10 +47,10 @@
   // 0 = standard shipping order, 1/2 = pickup/verify order (drives Verify action).
   const ORDERS = [
     // --- Subscription / Bundle sample orders (Subscriptions + Bundles integration) ---
-    // sub = recurring/initial order tied to a contract (list shows "Subscription · cycle N" tag -> jumps to the contract).
+    // sub = recurring/initial order tied to a contract (list shows a compact "Subscription" tag; contract/cycle live in detail).
     // bundle = order containing a bundle (list shows "Bundle" tag; detail groups the bundle's SKUs).
     {
-      order_id: 5046, order_sn: 'SILIX1059-R1', create_time: '2026-06-20 09:18', order_type: 0,
+      order_id: 5046, order_sn: 'SILIX1059', create_time: '2026-06-20 09:18', order_type: 0,
       user: { nickname: 'Grace Lee', uid: 80612 },
       shipping: { name: 'Grace Lee', first_name: 'Grace', last_name: 'Lee',
         detail: '118 King Street', detail2: 'Suite 6', city: 'Seattle', province: 'WA', post_code: '98101',
@@ -62,7 +62,7 @@
       bundle: { id: 'BND-07', name: 'Coffee Office Pack' },
     },
     {
-      order_id: 5045, order_sn: 'SILIX1056-R3', create_time: '2026-06-19 06:00', order_type: 0,
+      order_id: 5045, order_sn: 'SILIX1056', create_time: '2026-06-19 06:00', order_type: 0,
       user: { nickname: 'Liam Smith', uid: 80452 },
       shipping: { name: 'Liam Smith', first_name: 'Liam', last_name: 'Smith',
         detail: '9 Oak Ave', detail2: '', city: 'Denver', province: 'CO', post_code: '80202',
@@ -243,7 +243,7 @@
   const DETAILS = {
     // Bundle subscription initial order — bundle components are sold under one subscription contract.
     5046: {
-      order_id: 5046, order_sn: 'SILIX1059-R1', status: 'to_ship', paid: 1, order_type: 0,
+      order_id: 5046, order_sn: 'SILIX1059', status: 'to_ship', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-20 09:18', pay_time: '2026-06-20 09:19',
       source: 'BestCheckout', shopify_writeback_status: 'synced', shopify_order_id: '#SHP-89161', shopify_writeback_detail: 'Written back to Shopify with bundle and subscription snapshots for fulfillment.',
@@ -278,7 +278,7 @@
     },
     // Subscription renewal order (cycle 3 of contract SUB-20452) — single recurring product.
     5045: {
-      order_id: 5045, order_sn: 'SILIX1056-R3', status: 'shipped', paid: 1, order_type: 0,
+      order_id: 5045, order_sn: 'SILIX1056', status: 'shipped', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-19 06:00', pay_time: '2026-06-19 06:00',
       payment_method: 'PayPal', delivery_name: 'USPS', delivery_id: 'US9341005512',
