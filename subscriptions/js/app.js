@@ -839,14 +839,14 @@
         '<td>' + pill(o.status) +
           (o.status === 'retrying' && o.nextRetry ? '<div class="muted" style="font-size:11px">retry ' + fmtDate(o.nextRetry) + '</div>' : '') +
           (o.status === 'failed' && o.reason ? '<div class="muted" style="font-size:11px">' + esc(o.reason) + '</div>' : '') + '</td>' +
-        '<td><a href="#/orders" style="color:var(--brand)">' + esc(o.mainOrder) + '</a></td>' +
+        '<td><a href="#/subscriptions/contracts/' + encodeURIComponent(o.contract) + '" style="color:var(--brand)">' + esc(o.contract) + '</a></td>' +
         '<td style="text-align:center">' + ((o.status === 'failed' || o.status === 'retrying') ? '<button class="btn btn-default" data-retry="' + o.id + '" style="height:28px;padding:0 10px">Retry</button>' : '') + '</td>' +
       '</tr>').join('');
     root.innerHTML =
       '<div class="flex items-center justify-between mb-4"><h1 class="page-title">Orders</h1></div>' +
       '<div class="panel">' + tabsBar(TABSO, LSTO.tab, cnt) + filterBar(LSTO, ORDER_FIELDS) +
         '<div style="overflow-x:auto"><table class="tbl" style="min-width:940px">' +
-          '<thead><tr><th>Order</th><th>Customer</th><th>Plan</th><th style="width:120px">Date</th><th class="num" style="width:90px">Amount</th><th style="width:120px">Status</th><th style="width:110px">Main order</th><th style="width:90px"></th></tr></thead>' +
+          '<thead><tr><th>Order</th><th>Customer</th><th>Plan</th><th style="width:120px">Date</th><th class="num" style="width:90px">Amount</th><th style="width:120px">Status</th><th style="width:130px">Subscription</th><th style="width:90px"></th></tr></thead>' +
           '<tbody id="od-tbody">' + (rows || '<tr><td colspan="8" class="muted" style="text-align:center;padding:40px">No orders in this view.</td></tr>') + '</tbody>' +
         '</table></div>' +
       '</div>';
@@ -1128,6 +1128,7 @@
     const id = parts[1];
     if (page === 'plans') return id != null ? renderPlanDetail(id) : renderPlans();
     if (page === 'contracts') return id != null ? renderContractDetail(id) : renderContracts();
+    if (page === 'orders') return renderOrders();
     if (page === 'settings') return renderOverview();   // dunning now lives in a modal on the Overview — keep alias for old links
     return renderOverview();
   }
