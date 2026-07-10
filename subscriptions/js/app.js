@@ -615,15 +615,16 @@
       '</div></div>' + tags + '</div>';
   }
   function wireFilter(state, rerender) {
-    const ft = root.querySelector('#f-type'); if (ft) ft.onchange = () => { state.kwType = ft.value; if ((state.kw || '').trim()) state.kwApplied = state.kw.trim(); rerender(); };
+    const resetPage = () => { if (Object.prototype.hasOwnProperty.call(state, 'page')) state.page = 1; };
+    const ft = root.querySelector('#f-type'); if (ft) ft.onchange = () => { state.kwType = ft.value; if ((state.kw || '').trim()) state.kwApplied = state.kw.trim(); resetPage(); rerender(); };
     const fk = root.querySelector('#f-kw');
-    if (fk) { fk.oninput = () => { state.kw = fk.value; }; const commit = () => { state.kwApplied = (state.kw || '').trim(); rerender(); }; fk.onkeydown = (e) => { if (e.key === 'Enter') commit(); }; fk.onblur = commit; }
-    const kc = root.querySelector('[data-kw-clear]'); if (kc) kc.onclick = () => { state.kw = ''; state.kwApplied = ''; rerender(); };
-    root.querySelectorAll('#f-tags [data-clear]').forEach((tg) => tg.onclick = () => { state.kw = ''; state.kwApplied = ''; rerender(); });
+    if (fk) { fk.oninput = () => { state.kw = fk.value; }; const commit = () => { state.kwApplied = (state.kw || '').trim(); resetPage(); rerender(); }; fk.onkeydown = (e) => { if (e.key === 'Enter') commit(); }; fk.onblur = commit; }
+    const kc = root.querySelector('[data-kw-clear]'); if (kc) kc.onclick = () => { state.kw = ''; state.kwApplied = ''; resetPage(); rerender(); };
+    root.querySelectorAll('#f-tags [data-clear]').forEach((tg) => tg.onclick = () => { state.kw = ''; state.kwApplied = ''; resetPage(); rerender(); });
   }
 
   // ================= SUBSCRIPTIONS (contracts) — list =================
-  const LSTC = { tab: 'all', kw: '', kwType: 'customer', kwApplied: '' };
+  const LSTC = { tab: 'all', kw: '', kwType: 'customer', kwApplied: '', page: 1, size: 10 };
   const CONTRACT_FIELDS = [{ value: 'customer', label: 'Customer' }, { value: 'email', label: 'Email' }, { value: 'plan', label: 'Plan' }, { value: 'id', label: 'Subscription ID' }];
   const TABSC = [{ k: 'all', label: 'All' }, { k: 'active', label: 'Active' }, { k: 'past_due', label: 'Past due' }, { k: 'cancelled', label: 'Cancelled' }];
   const contractsFiltered = () => {
@@ -634,10 +635,21 @@
   // The plan a contract runs on (drives the frequency shown in the list + the projected upcoming schedule).
   const contractPlan = (c) => D.plans.find((p) => p.id === c.planId || p.name === c.plan);
   const contractFreq = (c) => { const p = contractPlan(c); return p ? cycleLabel(p.cycle) : '<span class="muted">—</span>'; };
+  function contractPager(page, pages) {
+    const item = (label, pg, opts) => { opts = opts || {}; return '<span class="pg-item' + (opts.active ? ' active' : '') + (opts.disabled ? ' disabled' : '') + '"' + (opts.disabled ? '' : ' data-page="' + pg + '"') + '>' + label + '</span>'; };
+    let nums = ''; for (let pg = 1; pg <= pages; pg++) nums += item(String(pg), pg, { active: pg === page });
+    return '<div class="pg">' + item('&lsaquo;', page - 1, { disabled: page <= 1 }) + nums + item('&rsaquo;', page + 1, { disabled: page >= pages }) +
+      '<select class="pg-size" id="ct-pgsize">' + ['10', '20', '50', '100'].map((s) => '<option value="' + s + '"' + (Number(s) === LSTC.size ? ' selected' : '') + '>' + s + ' / page</option>').join('') + '</select></div>';
+  }
 
   function renderContracts() {
+    const all = contractsFiltered();
+    const total = all.length;
+    const pages = Math.max(1, Math.ceil(total / LSTC.size));
+    if (LSTC.page > pages) LSTC.page = pages;
+    const pageRows = all.slice((LSTC.page - 1) * LSTC.size, (LSTC.page - 1) * LSTC.size + LSTC.size);
     const cnt = (k) => k === 'all' ? D.contracts.length : D.contracts.filter((c) => c.status === k).length;
-    const rows = contractsFiltered().map((c) =>
+    const rows = pageRows.map((c) =>
       '<tr data-id="' + c.id + '" style="cursor:pointer">' +
         '<td><div style="font-weight:600;color:var(--ink)">' + esc(c.customer) + '</div><div class="muted" style="font-size:12px">' + esc(c.email) + '</div></td>' +
         '<td><div style="color:var(--ink)">' + esc(c.plan) + '</div><div class="muted" style="font-size:12px">' + esc(c.product) + '</div></td>' +
@@ -654,17 +666,28 @@
           '<thead><tr><th>Customer</th><th>Plan</th><th style="width:120px">Frequency</th><th style="width:130px">Next charge</th><th class="num" style="width:90px">Amount</th><th style="width:110px">Status</th><th style="width:80px;text-align:center">Action</th></tr></thead>' +
           '<tbody id="ct-tbody">' + (rows || '<tr><td colspan="7" class="muted" style="text-align:center;padding:40px">No subscriptions in this view.</td></tr>') + '</tbody>' +
         '</table></div>' +
+        '<div class="flex items-center justify-between card-pad"><span class="muted" style="font-size:13px">Total ' + total + ' records</span>' + contractPager(LSTC.page, pages) + '</div>' +
       '</div>';
     root.querySelectorAll('#ct-tbody tr[data-id]').forEach((tr) => tr.onclick = (e) => { if (e.target.closest('[data-stop]')) return; location.hash = '#/subscriptions/contracts/' + tr.getAttribute('data-id'); });
     root.querySelectorAll('.ct-view').forEach((el) => el.onclick = (e) => { e.stopPropagation(); location.hash = '#/subscriptions/contracts/' + el.getAttribute('data-view'); });
-    root.querySelectorAll('.tab[data-tab]').forEach((t) => t.onclick = () => { LSTC.tab = t.getAttribute('data-tab'); renderContracts(); });
+    root.querySelectorAll('.tab[data-tab]').forEach((t) => t.onclick = () => { LSTC.tab = t.getAttribute('data-tab'); LSTC.page = 1; renderContracts(); });
+    root.querySelectorAll('.pg-item[data-page]').forEach((el) => el.onclick = () => { LSTC.page = Number(el.getAttribute('data-page')); renderContracts(); });
+    const ps = root.querySelector('#ct-pgsize'); if (ps) ps.onchange = () => { LSTC.size = Number(ps.value); LSTC.page = 1; renderContracts(); };
     wireFilter(LSTC, renderContracts);
   }
 
   // ================= SUBSCRIPTION (contract) — detail + at-merchant actions =================
+  function productLink(c) {
+    const id = c && c.productId;
+    if (!id) return '<span>' + esc(c && c.product) + '</span>';
+    return '<a href="#/products/' + encodeURIComponent(id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(c.product) + '</a>';
+  }
+  function orderLink(id) {
+    return '<a href="#/orders/' + encodeURIComponent(id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(id) + '</a>';
+  }
   function summaryHtml(c) {
     const plan = contractPlan(c);
-    return row2('Plan', esc(c.plan)) + row2('Product', esc(c.product)) + row2('Quantity', c.qty) +
+    return row2('Plan', esc(c.plan)) + row2('Product', productLink(c)) + row2('Quantity', c.qty) +
       row2('Billing cycle', plan ? cycleLabel(plan.cycle) : '—') + row2('Amount per cycle', money(c.amount)) +
       row2('Started', fmtDate(c.startedAt)) + row2('Charges completed', c.cyclesDone);
   }
@@ -677,7 +700,7 @@
   function orderHistory(c) {
     if (!c.history || !c.history.length) return '<div class="muted" style="font-size:13px">No charges yet.</div>';
     return '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Order</th><th>Date</th><th class="num">Amount</th><th style="width:110px">Status</th></tr></thead><tbody>' +
-      c.history.map((o) => '<tr><td>' + esc(o.id) + '</td><td>' + fmtDate(o.date) + '</td><td class="num">' + money(o.amount) + '</td><td>' + pill(o.status) + '</td></tr>').join('') +
+      c.history.map((o) => '<tr><td>' + orderLink(o.id) + '</td><td>' + fmtDate(o.date) + '</td><td class="num">' + money(o.amount) + '</td><td>' + pill(o.status) + '</td></tr>').join('') +
       '</tbody></table></div>';
   }
   function custHtml(c) { return row2('Name', esc(c.customer)) + row2('Email', esc(c.email)) + '<div style="padding-top:8px;font-size:12.5px;color:var(--ink-body);line-height:1.5"><span class="muted">Ships to</span><br>' + esc(c.address) + '</div>'; }
@@ -704,7 +727,7 @@
       const date = i === 0 ? c.next : addCycle(c.next, every, unit, i);
       const lbl = i === 0 ? (c.status === 'past_due' ? 'Overdue' : 'Next charge') : 'Scheduled';
       const cls = (i === 0 && c.status === 'past_due') ? 'pill-red' : (i === 0 ? 'pill-blue' : 'pill-gray');
-      rows += '<tr><td>' + fmtDate(date) + '</td><td>' + esc(c.product) + '</td><td class="num">' + money(c.amount) + '</td><td><span class="pill ' + cls + '">' + lbl + '</span></td></tr>';
+      rows += '<tr><td>' + fmtDate(date) + '</td><td>' + productLink(c) + '</td><td class="num">' + money(c.amount) + '</td><td><span class="pill ' + cls + '">' + lbl + '</span></td></tr>';
     }
     return '<div style="overflow-x:auto"><table class="tbl"><thead><tr><th style="width:130px">Charge date</th><th>Product</th><th class="num" style="width:90px">Amount</th><th style="width:120px">Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="muted" style="font-size:12px;margin-top:8px">Projected from the current schedule — skipping or rescheduling a charge shifts these dates.</div>';
@@ -712,7 +735,7 @@
   // Activity log — a timeline synthesized from start date, charge history and current status.
   function activityHtml(c) {
     const ev = [{ d: c.startedAt, t: 'Subscription started', sub: 'Plan: ' + c.plan }];
-    (c.history || []).forEach((o) => ev.push({ d: o.date, t: (o.status === 'paid' ? 'Charge succeeded' : o.status === 'failed' ? 'Charge failed' : 'Charge ' + o.status) + ' · ' + money(o.amount), sub: 'Order ' + o.id }));
+    (c.history || []).forEach((o) => ev.push({ d: o.date, t: (o.status === 'paid' ? 'Charge succeeded' : o.status === 'failed' ? 'Charge failed' : 'Charge ' + o.status) + ' · ' + money(o.amount), orderId: o.id }));
     if (c.status === 'cancelled') ev.push({ d: c.endedAt, t: 'Subscription cancelled', sub: 'No further charges' });
     else if (c.next) ev.push({ d: c.next, t: 'Next charge scheduled', sub: money(c.amount), future: true });
     ev.sort((a, b) => String(b.d || '').localeCompare(String(a.d || '')));
@@ -720,7 +743,7 @@
       const last = i === ev.length - 1;
       return '<div style="display:flex;gap:12px">' +
         '<div style="flex:none;display:flex;flex-direction:column;align-items:center"><span style="width:10px;height:10px;border-radius:50%;flex:none;margin-top:3px;background:' + (e.future ? 'var(--ctl)' : 'var(--brand)') + '"></span>' + (last ? '' : '<span style="flex:1;width:2px;background:var(--hair);margin:2px 0"></span>') + '</div>' +
-        '<div style="flex:1;min-width:0;padding-bottom:' + (last ? '0' : '16px') + '"><div style="font-size:13px;color:var(--ink);font-weight:500">' + esc(e.t) + '</div>' + (e.sub ? '<div class="muted" style="font-size:12px">' + esc(e.sub) + '</div>' : '') + '</div>' +
+        '<div style="flex:1;min-width:0;padding-bottom:' + (last ? '0' : '16px') + '"><div style="font-size:13px;color:var(--ink);font-weight:500">' + esc(e.t) + '</div>' + (e.orderId ? '<div class="muted" style="font-size:12px">Order ' + orderLink(e.orderId) + '</div>' : e.sub ? '<div class="muted" style="font-size:12px">' + esc(e.sub) + '</div>' : '') + '</div>' +
         '<div class="muted" style="font-size:12px;white-space:nowrap;flex:none">' + (e.d ? fmtDate(e.d) : '') + '</div>' +
       '</div>';
     }).join('') + '</div>';

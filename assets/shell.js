@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260710c'; // cache-bust for lazy-loaded module scripts
+  var V = '20260710v'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -164,7 +164,10 @@
   function loadModule(id) {
     if (loaded[id]) return loaded[id];
     var chain = loadScript(id + '/js/icons.js?v=' + V).catch(function () {});            // optional (analytics)
-    chain = chain.then(function () { return loadScript(id + '/js/data.js?v=' + V); }).catch(function () {}); // optional
+    chain = chain.then(function () {
+      if (id === 'subscriptions' && window.DATA_SUBS) return;
+      return loadScript(id + '/js/data.js?v=' + V);
+    }).catch(function () {}); // optional
     chain = chain.then(function () { return loadScript(id + '/js/app.js?v=' + V); });    // required
     loaded[id] = chain;
     return loaded[id];

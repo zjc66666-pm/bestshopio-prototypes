@@ -558,10 +558,11 @@
     const p = D.PRODUCTS.find((x) => String(x.product_id) === String(EDIT_ID));
     if (!p || !p.po) return '';
     const po = p.po;
-    const row = (href, title, sub) =>
+    const row = (href, title, type, status, detail) =>
       '<a href="' + href + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--hair);text-decoration:none;color:inherit">' +
         '<span style="min-width:0"><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(title) + '</span>' +
-          (sub ? '<span class="muted" style="font-size:12px">' + esc(sub) + '</span>' : '') + '</span>' +
+          '<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px"><span class="muted" style="font-size:12px">' + esc(type) + '</span>' + statusBadge(status) + '</span>' +
+          (detail ? '<span class="muted" style="display:block;font-size:12px;margin-top:3px">' + esc(detail) + '</span>' : '') + '</span>' +
         '<span style="flex:none;color:var(--muted);font-size:16px">›</span>' +
       '</a>';
     const statusBadge = (status) => '<span style="display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:500;background:' + (status === 'active' ? '#dcfce7;color:#166534' : '#f3f4f6;color:#596274') + '">' + (status === 'active' ? 'Activated' : 'Deactivated') + '</span>';
@@ -573,8 +574,10 @@
       '</a>';
     let rows = '';
     if (po.subscription) {
-      const sub = [po.subscription.save, po.subscription.via ? 'via ' + po.subscription.via : ''].filter(Boolean).join(' · ');
-      rows += row('#/subscriptions/plans/' + po.subscription.planId, 'Subscribe & Save', sub);
+      const plans = (window.DATA_SUBS && window.DATA_SUBS.plans) || [];
+      const plan = plans.find((item) => String(item.id) === String(po.subscription.planId));
+      const detail = [po.subscription.save, po.subscription.frequency || (po.subscription.via ? 'via ' + po.subscription.via : '')].filter(Boolean).join(' · ');
+      rows += row('#/subscriptions/plans/' + po.subscription.planId, plan ? plan.name : 'Subscribe & Save', 'Subscription plan', plan ? plan.status : 'inactive', detail);
     }
     bundleLinks(p).forEach((b) => { rows += bundleRow(b); });
     const intro = '<div class="muted" style="font-size:12px;line-height:1.5;margin-bottom:2px">How customers can buy this beyond a one-time purchase.</div>';

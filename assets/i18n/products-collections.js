@@ -117,6 +117,10 @@ window.I18N.extend({
   "Google Metafields": "Google 元字段",
   "Product Settings": "商品设置",
   "Purchase options": "购买方式",
+  "How customers can buy this beyond a one-time purchase.": "展示顾客除一次性购买外可选择的购买方式。",
+  "Subscription plan": "订阅计划",
+  "Subscribe & Save": "订阅省",
+  "Every 2 Months": "每 2 个月",
   "Search engine optimization": "搜索引擎优化",
   "Theme template": "主题模板",
 
@@ -360,6 +364,12 @@ window.I18N.extend({
   /* ===== collections: sub-collection picker ===== */
   "No collections found.": "未找到商品系列。"
 });
+
+window.I18N.addRules([
+  { re: /^Save (\$[\d.,]+) · via (.+)$/, zh: function (m) { return "省 " + m[1] + " · 来自 " + m[2]; } },
+  { re: /^Save (\$[\d.,]+)$/, zh: function (m) { return "省 " + m[1]; } },
+  { re: /^Save (\d+(?:\.\d+)?%)$/, zh: function (m) { return "省 " + m[1]; } }
+]);
 
 window.I18N.addRules([
   /* products list — inventory cell: "1,280 on sale" (number via toLocaleString) */

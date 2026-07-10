@@ -22,6 +22,7 @@
     arrowLeft: svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', 18),
     pencil: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 15),
     tag: svg('<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.3"/>', 13),
+    recurring: svg('<path d="M21 12a9 9 0 0 0-15.2-6.5L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15.2 6.5L21 16"/><path d="M21 21v-5h-5"/>', 13),
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
   };
   const WRITEBACK_STATUS = {
@@ -382,8 +383,86 @@
   const closePops = () => document.querySelectorAll('.pop-layer').forEach((p) => p.remove());
 
   // ================= DETAIL VIEW =================
+  function subscriptionScheduleLabel(contract) {
+    const plan = String((contract && contract.plan) || '').toLowerCase();
+    return (plan.includes('bimonthly') || plan.includes('every 2 months')) ? 'Delivery every 2 months' : 'Delivery every 1 month';
+  }
+
+  function subscriptionShipping(contract) {
+    const parts = String((contract && contract.address) || '').split(',').map((x) => x.trim()).filter(Boolean);
+    const name = String((contract && contract.customer) || '').trim().split(/\s+/).filter(Boolean);
+    const stateZip = parts.length > 1 ? parts[parts.length - 2] : '';
+    const stateMatch = stateZip.match(/^(.*?)\s+(\S+)$/);
+    return {
+      first_name: name.length > 1 ? name.slice(0, -1).join(' ') : (name[0] || ''),
+      last_name: name.length > 1 ? name[name.length - 1] : '',
+      detail: parts[0] || '',
+      detail2: parts.length > 4 ? parts[1] : '',
+      city: parts.length > 2 ? parts[parts.length - 3] : '',
+      province: stateMatch ? stateMatch[1] : stateZip,
+      post_code: stateMatch ? stateMatch[2] : '',
+      country: parts.length ? parts[parts.length - 1] : '',
+      phone_code: '', phone: '', email: (contract && contract.email) || '',
+    };
+  }
+
+  function subscriptionItemImage(product) {
+    const label = String(product || 'S').split(/\s+/).slice(0, 1).join('').slice(0, 1).toUpperCase() || 'S';
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><rect width="44" height="44" rx="6" fill="#e6f0ff"/><text x="22" y="27" font-family="Arial" font-size="13" font-weight="600" fill="#1d4ed8" text-anchor="middle">' + label + '</text></svg>');
+  }
+
+  // Subscription history owns the billing record. It becomes a normal order-detail snapshot when opened from a contract.
+  function subscriptionOrderDetail(orderSn) {
+    const subs = window.DATA_SUBS;
+    if (!subs || !Array.isArray(subs.contracts)) return null;
+    const sn = String(orderSn || '');
+    let contract = null;
+    let charge = null;
+    for (let i = 0; i < subs.contracts.length; i++) {
+      const found = (subs.contracts[i].history || []).find((row) => String(row.id) === sn);
+      if (found) { contract = subs.contracts[i]; charge = found; break; }
+    }
+    if (!contract || !charge) return null;
+    const ledger = (subs.orders || []).find((row) => String(row.id) === sn && String(row.contract) === String(contract.id));
+    const chargeStatus = (ledger && ledger.status) || charge.status || 'paid';
+    const isPaid = chargeStatus === 'paid' || chargeStatus === 'refunded';
+    const orderStatus = chargeStatus === 'paid' ? 'shipped' : (chargeStatus === 'refunded' ? 'refund' : 'to_pay');
+    const qty = Math.max(1, Number(contract.qty) || 1);
+    const amount = Number(charge.amount != null ? charge.amount : contract.amount) || 0;
+    const date = charge.date || contract.startedAt || '';
+    const userId = Number((String(contract.id).match(/\d+/) || ['0'])[0]);
+    const shipping = subscriptionShipping(contract);
+    const paymentEvent = isPaid ? 'Recurring payment captured' : (chargeStatus === 'retrying' ? 'Recurring payment retry scheduled' : 'Recurring payment failed');
+    return {
+      order_id: 'subscription-' + sn,
+      order_sn: sn,
+      status: orderStatus,
+      paid: isPaid ? 1 : 0,
+      order_type: 0,
+      payment_status: isPaid ? 'paid' : 'unpaid',
+      verify_code: '',
+      create_time: date ? date + ' 09:00' : '',
+      pay_time: isPaid && date ? date + ' 09:01' : null,
+      payment_method: contract.method || '--',
+      delivery_name: '', delivery_id: '',
+      user: { nickname: contract.customer || 'Customer', uid: userId },
+      shipping,
+      note: 'Recurring charge from ' + contract.id + '.',
+      sub: { id: contract.id, cycle: charge.cycle || contract.cyclesDone || 1, next: contract.next || '', deliveryLabel: subscriptionScheduleLabel(contract) },
+      total_num: qty, subtotal: amount, shipping_fee: 0, total: amount, paid_amount: isPaid ? amount : 0,
+      order_discounts: [], shipping_discounts: [], total_savings: 0,
+      items: [{ title: contract.product, sku: contract.plan, image: subscriptionItemImage(contract.product), unit_price: amount / qty, qty, line_total: amount, product_price: amount, discounts: [], subLine: true, subLabel: subscriptionScheduleLabel(contract) }],
+      timeline: [
+        { label: 'Order created from ' + contract.id + ' (cycle ' + (charge.cycle || contract.cyclesDone || 1) + ')', time: date ? date + ' 09:00' : '--' },
+        { label: paymentEvent + ' via ' + (contract.method || 'gateway'), time: date ? date + ' 09:01' : '--' },
+      ],
+    };
+  }
+
   function renderDetail(id) {
-    const o = D.DETAILS[id] || D.DETAILS[Number(id)];
+    const stored = D.DETAILS[id] || D.DETAILS[Number(id)];
+    const byOrderNumber = stored ? null : Object.keys(D.DETAILS).map((key) => D.DETAILS[key]).find((row) => String(row.order_sn) === String(id));
+    const o = stored || byOrderNumber || subscriptionOrderDetail(id);
     if (!o) { renderMissing(id); return; }
 
     const fulfillment = deriveFulfillment(o.status);
@@ -450,43 +529,67 @@
   // ---- Products card: flat ant List (ProductsCard.tsx) — title + SKU + discount tags ----
   function productsCard(o, fulfillment) {
     const items = o.items || [];
-    const blocks = []; let buf = [];
-    const flush = () => { if (buf.length) { blocks.push('<div style="border:1px solid var(--hair);border-radius:10px;padding:0 16px">' + buf.join('') + '</div>'); buf = []; } };
+    const blocks = [];
     let i = 0;
     while (i < items.length) {
       if (items[i].bundle) {   // group a consecutive run of the same bundle's components into one block
-        flush();
         const name = items[i].bundle; const grp = [];
         while (i < items.length && items[i].bundle === name) { grp.push(items[i]); i++; }
-        blocks.push(bundleGroupHtml(name, grp));
-      } else { buf.push(itemRowHtml(items[i], buf.length > 0)); i++; }
+        blocks.push(bundleGroupHtml(name, grp, bundleSubscription(grp, o.sub)));
+      } else {
+        // Every top-level item owns its own frame. Only bundle components share a container.
+        blocks.push('<div style="border:1px solid var(--hair);border-radius:10px;padding:0 16px">' + itemRowHtml(items[i], false, itemSubscription(items[i], o.sub)) + '</div>');
+        i++;
+      }
     }
-    flush();
-    const subStrip = o.sub ? subOrderStrip(o.sub) : '';
-    return cardOpen('<span>Product</span>' + pill(FULFILL_STATUS, fulfillment)) + subStrip + blocks.join('<div style="height:12px"></div>') + '</div>';
+    return cardOpen('<span>Product</span>' + pill(FULFILL_STATUS, fulfillment)) + blocks.join('<div style="height:12px"></div>') + '</div>';
   }
-  // One product line row — adds a per-line "Subscription" badge for recurring lines.
-  function itemRowHtml(it, topBorder) {
+  // A mixed order can create more than one subscription contract. Keep the snapshot on the item
+  // where available while retaining the order-level field for older mock records.
+  function itemSubscription(it, fallbackSub) {
+    return it && it.subscription ? it.subscription : (it && it.subLine ? fallbackSub : null);
+  }
+  function bundleSubscription(group, fallbackSub) {
+    const scoped = group.find((it) => it && it.subscription);
+    return scoped ? scoped.subscription : (group.some((it) => it && it.subLine) ? fallbackSub : null);
+  }
+  // One product line row. Subscription products use the same metadata hierarchy as bundle subscriptions.
+  function itemRowHtml(it, topBorder, sub) {
     const hasDisc = (it.discounts || []).length > 0;
-    const disc = (it.discounts || []).map((d) =>
+    // Product discounts are only eligible for a normal item. Bundle and subscription discounts render in their own blocks.
+    const productDiscounts = it.subLine ? [] : (it.discounts || []);
+    const disc = productDiscounts.map((d) =>
       '<div class="flex items-center gap-1 mt-1" style="font-size:12px;color:#8B8B8B">' + I.tag +
       '<span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></div>').join('');
-    const subBadge = it.subLine ? '<div style="margin-top:3px"><span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;background:#e6f0ff;color:#1d6fe0;border-radius:4px;padding:2px 6px">Subscription' + (it.subLabel ? ' · ' + esc(it.subLabel) : '') + '</span></div>' : '';
-    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 140px 80px;gap:16px;align-items:flex-start;padding:14px 0' +
+    const delivery = sub && sub.deliveryLabel ? String(sub.deliveryLabel).replace(/\s*\([^)]*\)\s*$/, '') : (it.subLabel || 'Delivery schedule');
+    const subMeta = it.subLine && sub ?
+      '<div style="grid-column:1 / -1;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:2px;font-size:12px;color:var(--ink-body);line-height:1.45">' +
+        '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--brand-50);color:var(--brand);flex:none">' + I.recurring + '</span>' +
+        '<span style="font-weight:600;color:var(--ink)">Subscription</span><span aria-hidden="true" class="muted">&middot;</span>' +
+        '<span>' + esc(delivery) + '</span><span aria-hidden="true" class="muted">&middot;</span>' +
+        '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>' +
+        (sub.cycle ? '<span aria-hidden="true" class="muted">&middot;</span><span>Cycle ' + esc(sub.cycle) + '</span>' : '') +
+      '</div>' : '';
+    const subDiscounts = it.subLine && hasDisc ?
+      '<div style="grid-column:1 / -1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:2px">' + (it.discounts || []).map((d) =>
+        '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);line-height:1.45"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none">' + I.tag + '</span><span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></span>').join('') +
+      '</div>' : '';
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 104px;gap:14px;align-items:flex-start;padding:14px 0' +
         (topBorder ? ';border-top:1px solid var(--hair)' : '') + '">' +
       '<div class="flex items-center gap-3" style="min-width:0">' +
         '<img src="' + it.image + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />' +
         '<div style="min-width:0">' +
           '<div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(it.title) + '</div>' +
           '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div>' +
-          subBadge + disc +
+          (it.subLine ? '' : disc) +
         '</div>' +
       '</div>' +
-      '<div class="muted" style="font-size:13px">' + money(it.unit_price) + ' x ' + it.qty + '</div>' +
-      '<div style="font-size:13px;font-weight:500;color:var(--ink-body)">' +
+      '<div class="muted" style="font-size:13px;text-align:right;white-space:nowrap;padding-top:2px">x ' + it.qty + '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;min-width:0;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;font-weight:500;color:var(--ink-body);line-height:1.35;white-space:nowrap">' +
         '<div>' + money(it.product_price) + '</div>' +
         (hasDisc ? '<div class="muted" style="text-decoration:line-through">' + money(it.line_total) + '</div>' : '') +
       '</div>' +
+      subMeta + subDiscounts +
     '</div>';
   }
   // Recurring-order strip at the top of the Product card — links back to the contract.
@@ -497,7 +600,7 @@
     '</div>';
   }
   // Bundle group block — component SKUs (+ gifts) under one header with a subtotal.
-  function bundleGroupHtml(name, group) {
+  function bundleGroupHtml(name, group, sub) {
     const compareTotal = group.reduce((s, it) => s + (Number(it.line_total) || 0), 0);
     const paidTotal = group.reduce((s, it) => s + (Number(it.product_price) || 0), 0);
     const hasSub = group.some((it) => it.subLine);
@@ -508,6 +611,53 @@
     if (!discountLines.length) {
       group.forEach((it) => (it.discounts || []).forEach((d) => discountLines.push(esc(d.name) + ' (-' + money(d.amount) + ')')));
     }
+
+    const displayDiscount = (txt) => {
+      const text = String(txt || '');
+      if (/^Delivery every /i.test(text)) {
+        const amount = text.match(/\([^)]*\)\s*$/);
+        return 'Subscription discount' + (amount ? ' ' + amount[0] : '');
+      }
+      return text;
+    };
+    const liveSeen = {};
+    const liveDiscountHtml = discountLines.filter((txt) => {
+      const key = String(txt);
+      if (liveSeen[key]) return false;
+      liveSeen[key] = true;
+      return true;
+    }).map((txt) =>
+      '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);line-height:1.45"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none">' + I.tag + '</span><span>' + esc(displayDiscount(txt)) + '</span></span>').join('');
+    const delivery = sub && sub.deliveryLabel ? String(sub.deliveryLabel).replace(/\s*\([^)]*\)\s*$/, '') : '';
+    const subHtml = hasSub && sub ?
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0 14px 10px;font-size:12px;color:var(--ink-body);line-height:1.45">' +
+        '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--brand-50);color:var(--brand);flex:none">' + I.recurring + '</span>' +
+        '<span style="font-weight:600;color:var(--ink)">Subscription</span><span aria-hidden="true" class="muted">&middot;</span>' +
+        '<span>' + esc(delivery || 'Delivery schedule') + '</span><span aria-hidden="true" class="muted">&middot;</span>' +
+        '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>' +
+        (sub.cycle ? '<span aria-hidden="true" class="muted">&middot;</span><span>Cycle ' + esc(sub.cycle) + '</span>' : '') +
+      '</div>' : '';
+    const bundleRows = group.map((it, gi) =>
+      '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:12px;align-items:start;padding:12px 14px' + (gi > 0 ? ';border-top:1px solid var(--hair)' : '') + '">' +
+        '<div class="flex items-start gap-3" style="min-width:0">' +
+          '<img src="' + it.image + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />' +
+          '<div style="min-width:0"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.35"><span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:3px 6px">Included</span><span style="font-weight:500;font-size:13px;color:var(--ink)">' + esc(it.title) + '</span></div>' +
+            '<div class="muted" style="font-size:12px;margin-top:3px">' + esc(it.sku) + '</div></div>' +
+        '</div>' +
+        '<div class="muted" style="font-size:13px;text-align:right;padding-top:4px;white-space:nowrap">x ' + it.qty + '</div>' +
+      '</div>').join('');
+    return '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:#fff">' +
+      '<div style="display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:14px;align-items:start;padding:14px">' +
+        '<div style="display:flex;align-items:center;gap:9px;min-width:0"><span style="display:inline-flex;align-items:center;font-size:11px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:4px 7px;flex:none">Bundle</span><span style="font-weight:500;font-size:13.5px;color:var(--ink);min-width:0;word-break:break-word">' + esc(name) + '</span></div>' +
+        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;text-align:right;white-space:nowrap">' +
+          (compareTotal > paidTotal + 0.001 ? '<span class="muted" style="font-size:12px;text-decoration:line-through">' + money(compareTotal) + '</span>' : '') +
+          '<span style="font-weight:600;font-size:13.5px;color:var(--ink)">' + money(paidTotal) + '</span>' +
+        '</div>' +
+      '</div>' +
+      subHtml +
+      (liveDiscountHtml ? '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:0 14px 10px">' + liveDiscountHtml + '</div>' : '') +
+      '<div style="border-top:1px solid var(--hair)">' + bundleRows + '</div>' +
+    '</div>';
     const seen = {};
     const discountHtml = discountLines.filter((txt) => {
       const key = String(txt);
@@ -541,24 +691,26 @@
     const row = (label, valHtml, opts) => {
       opts = opts || {};
       return '<div class="flex items-center justify-between" style="padding:7px 0;' + (opts.border ? 'border-top:1px solid var(--hair);margin-top:2px;padding-top:12px;' : '') + '">' +
-        '<div style="' + (opts.sub ? 'font-size:12px;color:#8B8B8B;display:flex;align-items:center;gap:4px' : 'font-size:13.5px;color:var(--ink-body)') + (opts.bold ? ';font-weight:700;color:var(--ink)' : '') + '">' + (opts.sub ? I.tag : '') + label + '</div>' +
+        '<div style="' + (opts.sub ? 'font-size:12px;color:#8B8B8B;display:flex;align-items:center;gap:6px' : 'font-size:13.5px;color:var(--ink-body)') + (opts.bold ? ';font-weight:700;color:var(--ink)' : '') + '">' + (opts.sub ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none">' + I.tag + '</span><span>' + label + '</span>' : label) + '</div>' +
         '<div style="' + (opts.sub ? 'font-size:12px;color:#8B8B8B' : 'font-size:13.5px;font-weight:500;color:var(--ink)') + (opts.bold ? ';font-weight:700' : '') + '">' + valHtml + '</div>' +
       '</div>';
     };
     const shipFee = Number(o.shipping_fee || 0);
     const orderDiscs = o.order_discounts || [];
-    const shipDisc = (o.shipping_discounts || [])[0];
+    const shipDiscs = o.shipping_discounts || [];
+    const shipDiscountTotal = shipDiscs.reduce((sum, discount) => sum + Number(discount.amount || 0), 0);
 
     let body = row('Subtotal <span class="muted" style="margin-left:6px">· ' + (o.total_num || 0) + ' items</span>', money(o.subtotal));
     // order discounts (header label + each discount sub-row), mirroring AmountCard
     if (orderDiscs.length) {
-      body += row('Order discount', '');
+      body += row('Order Discount', '');
       orderDiscs.forEach((d) => { body += row(esc(d.name), '-' + money(d.amount), { sub: true }); });
     }
-    // shipping line: struck -amount + FREE when a shipping discount applies and shipping > 0
-    if (shipDisc && shipFee > 0) {
-      body += row('Shipping', '<span class="muted" style="text-decoration:line-through;margin-right:6px">-' + money(shipDisc.amount) + '</span><span>FREE</span>');
-      body += row(esc(shipDisc.name || 'Free Shipping'), '-' + money(shipDisc.amount), { sub: true });
+    // Shipping discount rows preserve every applied code; FREE appears only when they cover the full shipping fee.
+    if (shipDiscs.length && shipFee > 0) {
+      const remainingShipping = Math.max(0, shipFee - shipDiscountTotal);
+      body += row('Shipping', '<span class="muted" style="text-decoration:line-through;margin-right:6px">' + money(shipFee) + '</span><span>' + (remainingShipping === 0 ? 'FREE' : money(remainingShipping)) + '</span>');
+      shipDiscs.forEach((discount) => { body += row(esc(discount.name || 'Shipping Discount'), '-' + money(discount.amount), { sub: true }); });
     } else {
       body += row('Shipping', shipFee > 0 ? money(shipFee) : 'FREE');
     }

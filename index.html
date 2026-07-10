@@ -21,13 +21,15 @@
   <!-- Bundle catalog is loaded eagerly so the shared bundle picker (used by Subscriptions → Add plan) always has data,
        even before the Bundles module is visited. Pure data; the lazy module loader re-uses the same cached file. -->
   <script src="bundles/js/data.js?v=20260706ab"></script>
-  <script src="assets/shell.js?v=20260710c"></script>
+  <!-- Subscription data is also a read-only dependency of order-detail deep links. -->
+  <script src="subscriptions/js/data.js?v=20260710l"></script>
+  <script src="assets/shell.js?v=20260710v"></script>
   <script src="assets/widgets.js?v=20260622o"></script>
   <!-- Runtime i18n overlay: engine + shared-chrome dict, then the per-module dictionary.
        Default language is ZH; the top-right toggle switches and persists. -->
   <script src="assets/i18n.js?v=20260706a"></script>
   <script src="assets/i18n/orders-customers.js?v=20260705b"></script>
-  <script src="assets/i18n/products-collections.js?v=20260624a"></script>
+  <script src="assets/i18n/products-collections.js?v=20260710a"></script>
   <script src="assets/i18n/content.js?v=20260624a"></script>
   <script src="assets/i18n/reviews-discounts-google.js?v=20260624a"></script>
   <script src="assets/i18n/facebook.js?v=20260630a"></script>
