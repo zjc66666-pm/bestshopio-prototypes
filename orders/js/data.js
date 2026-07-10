@@ -50,7 +50,7 @@
     // sub = recurring/initial order tied to a contract (list shows a compact "Subscription" tag; contract/cycle live in detail).
     // bundle = order containing a bundle (list shows "Bundle" tag; detail groups the bundle's SKUs).
     {
-      order_id: 5046, order_sn: 'SILIX1059', create_time: '2026-06-20 09:18', order_type: 0,
+      order_id: 5046, order_sn: 'EN1038', create_time: '2026-06-20 09:18', order_type: 0,
       user: { nickname: 'Grace Lee', uid: 80612 },
       shipping: { name: 'Grace Lee', first_name: 'Grace', last_name: 'Lee',
         detail: '118 King Street', detail2: 'Suite 6', city: 'Seattle', province: 'WA', post_code: '98101',
@@ -62,7 +62,7 @@
       bundle: { id: 'BND-07', name: 'Coffee Office Pack' },
     },
     {
-      order_id: 5045, order_sn: 'SILIX1056', create_time: '2026-06-19 06:00', order_type: 0,
+      order_id: 5045, order_sn: 'EN1037', create_time: '2026-06-19 06:00', order_type: 0,
       user: { nickname: 'Liam Smith', uid: 80452 },
       shipping: { name: 'Liam Smith', first_name: 'Liam', last_name: 'Smith',
         detail: '9 Oak Ave', detail2: '', city: 'Denver', province: 'CO', post_code: '80202',
@@ -72,7 +72,7 @@
       sub: { id: 'SUB-20452', cycle: 3, next: '2026-07-19' },
     },
     {
-      order_id: 5044, order_sn: 'SILIX1057', create_time: '2026-06-18 10:30', order_type: 0,
+      order_id: 5044, order_sn: 'EN1036', create_time: '2026-06-18 10:30', order_type: 0,
       user: { nickname: 'Mia Anderson', uid: 80460 },
       shipping: { name: 'Mia Anderson', first_name: 'Mia', last_name: 'Anderson',
         detail: '19 Willow Ct', detail2: '', city: 'San Diego', province: 'CA', post_code: '92101',
@@ -83,7 +83,7 @@
       sub: { id: 'SUB-20460', cycle: 1, next: '2026-06-23' },
     },
     {
-      order_id: 5043, order_sn: 'SILIX1058', create_time: '2026-06-17 15:12', order_type: 0,
+      order_id: 5043, order_sn: 'EN1035', create_time: '2026-06-17 15:12', order_type: 0,
       user: { nickname: 'Jordan Park', uid: 80588 },
       shipping: { name: 'Jordan Park', first_name: 'Jordan', last_name: 'Park',
         detail: '300 Spear St', detail2: 'Apt 12', city: 'San Francisco', province: 'CA', post_code: '94105',
@@ -93,7 +93,7 @@
       bundle: { id: 'BND-01', name: 'Focus Gum — Multipack' },
     },
     {
-      order_id: 5042, order_sn: 'SILIX1042', create_time: '2026-06-04 14:22', order_type: 0,
+      order_id: 5042, order_sn: 'EN1033', create_time: '2026-06-04 14:22', order_type: 0,
       user: { nickname: 'Emma Whitfield', uid: 81245 },
       shipping: { name: 'Emma Whitfield', first_name: 'Emma', last_name: 'Whitfield',
         detail: '482 Lakeview Drive', detail2: 'Apt 5B', city: 'Chicago', province: 'IL', post_code: '60614',
@@ -103,7 +103,7 @@
       source: 'BestCheckout', shopify_writeback_status: 'synced', shopify_order_id: '#SHP-89142', shopify_writeback_detail: 'Written back to Shopify and ready for the installed fulfillment app.',
     },
     {
-      order_id: 5041, order_sn: 'SILIX1041', create_time: '2026-06-04 11:08', order_type: 0,
+      order_id: 5041, order_sn: 'EN1032', create_time: '2026-06-04 11:08', order_type: 0,
       user: { nickname: 'Liam Sørensen', uid: 80910 },
       shipping: { name: 'Liam Sørensen', first_name: 'Liam', last_name: 'Sørensen',
         detail: '17 Harbour Street', detail2: '', city: 'Sydney', province: 'NSW', post_code: '2000',
@@ -112,7 +112,7 @@
       pay_time: null, delivery_time: null,
     },
     {
-      order_id: 5040, order_sn: 'SILIX1040', create_time: '2026-06-03 19:41', order_type: 0,
+      order_id: 5040, order_sn: 'EN1031', create_time: '2026-06-03 19:41', order_type: 0,
       user: { nickname: 'Olivia Martins', uid: 80877 },
       shipping: { name: 'Olivia Martins', first_name: 'Olivia', last_name: 'Martins',
         detail: '226 Peachtree Rd NE', detail2: 'Suite 12', city: 'Atlanta', province: 'GA', post_code: '30309',
@@ -122,7 +122,7 @@
       source: 'BestCheckout', shopify_writeback_status: 'failed', shopify_order_id: '', shopify_writeback_detail: 'Shopify rejected the write-back because shipping profile data is stale. Retry after fixing Connection.',
     },
     {
-      order_id: 5039, order_sn: 'SILIX1039', create_time: '2026-06-03 08:55', order_type: 1,
+      order_id: 5039, order_sn: 'EN1030', create_time: '2026-06-03 08:55', order_type: 1,
       user: { nickname: 'Noah Thompson', uid: 80541 },
       shipping: { name: 'Noah Thompson', first_name: 'Noah', last_name: 'Thompson',
         detail: '900 Westheimer Rd', detail2: '', city: 'Houston', province: 'TX', post_code: '77006',
@@ -131,7 +131,7 @@
       pay_time: '2026-06-03 08:57', delivery_time: '2026-06-03 15:02',
     },
     {
-      order_id: 5038, order_sn: 'SILIX1038', create_time: '2026-06-02 22:13', order_type: 0,
+      order_id: 5038, order_sn: 'EN1029', create_time: '2026-06-02 22:13', order_type: 0,
       user: { nickname: 'Ava Robinson', uid: 80233 },
       shipping: { name: 'Ava Robinson', first_name: 'Ava', last_name: 'Robinson',
         detail: '54 Collins Street', detail2: 'Level 8', city: 'Melbourne', province: 'VIC', post_code: '3000',
@@ -140,7 +140,7 @@
       pay_time: '2026-06-02 22:15', delivery_time: '2026-06-03 10:40',
     },
     {
-      order_id: 5037, order_sn: 'SILIX1037', create_time: '2026-06-02 16:30', order_type: 0,
+      order_id: 5037, order_sn: 'EN1028', create_time: '2026-06-02 16:30', order_type: 0,
       user: { nickname: 'William Hughes', uid: 79980 },
       shipping: { name: 'William Hughes', first_name: 'William', last_name: 'Hughes',
         detail: '11 King Street West', detail2: '', city: 'Toronto', province: 'ON', post_code: 'M5H 1A1',
@@ -149,7 +149,7 @@
       pay_time: '2026-06-02 16:33', delivery_time: null,
     },
     {
-      order_id: 5036, order_sn: 'SILIX1036', create_time: '2026-06-01 13:47', order_type: 0,
+      order_id: 5036, order_sn: 'EN1027', create_time: '2026-06-01 13:47', order_type: 0,
       user: { nickname: 'Sophia Khan', uid: 79644 },
       shipping: { name: 'Sophia Khan', first_name: 'Sophia', last_name: 'Khan',
         detail: '64 Baker Street', detail2: 'Flat 3', city: 'London', province: 'England', post_code: 'W1U 7DF',
@@ -158,7 +158,7 @@
       pay_time: null, delivery_time: null,
     },
     {
-      order_id: 5035, order_sn: 'SILIX1035', create_time: '2026-06-01 09:02', order_type: 0,
+      order_id: 5035, order_sn: 'EN1026', create_time: '2026-06-01 09:02', order_type: 0,
       user: { nickname: 'James Becker', uid: 79412 },
       shipping: { name: 'James Becker', first_name: 'James', last_name: 'Becker',
         detail: 'Friedrichstraße 110', detail2: '', city: 'Berlin', province: 'Berlin', post_code: '10117',
@@ -167,7 +167,7 @@
       pay_time: '2026-06-01 09:05', delivery_time: null,
     },
     {
-      order_id: 5034, order_sn: 'SILIX1034', create_time: '2026-05-31 20:18', order_type: 0,
+      order_id: 5034, order_sn: 'EN1025', create_time: '2026-05-31 20:18', order_type: 0,
       user: { nickname: 'Isabella Cruz', uid: 79100 },
       shipping: { name: 'Isabella Cruz', first_name: 'Isabella', last_name: 'Cruz',
         detail: '320 Ocean Drive', detail2: '', city: 'Miami', province: 'FL', post_code: '33139',
@@ -176,7 +176,7 @@
       pay_time: '2026-05-31 20:20', delivery_time: '2026-06-01 11:30',
     },
     {
-      order_id: 5033, order_sn: 'SILIX1033', create_time: '2026-05-31 12:44', order_type: 0,
+      order_id: 5033, order_sn: 'EN1024', create_time: '2026-05-31 12:44', order_type: 0,
       user: { nickname: 'Benjamin Foster', uid: 78844 },
       shipping: { name: 'Benjamin Foster', first_name: 'Benjamin', last_name: 'Foster',
         detail: '78 Queen Street', detail2: 'Unit 6', city: 'Auckland', province: 'Auckland', post_code: '1010',
@@ -185,7 +185,7 @@
       pay_time: '2026-05-31 12:46', delivery_time: '2026-06-01 08:10',
     },
     {
-      order_id: 5032, order_sn: 'SILIX1032', create_time: '2026-05-30 17:09', order_type: 0,
+      order_id: 5032, order_sn: 'EN1023', create_time: '2026-05-30 17:09', order_type: 0,
       user: { nickname: 'Mia Andersson', uid: 78510 },
       shipping: { name: 'Mia Andersson', first_name: 'Mia', last_name: 'Andersson',
         detail: 'Drottninggatan 45', detail2: '', city: 'Stockholm', province: 'Stockholm', post_code: '111 21',
@@ -194,7 +194,7 @@
       pay_time: '2026-05-30 17:12', delivery_time: '2026-05-31 09:55',
     },
     {
-      order_id: 5031, order_sn: 'SILIX1031', create_time: '2026-05-30 10:25', order_type: 0,
+      order_id: 5031, order_sn: 'EN1022', create_time: '2026-05-30 10:25', order_type: 0,
       user: { nickname: 'Lucas Meyer', uid: 78233 },
       shipping: { name: 'Lucas Meyer', first_name: 'Lucas', last_name: 'Meyer',
         detail: '12 Rue de Rivoli', detail2: '', city: 'Paris', province: 'Île-de-France', post_code: '75004',
@@ -203,7 +203,7 @@
       pay_time: '2026-05-30 10:28', delivery_time: null,
     },
     {
-      order_id: 5030, order_sn: 'SILIX1030', create_time: '2026-05-29 21:50', order_type: 0,
+      order_id: 5030, order_sn: 'EN1021', create_time: '2026-05-29 21:50', order_type: 0,
       user: { nickname: 'Charlotte Reed', uid: 77990 },
       shipping: { name: 'Charlotte Reed', first_name: 'Charlotte', last_name: 'Reed',
         detail: '255 Market Street', detail2: 'Apt 14C', city: 'San Francisco', province: 'CA', post_code: '94105',
@@ -212,7 +212,7 @@
       pay_time: '2026-05-29 21:52', delivery_time: '2026-05-30 12:00',
     },
     {
-      order_id: 5029, order_sn: 'SILIX1029', create_time: '2026-05-29 08:33', order_type: 0,
+      order_id: 5029, order_sn: 'EN1020', create_time: '2026-05-29 08:33', order_type: 0,
       user: { nickname: 'Henry Walsh', uid: 77641 },
       shipping: { name: 'Henry Walsh', first_name: 'Henry', last_name: 'Walsh',
         detail: '9 Eyre Square', detail2: '', city: 'Galway', province: 'Connacht', post_code: 'H91 X2K3',
@@ -221,7 +221,7 @@
       pay_time: null, delivery_time: null,
     },
     {
-      order_id: 5028, order_sn: 'SILIX1028', create_time: '2026-05-28 15:12', order_type: 0,
+      order_id: 5028, order_sn: 'EN1019', create_time: '2026-05-28 15:12', order_type: 0,
       user: { nickname: 'Amelia Novak', uid: 77302 },
       shipping: { name: 'Amelia Novak', first_name: 'Amelia', last_name: 'Novak',
         detail: 'Wenceslas Square 14', detail2: '', city: 'Prague', province: 'Prague', post_code: '110 00',
@@ -243,7 +243,7 @@
   const DETAILS = {
     // Bundle subscription initial order — bundle components are sold under one subscription contract.
     5046: {
-      order_id: 5046, order_sn: 'SILIX1059', status: 'to_ship', paid: 1, order_type: 0,
+      order_id: 5046, order_sn: 'EN1038', status: 'to_ship', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-20 09:18', pay_time: '2026-06-20 09:19',
       source: 'BestCheckout', shopify_writeback_status: 'synced', shopify_order_id: '#SHP-89161', shopify_writeback_detail: 'Written back to Shopify with bundle and subscription snapshots for fulfillment.',
@@ -278,7 +278,7 @@
     },
     // Subscription renewal order (cycle 3 of contract SUB-20452) — single recurring product.
     5045: {
-      order_id: 5045, order_sn: 'SILIX1056', status: 'shipped', paid: 1, order_type: 0,
+      order_id: 5045, order_sn: 'EN1037', status: 'shipped', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-19 06:00', pay_time: '2026-06-19 06:00',
       payment_method: 'PayPal', delivery_name: 'USPS', delivery_id: 'US9341005512',
@@ -303,7 +303,7 @@
     },
     // Mixed initial order — a one-time item + the first cycle of a new subscription (SUB-20460).
     5044: {
-      order_id: 5044, order_sn: 'SILIX1057', status: 'to_ship', paid: 1, order_type: 0,
+      order_id: 5044, order_sn: 'EN1036', status: 'to_ship', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-18 10:30', pay_time: '2026-06-18 10:31',
       source: 'BestCheckout', shopify_writeback_status: 'pending', shopify_order_id: '', shopify_writeback_detail: 'Waiting for Shopify Admin API acceptance. Fulfillment is held until write-back succeeds.',
@@ -333,7 +333,7 @@
     },
     // Bundle order — the bundle's component SKUs (+ a gift) are grouped under one bundle block.
     5043: {
-      order_id: 5043, order_sn: 'SILIX1058', status: 'shipped', paid: 1, order_type: 0,
+      order_id: 5043, order_sn: 'EN1035', status: 'shipped', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-17 15:12', pay_time: '2026-06-17 15:13',
       payment_method: 'PayPal', delivery_name: 'FedEx', delivery_id: 'FX882001774521',
@@ -360,7 +360,7 @@
       ],
     },
     5042: {
-      order_id: 5042, order_sn: 'SILIX1042', status: 'to_ship', paid: 1, order_type: 0,
+      order_id: 5042, order_sn: 'EN1033', status: 'to_ship', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-04 14:22', pay_time: '2026-06-04 14:24',
       source: 'BestCheckout', shopify_writeback_status: 'synced', shopify_order_id: '#SHP-89142', shopify_writeback_detail: 'Written back to Shopify and ready for the installed fulfillment app.',
@@ -398,7 +398,7 @@
       ],
     },
     5040: {
-      order_id: 5040, order_sn: 'SILIX1040', status: 'shipped', paid: 1, order_type: 0,
+      order_id: 5040, order_sn: 'EN1031', status: 'shipped', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-03 19:41', pay_time: '2026-06-03 19:43',
       source: 'BestCheckout', shopify_writeback_status: 'failed', shopify_order_id: '', shopify_writeback_detail: 'Shopify rejected the write-back because shipping profile data is stale. Retry after fixing Connection.',
@@ -431,7 +431,7 @@
       ],
     },
     5039: {
-      order_id: 5039, order_sn: 'SILIX1039', status: 'review', paid: 1, order_type: 1,
+      order_id: 5039, order_sn: 'EN1030', status: 'review', paid: 1, order_type: 1,
       payment_status: 'paid', verify_code: 'VC-39A7K2',
       create_time: '2026-06-03 08:55', pay_time: '2026-06-03 08:57',
       payment_method: 'Stripe ApplePay',
@@ -456,7 +456,7 @@
       ],
     },
     5041: {
-      order_id: 5041, order_sn: 'SILIX1041', status: 'to_pay', paid: 0, order_type: 0,
+      order_id: 5041, order_sn: 'EN1032', status: 'to_pay', paid: 0, order_type: 0,
       payment_status: 'unpaid', verify_code: '',
       create_time: '2026-06-04 11:08', pay_time: null,
       payment_method: '--',
@@ -480,7 +480,7 @@
       ],
     },
     5037: {
-      order_id: 5037, order_sn: 'SILIX1037', status: 'refund', paid: 1, order_type: 0,
+      order_id: 5037, order_sn: 'EN1028', status: 'refund', paid: 1, order_type: 0,
       payment_status: 'paid', verify_code: '',
       create_time: '2026-06-02 16:30', pay_time: '2026-06-02 16:33',
       payment_method: 'Stripe Card',
