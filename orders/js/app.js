@@ -555,9 +555,20 @@
   }
   // One product line row. Subscription products use the same metadata hierarchy as bundle subscriptions.
   function itemRowHtml(it, topBorder, sub) {
-    const hasDisc = (it.discounts || []).length > 0;
-    // Product discounts are only eligible for a normal item. Bundle and subscription discounts render in their own blocks.
-    const productDiscounts = it.subLine ? [] : (it.discounts || []);
+    const discounts = it.discounts || [];
+    const hasDisc = discounts.length > 0;
+    // Explicit types support lines with both discounts. Names retain compatibility with older mock data.
+    const discountType = (d) => {
+      const type = String(d.type || '').toLowerCase();
+      if (type === 'subscription' || type === 'product' || type === 'bundle') return type;
+      const name = String(d.name || '');
+      if (/^bundle discount\b/i.test(name)) return 'bundle';
+      if (/^(subscription discount|delivery every\b)/i.test(name)) return 'subscription';
+      if (/^product discount\b/i.test(name)) return 'product';
+      return it.subLine ? 'subscription' : 'product';
+    };
+    const productDiscounts = discounts.filter((d) => discountType(d) === 'product');
+    const subscriptionDiscounts = it.subLine ? discounts.filter((d) => discountType(d) === 'subscription') : [];
     const disc = productDiscounts.map((d) =>
       '<div class="flex items-center gap-1 mt-1" style="font-size:12px;color:#8B8B8B">' + I.tag +
       '<span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></div>').join('');
@@ -570,8 +581,8 @@
         '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>' +
         (sub.cycle ? '<span aria-hidden="true" class="muted">&middot;</span><span>Cycle ' + esc(sub.cycle) + '</span>' : '') +
       '</div>' : '';
-    const subDiscounts = it.subLine && hasDisc ?
-      '<div style="grid-column:1 / -1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:2px">' + (it.discounts || []).map((d) =>
+    const subDiscounts = subscriptionDiscounts.length ?
+      '<div style="grid-column:1 / -1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:2px">' + subscriptionDiscounts.map((d) =>
         '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);line-height:1.45"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none">' + I.tag + '</span><span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></span>').join('') +
       '</div>' : '';
     return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 104px;gap:14px;align-items:flex-start;padding:14px 0' +
@@ -581,7 +592,7 @@
         '<div style="min-width:0">' +
           '<div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(it.title) + '</div>' +
           '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div>' +
-          (it.subLine ? '' : disc) +
+          disc +
         '</div>' +
       '</div>' +
       '<div class="muted" style="font-size:13px;text-align:right;white-space:nowrap;padding-top:2px">x ' + it.qty + '</div>' +
