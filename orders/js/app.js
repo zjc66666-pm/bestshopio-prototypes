@@ -11,6 +11,8 @@
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const money = (n) => '$' + Number(n || 0).toFixed(2);
+  // Product options are presented with one separator across all order-detail rows.
+  const variantText = (value) => String(value == null ? '' : value).trim().replace(/\s*,\s*/g, ' / ');
 
   // ---- inline icons (svg style matches shell.js .nav-ico) ----
   const svg = (p, w) => '<svg viewBox="0 0 24 24" width="' + (w || 16) + '" height="' + (w || 16) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
@@ -587,7 +589,7 @@
     const productDiscounts = discounts.filter((d) => discountType(d) === 'product');
     const subscriptionDiscounts = it.subLine ? discounts.filter((d) => discountType(d) === 'subscription') : [];
     const variantHtml = it.sku ?
-      '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div>' : '';
+      '<div class="muted" style="font-size:12px">' + esc(variantText(it.sku)) + '</div>' : '';
     const disc = productDiscounts.map((d) =>
       '<div class="flex items-center gap-1 mt-1" style="font-size:12px;color:#8B8B8B">' + I.tag +
       '<span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></div>').join('');
@@ -667,8 +669,12 @@
       '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:12px;align-items:start;padding:12px 14px' + (gi > 0 ? ';border-top:1px solid var(--hair)' : '') + '">' +
         '<div class="flex items-start gap-3" style="min-width:0">' +
           '<img src="' + it.image + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />' +
-          '<div style="min-width:0"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.35"><span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:3px 6px">Included</span><span style="font-weight:500;font-size:13px;color:var(--ink)">' + esc(it.title) + '</span></div>' +
-            '<div class="muted" style="font-size:12px;margin-top:3px">' + esc(it.sku) + '</div></div>' +
+          '<div style="min-width:0"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.35">' +
+            (it.gift
+              ? '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#16794a;background:#e8f7ee;border-radius:3px;padding:3px 6px">Free</span>'
+              : '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:3px 6px">Included</span>') +
+            '<span style="font-weight:500;font-size:13px;color:var(--ink)">' + esc(it.title) + '</span></div>' +
+            '<div class="muted" style="font-size:12px;margin-top:3px">' + esc(variantText(it.sku)) + '</div></div>' +
         '</div>' +
         '<div class="muted" style="font-size:13px;text-align:right;padding-top:4px;white-space:nowrap">x ' + it.qty + '</div>' +
       '</div>').join('');
@@ -697,7 +703,7 @@
         '<div class="flex items-center gap-3" style="min-width:0">' +
           '<img src="' + it.image + '" alt="" style="width:34px;height:34px;border-radius:6px;flex:none" />' +
           '<div style="min-width:0"><div style="font-weight:500;font-size:13px;color:var(--ink)">' + esc(it.title) + (it.gift ? ' <span style="color:#1f8f4e;font-size:10.5px;font-weight:700">FREE GIFT</span>' : '') + '</div>' +
-            '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div></div>' +
+            '<div class="muted" style="font-size:12px">' + esc(variantText(it.sku)) + '</div></div>' +
         '</div>' +
         '<div class="muted" style="font-size:13px">x ' + it.qty + '</div>' +
         '<div style="font-size:13px;font-weight:500;color:var(--ink-body)">' + (it.gift ? '<span style="color:#1f8f4e">Free</span>' : money(it.product_price)) + '</div>' +
@@ -985,7 +991,7 @@
       return '<tr>' +
         '<td style="width:40px;text-align:center"><input type="checkbox" class="vf-pick" data-i="' + i + '"' + (remaining <= 0 ? ' disabled' : '') + ' /></td>' +
         '<td><div class="flex items-center gap-3"><img src="' + it.image + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />' +
-          '<div style="min-width:0"><div style="font-weight:500;font-size:13px">' + esc(it.title) + '</div><div class="muted" style="font-size:12px">' + esc(it.sku) + '</div></div></div></td>' +
+          '<div style="min-width:0"><div style="font-weight:500;font-size:13px">' + esc(it.title) + '</div><div class="muted" style="font-size:12px">' + esc(variantText(it.sku)) + '</div></div></div></td>' +
         '<td class="num">' + money(it.unit_price) + '</td>' +
         '<td class="num">' + remaining + '</td>' +
         '<td class="num"><input class="input" type="number" min="1" max="' + remaining + '" value="' + Math.max(remaining, 1) + '"' + (remaining <= 0 ? ' disabled' : '') + ' style="width:72px;height:30px" data-vqty="' + i + '" /></td>' +

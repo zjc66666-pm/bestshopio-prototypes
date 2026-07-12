@@ -10,6 +10,8 @@
   const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const money = (n, cur) => (cur || '$') + Number.parseFloat(String(n == null ? 0 : n) || 0).toFixed(2);
+  // Keep order-history option values aligned with the order-detail convention.
+  const variantText = (value) => String(value == null ? '' : value).trim().replace(/\s*,\s*/g, ' / ');
 
   // ---- inline icons (svg style matches shell.js .nav-ico) ----
   const svg = (p, w) => '<svg viewBox="0 0 24 24" width="' + (w || 16) + '" height="' + (w || 16) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
@@ -678,7 +680,7 @@
       return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 104px;gap:14px;align-items:start;padding:12px 0' + (index ? ';border-top:1px solid var(--hair)' : '') + '">' +
         '<div class="flex items-start gap-3" style="min-width:0">' + image +
           '<div style="min-width:0"><div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(item.title) + (item.gift ? ' <span style="color:#1f8f4e;font-size:10.5px;font-weight:700">FREE GIFT</span>' : '') + '</div>' +
-            '<div class="muted" style="font-size:12px">' + esc(item.sku) + '</div>' +
+            '<div class="muted" style="font-size:12px">' + esc(variantText(item.sku)) + '</div>' +
             (meta ? '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px">' + meta + '</div>' : '') +
             (uniqueDiscounts.length ? '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px">' + uniqueDiscounts.map((line) => '<span class="flex items-center gap-1" style="font-size:12px;color:#8B8B8B">' + I.tag + '<span>' + esc(line) + '</span></span>').join('') + '</div>' : '') +
           '</div></div>' +
@@ -754,7 +756,7 @@
     return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 104px;gap:14px;align-items:flex-start;padding:14px 0">' +
       '<div class="flex items-center gap-3" style="min-width:0">' + sharedProductImage(item) +
         '<div style="min-width:0"><div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(item.title) + '</div>' +
-          (item.sku ? '<div class="muted" style="font-size:12px">' + esc(item.sku) + '</div>' : '') + productDiscountHtml +
+          (item.sku ? '<div class="muted" style="font-size:12px">' + esc(variantText(item.sku)) + '</div>' : '') + productDiscountHtml +
         '</div>' +
       '</div>' +
       '<div class="muted" style="font-size:13px;text-align:right;white-space:nowrap;padding-top:2px">x ' + esc(item.qty) + '</div>' +
@@ -801,8 +803,12 @@
     const rows = group.map((item, index) =>
       '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:12px;align-items:start;padding:12px 14px' + (index ? ';border-top:1px solid var(--hair)' : '') + '">' +
         '<div class="flex items-start gap-3" style="min-width:0">' + sharedProductImage(item) +
-          '<div style="min-width:0"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.35"><span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:3px 6px">Included</span><span style="font-weight:500;font-size:13px;color:var(--ink)">' + esc(item.title) + '</span></div>' +
-            (item.sku ? '<div class="muted" style="font-size:12px;margin-top:3px">' + esc(item.sku) + '</div>' : '') +
+          '<div style="min-width:0"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.35">' +
+            (item.gift
+              ? '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#16794a;background:#e8f7ee;border-radius:3px;padding:3px 6px">Free</span>'
+              : '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:3px 6px">Included</span>') +
+            '<span style="font-weight:500;font-size:13px;color:var(--ink)">' + esc(item.title) + '</span></div>' +
+            (item.sku ? '<div class="muted" style="font-size:12px;margin-top:3px">' + esc(variantText(item.sku)) + '</div>' : '') +
           '</div>' +
         '</div>' +
         '<div class="muted" style="font-size:13px;text-align:right;padding-top:4px;white-space:nowrap">x ' + esc(item.qty) + '</div>' +
@@ -903,7 +909,7 @@
           '<div style="width:40px;height:40px;border-radius:6px;border:1px solid var(--hair);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-muted)">IMG</div>' +
           '<div style="min-width:0">' +
             '<div style="font-weight:500;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(name) + '</div>' +
-            '<div class="muted" style="font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(sku) + '</div>' +
+            '<div class="muted" style="font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(variantText(sku)) + '</div>' +
             (hasDisc ? '<div class="flex items-center gap-1 mt-1" style="font-size:12px;color:#8B8B8B">' + I.tag + '<span>' + esc(dd.activity_name || dd.discount_code) + ' (-' + money(dd.discount_amount, cur) + ')</span></div>' : '') +
           '</div>' +
           '<div class="muted" style="text-align:right;font-size:13px">' + money(unit, cur) + '</div>' +
