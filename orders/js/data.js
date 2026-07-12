@@ -47,7 +47,8 @@
   // 0 = standard shipping order, 1/2 = pickup/verify order (drives Verify action).
   const ORDERS = [
     // --- Subscription / Bundle sample orders (Subscriptions + Bundles integration) ---
-    // sub = recurring/initial order tied to a contract (list shows a compact "Subscription" tag; contract/cycle live in detail).
+    // has_subscription = the customer selected a subscription purchase option in this order.
+    // sub.id exists only after payment succeeds and the subscription contract is activated.
     // bundle = order containing a bundle (list shows "Bundle" tag; detail groups the bundle's SKUs).
     {
       order_id: 5046, order_sn: 'EN1038', create_time: '2026-06-20 09:18', order_type: 0,
@@ -108,8 +109,10 @@
       shipping: { name: 'Liam Sørensen', first_name: 'Liam', last_name: 'Sørensen',
         detail: '17 Harbour Street', detail2: '', city: 'Sydney', province: 'NSW', post_code: '2000',
         country: 'Australia', phone_code: '61', phone: '2 8123 4567', email: 'liam.sorensen@example.com' },
-      total: 96.00, order_status: 'to_pay', payment_status: 'unpaid', payment_method: '--',
+      total: 182.35, order_status: 'to_pay', payment_status: 'unpaid', payment_method: '--',
       pay_time: null, delivery_time: null,
+      has_subscription: true,
+      bundle: { id: 'BND-07', name: 'Coffee Office Pack' },
     },
     {
       order_id: 5040, order_sn: 'EN1031', create_time: '2026-06-03 19:41', order_type: 0,
@@ -154,8 +157,10 @@
       shipping: { name: 'Sophia Khan', first_name: 'Sophia', last_name: 'Khan',
         detail: '64 Baker Street', detail2: 'Flat 3', city: 'London', province: 'England', post_code: 'W1U 7DF',
         country: 'United Kingdom', phone_code: '44', phone: '20 7946 0123', email: 'sophia.khan@example.com' },
-      total: 112.00, order_status: 'cancel', payment_status: 'unpaid', payment_method: '--',
+      total: 182.35, order_status: 'cancel', payment_status: 'unpaid', payment_method: '--',
       pay_time: null, delivery_time: null,
+      has_subscription: true,
+      bundle: { id: 'BND-07', name: 'Coffee Office Pack' },
     },
     {
       order_id: 5035, order_sn: 'EN1026', create_time: '2026-06-01 09:02', order_type: 0,
@@ -239,6 +244,44 @@
     'data:image/svg+xml;utf8,' + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><rect width="44" height="44" rx="6" fill="' + bg + '"/>' +
       '<text x="22" y="27" font-family="Inter,Arial" font-size="13" font-weight="600" fill="' + fg + '" text-anchor="middle">' + t + '</text></svg>');
+
+  // Full purchase matrix for pre-contract orders. Every subscription snapshot deliberately omits id/cycle.
+  function pendingSubscriptionScenarioItems() {
+    return [
+      { title: 'Signature Blend Coffee 500g', sku: 'Whole bean, 2 Pack', image: IMG('#f3ece1', '#7a5c3a', 'C'),
+        unit_price: 34.99, qty: 2, line_total: 69.97, product_price: 48.00,
+        discounts: [{ name: 'Bundle Discount', amount: 7.98, type: 'bundle' }, { name: 'Subscription discount', amount: 13.99, type: 'subscription' }],
+        bundle: 'Coffee Office Pack', subLine: true,
+        subscription: { deliveryLabel: 'Delivery every 2 months (-$13.99)' },
+        bundleMeta: { bundleDiscount: 'Bundle Discount (-$7.98)', subscriptionLabel: 'Subscription discount (-$13.99)' } },
+      { title: 'Coffee Brew Guide', sku: 'Digital download', image: IMG('#eef4ff', '#1d4ed8', 'G'),
+        unit_price: 0, qty: 1, line_total: 0, product_price: 0, discounts: [],
+        bundle: 'Coffee Office Pack', gift: true,
+        bundleMeta: { bundleDiscount: 'Bundle Discount (-$7.98)', subscriptionLabel: 'Subscription discount (-$13.99)' } },
+      { title: 'Ceramic Pour-Over Mug', sku: 'Stone / 12oz', image: IMG('#eef0f4', '#525a6b', 'M'),
+        unit_price: 17.99, qty: 1, line_total: 17.99, product_price: 15.99,
+        discounts: [{ name: 'Product Discount', amount: 2.00, type: 'product' }] },
+      { title: 'Reusable Coffee Filter', sku: 'Stainless steel / 2-cup', image: IMG('#eff8f3', '#18794e', 'F'),
+        unit_price: 12.99, qty: 1, line_total: 12.99, product_price: 10.99, discounts: [],
+        bundle: 'Home Barista Essentials', bundleMeta: { bundleDiscount: 'Bundle Discount (-$8.00)' } },
+      { title: 'Borosilicate Glass Carafe', sku: '600ml', image: IMG('#eef4ff', '#1d4ed8', 'B'),
+        unit_price: 24.99, qty: 1, line_total: 24.99, product_price: 18.99, discounts: [],
+        bundle: 'Home Barista Essentials', bundleMeta: { bundleDiscount: 'Bundle Discount (-$8.00)' } },
+      { title: 'Signature Blend Coffee 500g', sku: 'Whole bean', image: IMG('#f3ece1', '#7a5c3a', 'C'),
+        unit_price: 26.60, qty: 1, line_total: 26.60, product_price: 24.00,
+        discounts: [{ name: 'Subscription discount', amount: 2.60, type: 'subscription' }], subLine: true,
+        subscription: { deliveryLabel: 'Delivery every 1 month (-$2.60)' } },
+      { title: 'Whey Protein 1kg', sku: 'Vanilla / 1kg', image: IMG('#eee8f7', '#6442a6', 'P'),
+        unit_price: 39.00, qty: 1, line_total: 39.00, product_price: 31.59,
+        discounts: [{ name: 'Subscription discount', amount: 3.90, type: 'subscription' }, { name: 'Product Discount', amount: 3.51, type: 'product' }], subLine: true,
+        subscription: { deliveryLabel: 'Delivery every 1 month (-$3.90)' } },
+      { title: 'Daily Multivitamin (60 ct)', sku: '60 capsules', image: IMG('#edf7ed', '#23774e', 'V'),
+        unit_price: 32.00, qty: 1, line_total: 32.00, product_price: 28.80,
+        discounts: [{ name: 'Product Discount', amount: 3.20, type: 'product' }] },
+      { title: 'Stainless Steel Coffee Scoop', sku: '30ml', image: IMG('#f5f2ed', '#8b6b43', 'S'),
+        unit_price: 8.99, qty: 1, line_total: 8.99, product_price: 8.99, discounts: [] },
+    ];
+  }
 
   const DETAILS = {
     // Bundle subscription initial order — bundle components are sold under one subscription contract.
@@ -498,16 +541,42 @@
         city: 'Sydney', province: 'NSW', post_code: '2000', country: 'Australia',
         phone_code: '61', phone: '2 8123 4567', email: 'liam.sorensen@example.com',
       },
-      note: '',
-      total_num: 2, subtotal: 96.00, shipping_fee: 0.00, total: 96.00, paid_amount: 0.00,
-      order_discounts: [], shipping_discounts: [], total_savings: 0.00,
-      items: [
-        { title: 'Compression Sleeves (pair)', sku: 'black / os', image: IMG('#e0f2ec', '#00684a', 'C'),
-          unit_price: 48.00, qty: 2, line_total: 96.00, product_price: 96.00, discounts: [] },
-      ],
+      note: 'QA sample: all supported purchase combinations are selected. Payment is still pending, so no subscription contract exists.',
+      has_subscription: true,
+      bundle: { id: 'BND-07', name: 'Coffee Office Pack' },
+      total_num: 10, subtotal: 187.35, shipping_fee: 8.99, total: 182.35, paid_amount: 0.00,
+      order_discounts: [{ name: 'WELCOME10', amount: 5.00 }],
+      shipping_discounts: [{ name: 'FREESHIP', amount: 8.99 }], total_savings: 59.17,
+      items: pendingSubscriptionScenarioItems(),
       timeline: [
         { label: 'Order placed', time: '2026-06-04 11:08' },
+        { label: 'Subscription purchase selected across bundle and normal-product scenarios', time: '2026-06-04 11:08' },
         { label: 'Awaiting payment', time: '2026-06-04 11:08' },
+      ],
+    },
+    5036: {
+      order_id: 5036, order_sn: 'EN1027', status: 'cancel', paid: 0, order_type: 0,
+      payment_status: 'unpaid', verify_code: '',
+      create_time: '2026-06-01 13:47', pay_time: null,
+      payment_method: '--',
+      delivery_name: '', delivery_id: '',
+      user: { nickname: 'Sophia Khan', uid: 79644 },
+      shipping: {
+        first_name: 'Sophia', last_name: 'Khan', detail: '64 Baker Street', detail2: 'Flat 3',
+        city: 'London', province: 'England', post_code: 'W1U 7DF', country: 'United Kingdom',
+        phone_code: '44', phone: '20 7946 0123', email: 'sophia.khan@example.com',
+      },
+      note: 'QA sample: all supported purchase combinations were selected, then canceled before payment. No subscription contract was created.',
+      has_subscription: true,
+      bundle: { id: 'BND-07', name: 'Coffee Office Pack' },
+      total_num: 10, subtotal: 187.35, shipping_fee: 8.99, total: 182.35, paid_amount: 0.00,
+      order_discounts: [{ name: 'WELCOME10', amount: 5.00 }],
+      shipping_discounts: [{ name: 'FREESHIP', amount: 8.99 }], total_savings: 59.17,
+      items: pendingSubscriptionScenarioItems(),
+      timeline: [
+        { label: 'Order placed', time: '2026-06-01 13:47' },
+        { label: 'Subscription purchase selected across bundle and normal-product scenarios', time: '2026-06-01 13:47' },
+        { label: 'Order canceled before payment · Subscription contract not created', time: '2026-06-01 14:05' },
       ],
     },
     5037: {
@@ -523,7 +592,7 @@
         phone_code: '1', phone: '416 555 0199', email: 'w.hughes@example.com',
       },
       note: 'Customer reported wrong size — full refund approved.',
-      total_num: 1, subtotal: 78.00, shipping_fee: 0.00, total: 78.00, paid_amount: 0.00,
+      total_num: 1, subtotal: 78.00, shipping_fee: 0.00, total: 78.00, paid_amount: 0.00, refunded_amount: 78.00,
       order_discounts: [], shipping_discounts: [], total_savings: 0.00,
       items: [
         { title: 'Butt-Lifting Capris', sku: 'grey / l', image: IMG('#e6f0ff', '#0058c4', 'B'),
@@ -536,6 +605,77 @@
       ],
     },
   };
+
+  // Keep every list record drill-down ready. Rich scenario fixtures above take precedence;
+  // ordinary list rows receive a complete standard-order detail instead of an empty route.
+  function standardOrderDetail(order) {
+    const paid = order.payment_status === 'paid';
+    const createdAt = order.create_time || '--';
+    const timeline = [{ label: 'Order placed', time: createdAt }];
+    if (paid) {
+      timeline.push({ label: 'Payment captured' + (order.payment_method && order.payment_method !== '--' ? ' · ' + order.payment_method : ''), time: order.pay_time || createdAt });
+    } else if (order.order_status === 'cancel') {
+      timeline.push({ label: 'Order canceled before payment', time: createdAt });
+    } else {
+      timeline.push({ label: 'Awaiting payment', time: createdAt });
+    }
+
+    const statusEvent = {
+      to_ship: 'Ready for fulfillment',
+      shipped: 'Order shipped',
+      review: 'Awaiting customer review',
+      archived: 'Order completed',
+      refund: 'Refund processed',
+    }[order.order_status];
+    if (statusEvent) timeline.push({ label: statusEvent, time: order.delivery_time || order.pay_time || createdAt });
+
+    return {
+      order_id: order.order_id,
+      order_sn: order.order_sn,
+      status: order.order_status,
+      paid: paid ? 1 : 0,
+      order_type: order.order_type || 0,
+      payment_status: order.payment_status,
+      verify_code: '',
+      create_time: createdAt,
+      pay_time: order.pay_time || null,
+      source: order.source,
+      shopify_writeback_status: order.shopify_writeback_status,
+      shopify_order_id: order.shopify_order_id,
+      shopify_writeback_detail: order.shopify_writeback_detail,
+      payment_method: order.payment_method || '--',
+      delivery_name: order.delivery_name || '',
+      delivery_id: order.delivery_id || '',
+      user: order.user,
+      shipping: order.shipping,
+      note: 'Standard order detail mock generated from this list record.',
+      total_num: 1,
+      subtotal: order.total,
+      shipping_fee: 0,
+      total: order.total,
+      paid_amount: paid && order.order_status !== 'refund' ? order.total : 0,
+      refunded_amount: order.order_status === 'refund' ? order.total : 0,
+      order_discounts: [],
+      shipping_discounts: [],
+      total_savings: 0,
+      items: [{
+        title: 'Standard order item',
+        image: IMG('#eef0f4', '#62708d', 'O'),
+        unit_price: order.total,
+        qty: 1,
+        line_total: order.total,
+        product_price: order.total,
+        discounts: [],
+      }],
+      timeline,
+    };
+  }
+
+  ORDERS.forEach((order) => {
+    if (!Object.prototype.hasOwnProperty.call(DETAILS, order.order_id)) {
+      DETAILS[order.order_id] = standardOrderDetail(order);
+    }
+  });
 
   window.DATA_ORDERS = {
     TABS, KEYWORD_OPTIONS, TIME_OPTIONS, ORDERS, DETAILS,

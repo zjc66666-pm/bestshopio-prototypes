@@ -21,6 +21,8 @@
     copy: svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', 18),
     arrowLeft: svg('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>', 18),
     pencil: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 15),
+    mail: svg('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7 10-7"/>', 15),
+    phone: svg('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/>', 15),
     tag: svg('<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.3"/>', 13),
     recurring: svg('<path d="M21 12a9 9 0 0 0-15.2-6.5L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15.2 6.5L21 16"/><path d="M21 21v-5h-5"/>', 13),
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
@@ -236,10 +238,15 @@
   }
 
   // Inline source tags under the order number: keep the list compact; contract/cycle details live in the detail page.
+  // The Subscription tag describes the selected purchase option, not the existence of a contract.
+  function hasSubscriptionPurchase(o) {
+    return Boolean(o && (o.has_subscription || o.sub || (o.items || []).some((item) => item && item.subLine)));
+  }
+
   function orderTags(o) {
     const tag = (txt, bg, fg) => '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + '">' + txt + '</span>';
     let out = '';
-    if (o.sub) out += tag('Subscription', '#e6f0ff', '#1d6fe0');
+    if (hasSubscriptionPurchase(o)) out += tag('Subscription', '#e6f0ff', '#1d6fe0');
     if (o.bundle) out += tag('Bundle', '#eef0f4', '#525a6b');
     return out ? '<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;font-weight:400">' + out + '</div>' : '';
   }
@@ -510,7 +517,7 @@
           '</div>' +
           '<div class="detail-rail">' +
             notesCard(o) +
-            userCard(o) +
+            customerCard(o) +
           '</div>' +
         '</div>' +
       '</div>';
@@ -553,6 +560,16 @@
     const scoped = group.find((it) => it && it.subscription);
     return scoped ? scoped.subscription : (group.some((it) => it && it.subLine) ? fallbackSub : null);
   }
+  function subscriptionContractReference(sub) {
+    if (!sub || !sub.id) return '';
+    return '<span aria-hidden="true" class="muted">&middot;</span>' +
+      '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>' +
+      (sub.cycle ? '<span aria-hidden="true" class="muted">&middot;</span><span>Cycle ' + esc(sub.cycle) + '</span>' : '');
+  }
+  function subscriptionDiscountLabel(discount) {
+    const label = String((discount && discount.name) || '').trim();
+    return /^delivery every\b/i.test(label) ? 'Subscription discount' : (label || 'Subscription discount');
+  }
   // One product line row. Subscription products use the same metadata hierarchy as bundle subscriptions.
   function itemRowHtml(it, topBorder, sub) {
     const discounts = it.discounts || [];
@@ -569,6 +586,8 @@
     };
     const productDiscounts = discounts.filter((d) => discountType(d) === 'product');
     const subscriptionDiscounts = it.subLine ? discounts.filter((d) => discountType(d) === 'subscription') : [];
+    const variantHtml = it.sku ?
+      '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div>' : '';
     const disc = productDiscounts.map((d) =>
       '<div class="flex items-center gap-1 mt-1" style="font-size:12px;color:#8B8B8B">' + I.tag +
       '<span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></div>').join('');
@@ -577,13 +596,11 @@
       '<div style="grid-column:1 / -1;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:2px;font-size:12px;color:var(--ink-body);line-height:1.45">' +
         '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--brand-50);color:var(--brand);flex:none">' + I.recurring + '</span>' +
         '<span style="font-weight:600;color:var(--ink)">Subscription</span><span aria-hidden="true" class="muted">&middot;</span>' +
-        '<span>' + esc(delivery) + '</span><span aria-hidden="true" class="muted">&middot;</span>' +
-        '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>' +
-        (sub.cycle ? '<span aria-hidden="true" class="muted">&middot;</span><span>Cycle ' + esc(sub.cycle) + '</span>' : '') +
+        '<span>' + esc(delivery) + '</span>' + subscriptionContractReference(sub) +
       '</div>' : '';
     const subDiscounts = subscriptionDiscounts.length ?
       '<div style="grid-column:1 / -1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:2px">' + subscriptionDiscounts.map((d) =>
-        '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);line-height:1.45"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none">' + I.tag + '</span><span>' + esc(d.name) + ' (-' + money(d.amount) + ')</span></span>').join('') +
+        '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);line-height:1.45"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none">' + I.tag + '</span><span>' + esc(subscriptionDiscountLabel(d)) + ' (-' + money(d.amount) + ')</span></span>').join('') +
       '</div>' : '';
     return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 104px;gap:14px;align-items:flex-start;padding:14px 0' +
         (topBorder ? ';border-top:1px solid var(--hair)' : '') + '">' +
@@ -591,7 +608,7 @@
         '<img src="' + it.image + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />' +
         '<div style="min-width:0">' +
           '<div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(it.title) + '</div>' +
-          '<div class="muted" style="font-size:12px">' + esc(it.sku) + '</div>' +
+          variantHtml +
           disc +
         '</div>' +
       '</div>' +
@@ -644,9 +661,7 @@
       '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0 14px 10px;font-size:12px;color:var(--ink-body);line-height:1.45">' +
         '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--brand-50);color:var(--brand);flex:none">' + I.recurring + '</span>' +
         '<span style="font-weight:600;color:var(--ink)">Subscription</span><span aria-hidden="true" class="muted">&middot;</span>' +
-        '<span>' + esc(delivery || 'Delivery schedule') + '</span><span aria-hidden="true" class="muted">&middot;</span>' +
-        '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>' +
-        (sub.cycle ? '<span aria-hidden="true" class="muted">&middot;</span><span>Cycle ' + esc(sub.cycle) + '</span>' : '') +
+        '<span>' + esc(delivery || 'Delivery schedule') + '</span>' + subscriptionContractReference(sub) +
       '</div>' : '';
     const bundleRows = group.map((it, gi) =>
       '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:12px;align-items:start;padding:12px 14px' + (gi > 0 ? ';border-top:1px solid var(--hair)' : '') + '">' +
@@ -727,6 +742,7 @@
     }
     body += row('Total', money(o.total), { border: true, bold: true });
     if ((o.total_savings || 0) > 0) body += row('TOTAL SAVINGS ' + money(o.total_savings), '', { sub: true });
+    if ((o.refunded_amount || 0) > 0) body += row('Refunded', '-' + money(o.refunded_amount), { sub: true });
     body += row('Paid', money(o.paid_amount));
     return cardOpen('<span>Amount</span>' + pill(PAY_STATUS, o.payment_status)) + body + '</div>';
   }
@@ -808,11 +824,30 @@
     '</div>';
   }
 
-  // ---- User card (UserCard.tsx): Nickname + User ID only ----
-  function userCard(o) {
-    return cardOpen('<span>User</span>') +
-      descRow('Nickname', esc(o.user.nickname)) +
-      descRow('User ID', String(o.user.uid)) +
+  // The order keeps its own address snapshot, while this compact card is the
+  // operator's entry point into the customer's cross-order profile.
+  function customerCard(o) {
+    const user = o.user || {};
+    const shipping = o.shipping || {};
+    const name = String(user.nickname || [shipping.first_name, shipping.last_name].filter(Boolean).join(' ') || 'Customer').trim();
+    const customerId = user.uid == null || user.uid === '' ? '' : String(user.uid);
+    const email = String(shipping.email || '').trim();
+    const phoneCode = String(shipping.phone_code || '').replace(/^\+/, '').trim();
+    const phone = shipping.phone ? ((phoneCode ? '+' + phoneCode + ' ' : '') + String(shipping.phone).trim()) : '';
+    const profileLink = customerId
+      ? '<a class="lnk" href="#/customers/' + encodeURIComponent(customerId) + '" style="font-size:13px;font-weight:500">View customer</a>'
+      : '';
+    const contactRows = [
+      email ? '<div class="flex items-center gap-2" style="min-width:0;color:var(--ink-muted)">' + I.mail + '<span class="subtle" style="font-size:13px;line-height:1.45;overflow-wrap:anywhere">' + esc(email) + '</span></div>' : '',
+      phone ? '<div class="flex items-center gap-2" style="min-width:0;color:var(--ink-muted)">' + I.phone + '<span class="subtle" style="font-size:13px;line-height:1.45">' + esc(phone) + '</span></div>' : '',
+    ].filter(Boolean).join('');
+
+    return cardOpen('<span>Customer</span>', profileLink) +
+      '<div style="min-width:0">' +
+        '<div style="font-size:14px;font-weight:600;color:var(--ink);line-height:1.4">' + esc(name) + '</div>' +
+        (contactRows ? '<div style="display:flex;flex-direction:column;gap:7px;margin-top:10px">' + contactRows + '</div>' : '') +
+      '</div>' +
+      (customerId ? '<div class="flex items-center justify-between gap-3" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--hair);font-size:13px"><span class="muted">Customer ID</span><span class="subtle" style="font-variant-numeric:tabular-nums">' + esc(customerId) + '</span></div>' : '') +
     '</div>';
   }
 
@@ -824,7 +859,7 @@
           '<span class="page-title">#' + esc(id) + '</span>' +
         '</div>' +
         '<div class="panel placeholder"><div><div style="font-weight:600;margin-bottom:6px">Detail not available in this prototype</div>' +
-          '<div class="muted">Open one of the orders with sample detail: SILIX1042, SILIX1041, SILIX1040, SILIX1039 or SILIX1037.</div></div></div>' +
+          '<div class="muted">Return to the order list and select a valid sample order.</div></div></div>' +
       '</div>';
     const b = root.querySelector('[data-act="back"]'); if (b) b.onclick = () => { location.hash = '#/orders'; };
   }
@@ -860,6 +895,22 @@
     return { m, close };
   }
 
+  function mockTimestamp() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+  }
+
+  function syncListOrder(detail) {
+    const row = D.ORDERS.find((order) => String(order.order_id) === String(detail.order_id));
+    if (!row) return;
+    row.order_status = detail.status;
+    row.payment_status = detail.payment_status;
+    row.delivery_name = detail.delivery_name || '';
+    row.delivery_id = detail.delivery_id || '';
+    row.delivery_time = detail.delivery_time || row.delivery_time || null;
+  }
+
   // Shipping modal (ShippingButton.tsx): Logistics + Tracking number, ok=Confirm
   function openShippingModal(o) {
     const body =
@@ -877,7 +928,17 @@
         const e = m.querySelector('#f-err');
         if (!carrier) { e.textContent = 'Please enter Logistics'; e.style.display = 'block'; return; }
         if (!tracking) { e.textContent = 'Please enter Tracking number'; e.style.display = 'block'; return; }
-        close(); toast('Shipped');
+        const shippedAt = mockTimestamp();
+        o.delivery_name = carrier;
+        o.delivery_id = tracking;
+        o.delivery_time = shippedAt;
+        o.status = 'shipped';
+        o.timeline = o.timeline || [];
+        o.timeline.push({ label: 'Order shipped via ' + carrier + ' · tracking ' + tracking, time: shippedAt });
+        syncListOrder(o);
+        close();
+        renderDetail(o.order_id);
+        toast('Shipped');
       },
     });
   }
@@ -902,7 +963,16 @@
         if (!amt || amt <= 0) { e.textContent = 'Please enter Refund amount'; e.style.display = 'block'; return; }
         if (amt > o.paid_amount + 0.001) { e.textContent = 'Refund cannot exceed the paid amount (' + money(o.paid_amount) + ').'; e.style.display = 'block'; return; }
         if (!reason) { e.textContent = 'Please enter Refund reason'; e.style.display = 'block'; return; }
-        close(); toast('Refund submitted');
+        const refundedAt = mockTimestamp();
+        o.refunded_amount = Number(o.refunded_amount || 0) + amt;
+        o.paid_amount = Math.max(0, Number(o.paid_amount || 0) - amt);
+        if (o.paid_amount < 0.001) o.status = 'refund';
+        o.timeline = o.timeline || [];
+        o.timeline.push({ label: (o.status === 'refund' ? 'Full' : 'Partial') + ' refund of ' + money(amt) + ' issued · ' + reason, time: refundedAt });
+        syncListOrder(o);
+        close();
+        renderDetail(o.order_id);
+        toast('Refund issued');
       },
     });
   }

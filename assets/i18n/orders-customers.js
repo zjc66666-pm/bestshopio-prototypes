@@ -134,7 +134,11 @@ window.I18N.extend({
   "ZIP code": "邮编",
   "Country": "国家/地区",
 
-  // ---- user card ----
+  // ---- customer quick profile ----
+  "Customer": "客户",
+  "View customer": "查看客户",
+  "Customer ID": "客户 ID",
+  "Customer ID:": "客户 ID：",
   "Nickname": "昵称",
   "User ID": "用户 ID",
 
@@ -223,6 +227,9 @@ window.I18N.extend({
   "No customers match these filters.": "没有符合筛选条件的客户。",
 
   // ---- detail header ----
+  "Customer since:": "成为客户时间：",
+  "Last order:": "最近订单：",
+  "Source:": "来源：",
   "Last signed in :": "上次登录：",
   "Source :": "来源：",
 

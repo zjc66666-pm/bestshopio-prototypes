@@ -23,6 +23,7 @@
     mail: svg('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7 10-7"/>', 15),
     phone: svg('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/>', 15),
     tag: svg('<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.3"/>', 13),
+    recurring: svg('<path d="M21 12a9 9 0 0 0-15.2-6.5L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15.2 6.5L21 16"/><path d="M21 21v-5h-5"/>', 13),
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
   };
 
@@ -387,8 +388,160 @@
   // order-list card pagination state (independent of list), keyed in module scope.
   const DET = { orderPage: 1, orderSize: 5 };
 
+  // Orders is the source of truth for current-order mock data. The customer module
+  // keeps its older history records only as a fallback for customers without a mapped
+  // canonical order snapshot.
+  function sharedOrdersForCustomer(c) {
+    const source = window.DATA_ORDERS;
+    if (!source || !Array.isArray(source.ORDERS) || !source.DETAILS) return [];
+    return source.ORDERS
+      .filter((order) => order && order.user && String(order.user.uid) === String(c.id))
+      .map((order) => {
+        const detail = source.DETAILS[order.order_id] || source.DETAILS[Number(order.order_id)];
+        return detail ? { kind: 'shared', list: order, detail } : null;
+      })
+      .filter(Boolean);
+  }
+
+  function orderEntryKey(entry) {
+    const order = entry && entry.kind === 'shared' ? entry.list : entry;
+    return order && (order.order_id != null ? 'id:' + order.order_id : 'sn:' + order.order_sn);
+  }
+
+  function formatHistoryDate(value, offset) {
+    const fallback = '2026-01-01 12:00';
+    const stamp = String(value || fallback).replace(' ', 'T') + 'Z';
+    const date = new Date(stamp);
+    const safe = Number.isNaN(date.getTime()) ? new Date('2026-01-01T12:00:00Z') : date;
+    safe.setUTCDate(safe.getUTCDate() - (35 * offset));
+    const pad = (part) => String(part).padStart(2, '0');
+    return safe.getUTCFullYear() + '-' + pad(safe.getUTCMonth() + 1) + '-' + pad(safe.getUTCDate()) +
+      ' ' + pad(safe.getUTCHours()) + ':' + pad(safe.getUTCMinutes());
+  }
+
+  function historyOrderForCustomer(c, offset, amount) {
+    const id = Math.abs(Number(c.id) || 0);
+    const fallback = 42 + ((id + offset * 17) % 58);
+    const total = Number.isFinite(amount) ? Math.max(0, amount) : fallback;
+    const quantity = 1;
+    const productNames = ['Everyday Essentials', 'Signature Blend', 'Seasonal Refill'];
+    const productName = productNames[offset % productNames.length];
+    return {
+      // The live API returns historical pages independently. Keep equivalent, complete
+      // mock history here so the customer count, page count, and visible cards agree.
+      order_id: 9000000 + id * 10 + offset,
+      order_sn: 'EN' + (1000 + (id % 7000) + offset),
+      create_time: formatHistoryDate(c.last_order_at || c.create_time, offset),
+      status: [3, 1, 0, 2, -1][offset % 5],
+      paid: 1,
+      is_del: 0,
+      order_type: 0,
+      pay_price: total.toFixed(2),
+      total_price: total.toFixed(2),
+      total_num: quantity,
+      total_postage: '0.00',
+      country_currency_dto: { currency_symbol: '$' },
+      orderProduct: [{
+        order_product_id: 8000000 + id * 10 + offset,
+        product_num: quantity,
+        product_price: total.toFixed(2),
+        total_price: total.toFixed(2),
+        cart_info: { product: { store_name: productName, image: '' }, productAttr: { sku: 'HIS-' + id + '-' + String(offset).padStart(2, '0') } },
+      }],
+      orderDiscount: [],
+    };
+  }
+
+  function allOrdersForCustomer(c) {
+    const merged = [];
+    const seen = new Set();
+    const add = (entry) => {
+      const key = orderEntryKey(entry);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      merged.push(entry);
+    };
+
+    // Canonical orders carry the current order-detail snapshots; legacy customer data
+    // fills the historical list. Neither source may hide the other.
+    sharedOrdersForCustomer(c).forEach(add);
+    (D.ORDERS[c.id] || D.ORDERS[Number(c.id)] || []).forEach(add);
+
+    const target = Math.max(0, Number(c.orders_count) || 0);
+    const knownTotal = merged.reduce((sum, entry) => {
+      const order = entry.kind === 'shared' ? entry.list : entry;
+      return sum + (Number(order.total != null ? order.total : order.pay_price) || 0);
+    }, 0);
+    const spent = Number(c.total_spent);
+    const hasSpent = Number.isFinite(spent);
+    let remainingCents = hasSpent ? Math.max(0, Math.round((spent - knownTotal) * 100)) : 0;
+    for (let offset = 1; merged.length < target; offset += 1) {
+      const slots = target - merged.length;
+      const amount = hasSpent ? Math.floor(remainingCents / slots) / 100 : undefined;
+      add(historyOrderForCustomer(c, offset, amount));
+      if (hasSpent) remainingCents -= Math.round(amount * 100);
+    }
+
+    return merged.sort((a, b) => {
+      const aOrder = a.kind === 'shared' ? a.list : a;
+      const bOrder = b.kind === 'shared' ? b.list : b;
+      return String(bOrder.create_time || '').localeCompare(String(aOrder.create_time || ''));
+    });
+  }
+
+  // Orders can point to a customer not included in the compact Customers fixture.
+  // Build a read-only customer base from that canonical order snapshot so every
+  // customer link remains navigable without inventing a second customer record.
+  function customerFromOrderSnapshot(id) {
+    const source = window.DATA_ORDERS;
+    if (!source || !Array.isArray(source.ORDERS)) return null;
+    const matches = source.ORDERS.filter((order) => order && order.user && String(order.user.uid) === String(id));
+    if (!matches.length) return null;
+    const latest = matches.slice().sort((a, b) => String(b.create_time || '').localeCompare(String(a.create_time || '')))[0];
+    const detail = source.DETAILS && (source.DETAILS[latest.order_id] || source.DETAILS[Number(latest.order_id)]);
+    const shipping = (detail && detail.shipping) || latest.shipping || {};
+    const nameParts = String((latest.user && latest.user.nickname) || shipping.name || '').trim().split(/\s+/).filter(Boolean);
+    const firstName = shipping.first_name || nameParts.shift() || 'Customer';
+    const lastName = shipping.last_name || nameParts.join(' ');
+    const totalSpent = matches.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
+    return {
+      id: Number(id), first_name: firstName, last_name: lastName,
+      email: shipping.email || '', phone: shipping.phone || '', phone_code: shipping.phone_code || '',
+      account_status: 'registered', marketing_status: 'not_subscribed',
+      orders_count: matches.length, total_spent: totalSpent.toFixed(2), last_order_at: latest.create_time || '',
+      source: latest.source || 'Online Store', create_time: latest.create_time || '',
+      location: Object.assign({}, shipping, { first_name: firstName, last_name: lastName }),
+    };
+  }
+
+  function customerDetail(id) {
+    const stored = D.DETAILS[id] || D.DETAILS[Number(id)];
+    if (stored) return stored;
+    const base = D.CUSTOMERS.find((customer) => String(customer.id) === String(id)) || customerFromOrderSnapshot(id);
+    if (!base) return null;
+    const orders = sharedOrdersForCustomer(base);
+    const first = orders.length ? orders[0].detail : null;
+    const shipping = (first && first.shipping) || {};
+    const location = Object.assign({}, (base.location && typeof base.location === 'object' ? base.location : {}), shipping, {
+      email: shipping.email || base.email,
+      phone: shipping.phone || base.phone,
+      phone_code: shipping.phone_code || base.phone_code,
+    });
+    return Object.assign({}, base, {
+      last_time: base.last_time || '- -',
+      subscription: base.marketing_status === 'subscribed' ? { subscribe_time: base.create_time } : null,
+      location,
+      note: '',
+      logs: orders.map((entry, index) => ({
+        id: orders.length - index + 1,
+        content: 'Placed order ' + entry.detail.order_sn,
+        create_time: entry.detail.create_time,
+      })).concat([{ id: 1, content: 'Account created from ' + (base.source || 'Online Store'), create_time: base.create_time }]),
+    });
+  }
+
   function renderDetail(id) {
-    const c = D.DETAILS[id] || D.DETAILS[Number(id)];
+    const c = customerDetail(id);
     if (!c) { renderMissing(id); return; }
 
     root.innerHTML =
@@ -431,13 +584,25 @@
 
   // ---- HeaderSummaryCard.tsx ----
   function headerSummaryCard(c) {
+    const customerOrders = allOrdersForCustomer(c);
+    const latest = customerOrders[0] || null;
+    const latestOrder = latest && latest.kind === 'shared' ? latest.detail : null;
+    const latestRecord = latest && (latest.kind === 'shared' ? latest.list : latest);
+    const lastOrderValue = latestOrder
+      ? '<a class="lnk customer-summary-meta-value" href="#/orders/' + encodeURIComponent(latestOrder.order_id) + '" style="font-weight:500">' + esc(latestOrder.order_sn) + '</a>'
+      : '<span class="subtle customer-summary-meta-value">' + esc((latestRecord && latestRecord.order_sn) || c.last_order_at || '--') + '</span>';
     return '<div class="panel card-pad mb-4">' +
       '<div class="flex items-center gap-3" style="flex-wrap:wrap;margin-bottom:12px">' +
         '<div style="font-size:16px;font-weight:600;color:var(--ink)">' + esc(displayName(c)) + '</div>' +
         acctBadge(c.account_status) +
       '</div>' +
-      '<div class="muted" style="font-size:13px;margin-bottom:6px">Last signed in : <span class="subtle">' + esc(c.last_time || '- -') + '</span></div>' +
-      '<div class="muted" style="font-size:13px">Source : <span class="subtle">' + esc(c.create_time || '') + ' from ' + esc(c.source || '-') + '</span></div>' +
+      '<div class="customer-summary-meta">' +
+        '<div class="customer-summary-meta-item muted"><span class="customer-summary-meta-label">Customer since:</span><span class="subtle customer-summary-meta-value">' + esc(c.create_time || '--') + '</span></div>' +
+        '<div class="customer-summary-meta-item muted"><span class="customer-summary-meta-label">Source:</span><span class="subtle customer-summary-meta-value">' + esc(c.source || '--') + '</span></div>' +
+        '<div class="customer-summary-meta-item muted"><span class="customer-summary-meta-label">Customer ID:</span><span class="subtle customer-summary-meta-value" style="font-variant-numeric:tabular-nums">' + esc(c.id) + '</span></div>' +
+        '<div class="customer-summary-meta-item muted"><span class="customer-summary-meta-label">Last order:</span>' + lastOrderValue + '</div>' +
+        '<div class="customer-summary-meta-item muted"><span class="customer-summary-meta-label">Last signed in:</span><span class="subtle customer-summary-meta-value">' + esc(c.last_time || '- -') + '</span></div>' +
+      '</div>' +
     '</div>';
   }
 
@@ -458,8 +623,256 @@
   }
 
   // ---- OrderListCard.tsx (paginated, grouped product rows + discounts) ----
+  function sharedOrderStatusCell(order) {
+    const meta = {
+      to_pay: ['To pay', 'orange'], to_ship: ['To ship', 'blue'], shipped: ['Shipped'],
+      review: ['Awaiting Review'], archived: ['Done'], refund: ['Refunded', 'red'], cancel: ['Canceled', 'red'],
+    }[order.order_status] || ['--'];
+    return pillTag(meta[0], meta[1]);
+  }
+
+  function sharedPaymentStatusCell(order) {
+    return pillTag(order.payment_status === 'paid' ? 'Paid' : 'Unpaid', order.payment_status === 'paid' ? undefined : 'orange');
+  }
+
+  function sharedFulfillmentStatusCell(order) {
+    if (order.order_status === 'refund') return pillTag('--');
+    if (order.order_status === 'shipped' || order.order_status === 'review' || order.order_status === 'archived') return pillTag('Fulfilled');
+    return pillTag('Unfulfilled', 'orange');
+  }
+
+  function sharedPurchaseTags(order, detail) {
+    const items = detail.items || [];
+    const subscription = Boolean(order.has_subscription || order.sub || detail.sub || items.some((item) => item && item.subLine));
+    const bundle = Boolean(order.bundle || detail.bundle || items.some((item) => item && item.bundle));
+    return (subscription ? '<span class="pill pill-blue"><span class="dot"></span>Subscription</span>' : '') +
+      (bundle ? '<span class="pill pill-gray"><span class="dot"></span>Bundle</span>' : '');
+  }
+
+  function legacySharedOrderItemsHtml(detail) {
+    const seenBundleMeta = {};
+    return (detail.items || []).map((item, index) => {
+      const discountLines = [];
+      const bundleKey = item.bundle || '';
+      if (bundleKey && item.bundleMeta && !seenBundleMeta[bundleKey]) {
+        if (item.bundleMeta.bundleDiscount) discountLines.push(item.bundleMeta.bundleDiscount);
+        if (item.bundleMeta.subscriptionLabel) discountLines.push(item.bundleMeta.subscriptionLabel);
+        seenBundleMeta[bundleKey] = true;
+      }
+      (item.discounts || []).forEach((discount) => {
+        const name = String(discount.name || 'Discount');
+        if ((String(discount.type || '').toLowerCase() === 'bundle' || /^Bundle Discount\b/i.test(name)) && item.bundleMeta) return;
+        const label = /^Delivery every\b/i.test(name) ? 'Subscription discount' : name;
+        discountLines.push(label + ' (-' + money(discount.amount) + ')');
+      });
+      const uniqueDiscounts = Array.from(new Set(discountLines));
+      const delivery = (item.subscription && item.subscription.deliveryLabel) || (item.subLine && detail.sub && detail.sub.deliveryLabel) || '';
+      const deliveryText = String(delivery).replace(/\s*\([^)]*\)\s*$/, '');
+      const paid = Number(item.product_price != null ? item.product_price : item.line_total || 0);
+      const compare = Number(item.line_total != null ? item.line_total : paid);
+      const image = item.image
+        ? '<img src="' + esc(item.image) + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />'
+        : '<div style="width:40px;height:40px;border-radius:6px;border:1px solid var(--hair);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-muted);flex:none">IMG</div>';
+      const meta = (item.bundle ? '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:3px 6px">Bundle · ' + esc(item.bundle) + '</span>' : '') +
+        (item.subLine && deliveryText ? '<span style="font-size:12px;color:var(--ink-body)">Subscription · ' + esc(deliveryText) + '</span>' : '');
+      return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 104px;gap:14px;align-items:start;padding:12px 0' + (index ? ';border-top:1px solid var(--hair)' : '') + '">' +
+        '<div class="flex items-start gap-3" style="min-width:0">' + image +
+          '<div style="min-width:0"><div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(item.title) + (item.gift ? ' <span style="color:#1f8f4e;font-size:10.5px;font-weight:700">FREE GIFT</span>' : '') + '</div>' +
+            '<div class="muted" style="font-size:12px">' + esc(item.sku) + '</div>' +
+            (meta ? '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px">' + meta + '</div>' : '') +
+            (uniqueDiscounts.length ? '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px">' + uniqueDiscounts.map((line) => '<span class="flex items-center gap-1" style="font-size:12px;color:#8B8B8B">' + I.tag + '<span>' + esc(line) + '</span></span>').join('') + '</div>' : '') +
+          '</div></div>' +
+        '<div class="muted" style="font-size:13px;text-align:right;white-space:nowrap;padding-top:2px">x ' + esc(item.qty) + '</div>' +
+        '<div style="text-align:right;font-size:13px;font-weight:500;color:var(--ink-body);white-space:nowrap"><div>' + (item.gift ? '<span style="color:#1f8f4e">Free</span>' : money(paid)) + '</div>' +
+          (!item.gift && compare > paid + 0.001 ? '<div class="muted" style="text-decoration:line-through">' + money(compare) + '</div>' : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function sharedItemSubscription(item, fallbackSub) {
+    return item && item.subscription ? item.subscription : (item && item.subLine ? fallbackSub : null);
+  }
+
+  function sharedBundleSubscription(group, fallbackSub) {
+    const scoped = group.find((item) => item && item.subscription);
+    return scoped ? scoped.subscription : (group.some((item) => item && item.subLine) ? fallbackSub : null);
+  }
+
+  function sharedSubscriptionContractReference(sub) {
+    if (!sub || !sub.id) return '';
+    return '<span aria-hidden="true" class="muted">&middot;</span>' +
+      '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>' +
+      (sub.cycle ? '<span aria-hidden="true" class="muted">&middot;</span><span>Cycle ' + esc(sub.cycle) + '</span>' : '');
+  }
+
+  function sharedDiscountType(item, discount) {
+    const type = String((discount && discount.type) || '').toLowerCase();
+    if (type === 'subscription' || type === 'product' || type === 'bundle') return type;
+    const name = String((discount && discount.name) || '');
+    if (/^bundle discount\b/i.test(name)) return 'bundle';
+    if (/^(subscription discount|delivery every\b)/i.test(name)) return 'subscription';
+    if (/^product discount\b/i.test(name)) return 'product';
+    return item && item.subLine ? 'subscription' : 'product';
+  }
+
+  function sharedSubscriptionDiscountLabel(discount) {
+    const label = String((discount && discount.name) || '').trim();
+    return /^delivery every\b/i.test(label) ? 'Subscription discount' : (label || 'Subscription discount');
+  }
+
+  function sharedProductImage(item) {
+    return item.image
+      ? '<img src="' + esc(item.image) + '" alt="" style="width:40px;height:40px;border-radius:6px;flex:none" />'
+      : '<div style="width:40px;height:40px;border-radius:6px;border:1px solid var(--hair);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-muted);flex:none">IMG</div>';
+  }
+
+  function sharedNormalOrderItemHtml(item, fallbackSub) {
+    const sub = sharedItemSubscription(item, fallbackSub);
+    const discounts = item.discounts || [];
+    const productDiscounts = discounts.filter((discount) => sharedDiscountType(item, discount) === 'product');
+    const subscriptionDiscounts = item.subLine
+      ? discounts.filter((discount) => sharedDiscountType(item, discount) === 'subscription')
+      : [];
+    const paid = Number(item.product_price != null ? item.product_price : item.line_total || 0);
+    const compare = Number(item.line_total != null ? item.line_total : paid);
+    const delivery = sub && sub.deliveryLabel ? String(sub.deliveryLabel).replace(/\s*\([^)]*\)\s*$/, '') : (item.subLabel || 'Delivery schedule');
+    const subscriptionHtml = item.subLine && sub
+      ? '<div style="grid-column:1 / -1;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:2px;font-size:12px;color:var(--ink-body);line-height:1.45">' +
+          '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--brand-50);color:var(--brand);flex:none">' + I.recurring + '</span>' +
+          '<span style="font-weight:600;color:var(--ink)">Subscription</span><span aria-hidden="true" class="muted">&middot;</span>' +
+          '<span>' + esc(delivery) + '</span>' + sharedSubscriptionContractReference(sub) +
+        '</div>'
+      : '';
+    const productDiscountHtml = productDiscounts.map((discount) =>
+      '<div class="flex items-center gap-1 mt-1" style="font-size:12px;color:#8B8B8B">' + I.tag +
+        '<span>' + esc(discount.name) + ' (-' + money(discount.amount) + ')</span></div>').join('');
+    const subscriptionDiscountHtml = subscriptionDiscounts.length
+      ? '<div style="grid-column:1 / -1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:2px">' + subscriptionDiscounts.map((discount) =>
+          '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);line-height:1.45"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none">' + I.tag + '</span><span>' + esc(sharedSubscriptionDiscountLabel(discount)) + ' (-' + money(discount.amount) + ')</span></span>').join('') +
+        '</div>'
+      : '';
+    return '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 104px;gap:14px;align-items:flex-start;padding:14px 0">' +
+      '<div class="flex items-center gap-3" style="min-width:0">' + sharedProductImage(item) +
+        '<div style="min-width:0"><div style="font-weight:500;font-size:13.5px;color:var(--ink);line-height:1.35">' + esc(item.title) + '</div>' +
+          (item.sku ? '<div class="muted" style="font-size:12px">' + esc(item.sku) + '</div>' : '') + productDiscountHtml +
+        '</div>' +
+      '</div>' +
+      '<div class="muted" style="font-size:13px;text-align:right;white-space:nowrap;padding-top:2px">x ' + esc(item.qty) + '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:flex-end;min-width:0;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;font-weight:500;color:var(--ink-body);line-height:1.35;white-space:nowrap"><div>' + (item.gift ? '<span style="color:#1f8f4e">Free</span>' : money(paid)) + '</div>' +
+        (!item.gift && compare > paid + 0.001 ? '<div class="muted" style="text-decoration:line-through">' + money(compare) + '</div>' : '') +
+      '</div>' + subscriptionHtml + subscriptionDiscountHtml +
+    '</div>';
+  }
+
+  function sharedBundleGroupHtml(name, group, fallbackSub) {
+    const compareTotal = group.reduce((sum, item) => sum + (Number(item.line_total) || 0), 0);
+    const paidTotal = group.reduce((sum, item) => sum + (Number(item.product_price) || 0), 0);
+    const sub = sharedBundleSubscription(group, fallbackSub);
+    const meta = (group.find((item) => item.bundleMeta) || {}).bundleMeta || {};
+    const discountLines = [];
+    if (meta.bundleDiscount) discountLines.push(meta.bundleDiscount);
+    if (meta.subscriptionLabel) discountLines.push(meta.subscriptionLabel);
+    if (!discountLines.length) {
+      group.forEach((item) => (item.discounts || []).forEach((discount) => {
+        discountLines.push(String(discount.name || 'Discount') + ' (-' + money(discount.amount) + ')');
+      }));
+    }
+    const seen = {};
+    const discountHtml = discountLines.filter((line) => {
+      const key = String(line);
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).map((line) => {
+      const amount = (String(line).match(/\([^)]*\)\s*$/) || [])[0];
+      const text = /^Delivery every\b/i.test(line)
+        ? 'Subscription discount' + (amount ? ' ' + amount : '')
+        : String(line);
+      return '<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);line-height:1.45"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none">' + I.tag + '</span><span>' + esc(text) + '</span></span>';
+    }).join('');
+    const delivery = sub && sub.deliveryLabel ? String(sub.deliveryLabel).replace(/\s*\([^)]*\)\s*$/, '') : '';
+    const subscriptionHtml = sub
+      ? '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:0 14px 10px;font-size:12px;color:var(--ink-body);line-height:1.45">' +
+          '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--brand-50);color:var(--brand);flex:none">' + I.recurring + '</span>' +
+          '<span style="font-weight:600;color:var(--ink)">Subscription</span><span aria-hidden="true" class="muted">&middot;</span>' +
+          '<span>' + esc(delivery || 'Delivery schedule') + '</span>' + sharedSubscriptionContractReference(sub) +
+        '</div>'
+      : '';
+    const rows = group.map((item, index) =>
+      '<div style="display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:12px;align-items:start;padding:12px 14px' + (index ? ';border-top:1px solid var(--hair)' : '') + '">' +
+        '<div class="flex items-start gap-3" style="min-width:0">' + sharedProductImage(item) +
+          '<div style="min-width:0"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.35"><span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:3px 6px">Included</span><span style="font-weight:500;font-size:13px;color:var(--ink)">' + esc(item.title) + '</span></div>' +
+            (item.sku ? '<div class="muted" style="font-size:12px;margin-top:3px">' + esc(item.sku) + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="muted" style="font-size:13px;text-align:right;padding-top:4px;white-space:nowrap">x ' + esc(item.qty) + '</div>' +
+      '</div>').join('');
+    return '<div style="border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:#fff">' +
+      '<div style="display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:14px;align-items:start;padding:14px">' +
+        '<div style="display:flex;align-items:center;gap:9px;min-width:0"><span style="display:inline-flex;align-items:center;font-size:11px;font-weight:600;color:#9a6400;background:#fff4de;border-radius:3px;padding:4px 7px;flex:none">Bundle</span><span style="font-weight:500;font-size:13.5px;color:var(--ink);min-width:0;word-break:break-word">' + esc(name) + '</span></div>' +
+        '<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;text-align:right;white-space:nowrap">' +
+          (compareTotal > paidTotal + 0.001 ? '<span class="muted" style="font-size:12px;text-decoration:line-through">' + money(compareTotal) + '</span>' : '') +
+          '<span style="font-weight:600;font-size:13.5px;color:var(--ink)">' + money(paidTotal) + '</span>' +
+        '</div>' +
+      '</div>' + subscriptionHtml +
+      (discountHtml ? '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:0 14px 10px">' + discountHtml + '</div>' : '') +
+      '<div style="border-top:1px solid var(--hair)">' + rows + '</div>' +
+    '</div>';
+  }
+
+  function sharedOrderItemsHtml(detail) {
+    const items = detail.items || [];
+    const blocks = [];
+    let index = 0;
+    while (index < items.length) {
+      if (items[index].bundle) {
+        const name = items[index].bundle;
+        const group = [];
+        while (index < items.length && items[index].bundle === name) {
+          group.push(items[index]);
+          index += 1;
+        }
+        blocks.push(sharedBundleGroupHtml(name, group, detail.sub));
+      } else {
+        blocks.push('<div style="border:1px solid var(--hair);border-radius:8px;padding:0 14px">' + sharedNormalOrderItemHtml(items[index], detail.sub) + '</div>');
+        index += 1;
+      }
+    }
+    return blocks.join('<div style="height:10px"></div>');
+  }
+
+  function sharedOrderCardHtml(entry) {
+    const order = entry.list;
+    const detail = entry.detail;
+    const orderDiscounts = detail.order_discounts || [];
+    const shippingDiscounts = detail.shipping_discounts || [];
+    const shipping = Number(detail.shipping_fee || 0);
+    const total = Number(detail.total || order.total || 0);
+    const discountRows = orderDiscounts.map((discount) =>
+      '<div class="flex items-center justify-between gap-3" style="padding:4px 0;font-size:12px;color:#8B8B8B"><span class="flex items-center gap-1">' + I.tag + '<span>' + esc(discount.name) + '</span></span><span>-' + money(discount.amount) + '</span></div>').join('');
+    const shippingDiscountRows = shippingDiscounts.map((discount) =>
+      '<div class="flex items-center justify-between gap-3" style="padding:4px 0;font-size:12px;color:#8B8B8B"><span class="flex items-center gap-1">' + I.tag + '<span>' + esc(discount.name) + '</span></span><span>-' + money(discount.amount) + '</span></div>').join('');
+    return '<div style="border:1px solid var(--hair);border-radius:10px;overflow:hidden;margin-bottom:12px">' +
+      '<div class="flex items-start justify-between gap-4" style="padding:14px 16px;border-bottom:1px solid var(--hair)">' +
+        '<div style="min-width:0"><div class="flex items-center gap-2" style="flex-wrap:wrap;margin-bottom:6px"><span style="font-size:15px;font-weight:600;color:var(--ink)">' + esc(detail.order_sn) + '</span>' +
+          sharedOrderStatusCell(order) + sharedPaymentStatusCell(order) + sharedFulfillmentStatusCell(order) + sharedPurchaseTags(order, detail) +
+        '</div><div class="muted" style="font-size:13px">' + esc(detail.create_time || order.create_time || '-') + '</div></div>' +
+        '<div style="text-align:right"><div style="font-size:15px;font-weight:600;color:var(--ink)">' + money(total) + '</div><a class="lnk" href="#/orders/' + esc(order.order_id) + '" style="display:inline-block;margin-top:6px;font-size:13px">View detail</a></div>' +
+      '</div>' +
+      '<div style="padding:8px 16px">' + sharedOrderItemsHtml(detail) + '</div>' +
+      '<div style="border-top:1px solid var(--hair);padding:12px 16px;font-size:13.5px;color:var(--ink-muted)">' +
+        '<div class="flex items-center justify-between" style="padding:3px 0"><span>Subtotal · ' + esc(detail.total_num || 0) + ' items</span><span>' + money(detail.subtotal) + '</span></div>' +
+        (orderDiscounts.length ? '<div class="flex items-center justify-between" style="padding:3px 0"><span>Order Discount</span><span></span></div>' : '') + discountRows +
+        '<div class="flex items-center justify-between" style="padding:3px 0"><span>Shipping</span><span>' + (shipping > 0 ? money(shipping) : 'FREE') + '</span></div>' + shippingDiscountRows +
+        '<div class="flex items-center justify-between" style="padding:6px 0;font-size:14px;font-weight:600;color:var(--ink)"><span>Total</span><span>' + money(total) + '</span></div>' +
+        (Number(detail.total_savings || 0) > 0 ? '<div class="flex items-center justify-between" style="padding:6px 0;font-size:12px;font-weight:500;color:var(--ink-body)"><span class="flex items-center gap-1">' + I.tag + '<span>TOTAL SAVINGS ' + money(detail.total_savings) + '</span></span></div>' : '') +
+        (Number(detail.refunded_amount || 0) > 0 ? '<div class="flex items-center justify-between" style="padding:4px 0;font-size:12px;color:#8B8B8B"><span>Refunded</span><span>-' + money(detail.refunded_amount) + '</span></div>' : '') +
+        '<div class="flex items-center justify-between" style="padding:8px 0 0;border-top:1px solid var(--hair)"><span>Paid</span><span>' + money(detail.paid_amount) + '</span></div>' +
+      '</div></div>';
+  }
+
   function orderListCard(c) {
-    const all = D.ORDERS[c.id] || D.ORDERS[Number(c.id)] || [];
+    const all = allOrdersForCustomer(c);
     const total = all.length;
     const pages = Math.max(1, Math.ceil(total / DET.orderSize));
     if (DET.orderPage > pages) DET.orderPage = pages;
@@ -467,6 +880,7 @@
     const pageOrders = all.slice(start, start + DET.orderSize);
 
     const ordersHtml = pageOrders.length ? pageOrders.map((order) => {
+      if (order.kind === 'shared') return sharedOrderCardHtml(order);
       const cur = (order.country_currency_dto && order.country_currency_dto.currency_symbol) || '$';
       // Subtotal = sum of product_price rows (matches utils.getOrderSubtotalAmount when orderProduct present).
       const subtotal = (order.orderProduct || []).reduce((s, p) => s + Number.parseFloat(String(p.product_price || 0)), 0);
@@ -474,6 +888,10 @@
       const shipping = Number.parseFloat(String(order.total_postage != null ? order.total_postage : 0)) || 0;
       // Total: pay_price first, else total_price (matches utils.getOrderTotalAmount).
       const total = Number.parseFloat(String(order.pay_price != null ? order.pay_price : order.total_price || 0));
+      const sourceDetail = window.DATA_ORDERS && window.DATA_ORDERS.DETAILS && (window.DATA_ORDERS.DETAILS[order.order_id] || window.DATA_ORDERS.DETAILS[Number(order.order_id)]);
+      const detailLink = sourceDetail && String(sourceDetail.order_sn) === String(order.order_sn)
+        ? '<a class="lnk" href="#/orders/' + esc(order.order_id) + '" style="display:inline-block;margin-top:6px;font-size:13px">View detail</a>'
+        : '';
 
       const products = (order.orderProduct || []).map((p) => {
         const name = (p.cart_info && p.cart_info.product && p.cart_info.product.store_name) || 'Unnamed product';
@@ -540,7 +958,7 @@
           '</div>' +
           '<div style="text-align:right">' +
             '<div style="font-size:15px;font-weight:600;color:var(--ink)">' + money(total, cur) + '</div>' +
-            '<a class="lnk" href="#/orders/' + esc(order.order_id) + '" style="display:inline-block;margin-top:6px;font-size:13px">View detail</a>' +
+            detailLink +
           '</div>' +
         '</div>' +
         '<div style="padding:8px 16px">' + products + '</div>' +
@@ -559,7 +977,7 @@
 
     const pagerFoot =
       '<div class="flex items-center justify-between" style="padding-top:4px">' +
-        '<span class="muted" style="font-size:13px">Total ' + total + ' records</span>' +
+        '<span class="muted" style="font-size:13px">' + (Number(c.orders_count || 0) > total ? 'Showing ' + total + ' of ' + Number(c.orders_count || 0) + ' orders' : 'Total ' + total + ' records') + '</span>' +
         (pages > 1 ? '<div class="pg" id="ord-pager">' +
           '<span class="pg-item' + (DET.orderPage <= 1 ? ' disabled' : '') + '"' + (DET.orderPage <= 1 ? '' : ' data-op="' + (DET.orderPage - 1) + '"') + '>‹</span>' +
           (function () { let s = ''; for (let p = 1; p <= pages; p++) s += '<span class="pg-item' + (p === DET.orderPage ? ' active' : '') + '" data-op="' + p + '">' + p + '</span>'; return s; })() +
@@ -712,7 +1130,13 @@
 
   function route(rest) {
     closePops();
-    if (rest) { renderDetail(decodeURIComponent(rest)); if (root && root.parentElement) root.parentElement.scrollTop = 0; }
+    if (rest) {
+      renderDetail(decodeURIComponent(rest));
+      if (root && root.parentElement) {
+        root.parentElement.scrollTop = 0;
+        root.parentElement.scrollLeft = 0;
+      }
+    }
     else { renderList(); }
   }
 

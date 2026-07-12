@@ -382,6 +382,42 @@
     return c;
   }
 
+  // The list carries enough summary data to make every discount row inspectable.
+  // Use it as a compact fallback when a rich hand-authored detail fixture is absent.
+  function fallbackDiscountDetail(row) {
+    const dimension = Number(row.discount_dimension) === 2 ? 'product' : (Number(row.discount_dimension) === 3 ? 'shipping' : 'order');
+    const method = Number(row.discount_form) === 1 ? 'code' : 'automatic';
+    const info = String((row.second_line_info && row.second_line_info.discount_info) || '');
+    const minimum = String((row.second_line_info && row.second_line_info.minimum_purchase) || '');
+    const percentage = info.match(/(\d+(?:\.\d+)?)\s*%/);
+    const amount = info.match(/\$\s*(\d+(?:\.\d+)?)/);
+    const minimumAmount = minimum.match(/\$\s*(\d+(?:\.\d+)?)/);
+    const minimumQuantity = minimum.match(/min\s+(\d+)\s+items?/i);
+    const minimumType = minimumAmount ? 'amount' : (minimumQuantity ? 'quantity' : 'none');
+    return {
+      activity_id: row.activity_id, dimension, run_status: row.run_status, status: row.run_status === 'Active' ? 1 : 0,
+      method, discount_code: method === 'code' ? row.title_display : '', title: method === 'automatic' ? row.title_display : '',
+      discount_value_type: percentage ? 'percentage' : 'fixed',
+      discount_value: dimension === 'shipping' ? '' : (percentage ? percentage[1] : (amount ? amount[1] : '')),
+      applies_to: dimension === 'product' ? 'specific_products' : 'all_order', products: [],
+      product_summary: dimension === 'product' ? info : '',
+      minimum_purchase_type: minimumType, minimum_purchase_value: minimumAmount ? minimumAmount[1] : (minimumQuantity ? minimumQuantity[1] : ''),
+      maximum_uses: { totalEnabled: false, total: '', customerEnabled: false, customer: '', oncePerOrder: false },
+      customer_scope: 'All customers', countries: 'all',
+      combinations: Object.assign({ product_discount: false, order_discount: false, shipping_discount: false }, row.combinations || {}),
+      start_date: row.start_date ? row.start_date + ' 00:00:00' : '', end_date: '', never_expires: row.run_status !== 'Expired',
+      total_used: Number(row.total_used) || 0, total_sales: Number(row.total_sales) || 0,
+      logs: [{ log_id: 1, content: 'Discount created', create_time: row.start_date || '' }],
+    };
+  }
+
+  function discountDetail(id) {
+    const stored = D.DETAILS[id] || D.DETAILS[Number(id)];
+    if (stored) return stored;
+    const row = D.DISCOUNTS.find((discount) => String(discount.activity_id) === String(id));
+    return row ? fallbackDiscountDetail(row) : null;
+  }
+
   // mark the working copy dirty and refresh so the unsaved bar appears
   function markDirty() {
     if (ED && !ED.dirty) { ED.dirty = true; renderEdit(); }
@@ -523,8 +559,10 @@
         '</div>' +
         '<span class="dsc-prod-x" data-pid="' + p.id + '" style="color:var(--ink-muted);cursor:pointer;display:inline-flex;padding:4px">' + I.x + '</span>' +
       '</div>').join('');
+    const summary = e.product_summary ? '<div class="muted" style="font-size:12px;margin:0 0 10px 24px">' + esc(e.product_summary) + '</div>' : '';
     const body =
       radioRow('appliesto', 'specific_products', e.applies_to, 'Specific products') +
+      summary +
       '<div class="mt-3">' +
         '<div class="dsc-pick" data-act="pick-products" style="width:100%;height:36px;border:1px solid var(--ctl);border-radius:8px;padding:0 12px;font-size:13px;color:var(--ink-muted);display:flex;align-items:center;gap:8px;cursor:pointer;background:#fff">' +
           I.plus + '<span>Select products</span></div>' +
@@ -962,7 +1000,7 @@
     if (m) { ED = buildNewState(m[1]); renderEdit(); root.parentElement.scrollTop = 0; return; }
     m = rest.match(/^(\d+)$/);
     if (m) {
-      const rec = D.DETAILS[m[1]] || D.DETAILS[Number(m[1])];
+      const rec = discountDetail(m[1]);
       if (rec) { ED = cloneDetail(rec); renderEdit(); root.parentElement.scrollTop = 0; return; }
       renderMissing(m[1]); return;
     }

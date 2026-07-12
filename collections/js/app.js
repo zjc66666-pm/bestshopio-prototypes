@@ -256,11 +256,28 @@
   });
   const isDirty = () => ST && ORIG !== snapshot(ST);
 
+  // List fixtures intentionally stay compact. Any collection row can still open
+  // into a complete editable state without needing a hand-authored detail record.
+  function collectionDetail(id) {
+    const stored = D.DETAILS[id] || D.DETAILS[Number(id)];
+    if (stored) return stored;
+    const row = D.COLLECTIONS.find((collection) => String(collection.id) === String(id));
+    if (!row) return null;
+    return {
+      id: row.id, name: row.name, handle: row.handle, type: row.type || 'manual',
+      description: '', image_url: row.image_url || '',
+      seo_title: row.name, seo_description: '', seo_keywords: [], template: 'default',
+      sort_order: 'custom', sub_sort_order: 'custom',
+      product_count: row.product_count || 0, create_time: row.create_time || '',
+      products: [], sub_collections: [],
+    };
+  }
+
   function renderEdit(id) {
     const isNew = id === '0' || id === 0;
     if (isNew) { ST = blankState(); }
     else {
-      const detail = D.DETAILS[id] || D.DETAILS[Number(id)];
+      const detail = collectionDetail(id);
       if (!detail) { renderMissing(id); return; }
       ST = stateFromDetail(detail);
     }
