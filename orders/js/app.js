@@ -565,8 +565,7 @@
   function subscriptionContractReference(sub) {
     if (!sub || !sub.id) return '';
     return '<span aria-hidden="true" class="muted">&middot;</span>' +
-      '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>' +
-      (sub.cycle ? '<span aria-hidden="true" class="muted">&middot;</span><span>Cycle ' + esc(sub.cycle) + '</span>' : '');
+      '<a href="#/subscriptions/contracts/' + encodeURIComponent(sub.id) + '" style="color:var(--brand);font-weight:500;text-decoration:none">' + esc(sub.id) + '</a>';
   }
   function subscriptionDiscountLabel(discount) {
     const label = String((discount && discount.name) || '').trim();
