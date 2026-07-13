@@ -85,12 +85,6 @@ window.DATA_SUBS = {
       product: 'Coffee Office Pack', bundleId: 'BND-07', bundleTemplate: 'volume', tierIndex: 1,
       cycle: { every: 2, unit: 'month' }, price: 48, compareAt: 69.97, discountType: 'fixed', discountValue: 13.99, currency: 'USD',
       trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 1, createdAt: '2026-06-20' },
-    // A direct plan for the same parent product. It intentionally has no bundleId so Product detail
-    // renders it in the top-level Subscription plans section instead of inside a Bundle card.
-    { id: 'PL-1013', name: 'Coffee Office Pack - Monthly', status: 'active', productId: 50506, itemType: 'product',
-      product: 'Coffee Office Pack', sku: 'COF-OFF-50506',
-      cycle: { every: 1, unit: 'month' }, price: 43.2, compareAt: 48, discountType: 'percent', discountValue: 10, currency: 'USD',
-      trialDays: 0, minCycles: 0, gateway: 'airwallex', subscribers: 6, createdAt: '2026-06-21' },
   ],
 
   // ---- Contracts (a customer's live subscription) ----

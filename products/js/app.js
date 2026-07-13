@@ -248,14 +248,6 @@
     return allPlans().filter((plan) => String(plan.productId) === String(p.product_id));
   }
 
-  function directPlanLinks(p) {
-    return planLinks(p).filter((plan) => !plan.bundleId);
-  }
-
-  function bundlePlanLinks(p, bundleId) {
-    return planLinks(p).filter((plan) => String(plan.bundleId) === String(bundleId));
-  }
-
   function activeBundleLinks(p) {
     return bundleLinks(p).filter((bundle) => bundle.status === 'active');
   }
@@ -565,51 +557,42 @@
     return secSettings(isEdit) + secPurchaseOptions() + secSeo() + (isEdit ? secTemplate() : '');
   }
 
-  // Read-only purchase-option relationship map. Direct plans stay top-level; bundle plans live under their bundle.
+  // Read-only purchase-option list. Keep plans and bundles flat for quick scanning.
   function secPurchaseOptions() {
     const p = D.PRODUCTS.find((x) => String(x.product_id) === String(EDIT_ID));
     if (!p) return '';
     const bundles = bundleLinks(p);
-    const directPlans = directPlanLinks(p);
-    if (!bundles.length && !directPlans.length) return '';
+    const plans = planLinks(p);
+    if (!bundles.length && !plans.length) return '';
     const statusBadge = (status) => {
       const states = {
-        active: ['Active', '#dcfce7', '#166534'],
+        active: ['Activated', '#dcfce7', '#166534'],
         draft: ['Draft', '#fff3d6', '#9a5a00'],
-        deactivated: ['Deactivated', '#f3f4f6', '#596274'],
+        deactivated: ['Deactivated', '#fff1f0', '#b42318'],
       };
       const state = states[status] || states.deactivated;
       return '<span style="display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:500;background:' + state[1] + ';color:' + state[2] + '">' + state[0] + '</span>';
     };
-    const planDetail = (plan) => {
-      const cycle = plan.cycle ? 'Every ' + plan.cycle.every + ' ' + plan.cycle.unit + (plan.cycle.every === 1 ? '' : 's') : '';
-      const discount = plan.discountType === 'fixed'
-        ? 'Save $' + Number(plan.discountValue || 0).toFixed(2)
-        : 'Save ' + (plan.discountValue || plan.discountPct || 0) + '%';
-      return [cycle, discount].filter(Boolean).join(' · ');
-    };
-    const planRow = (plan, nested) =>
-      '<a href="#/subscriptions/plans/' + plan.id + '" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:' + (nested ? '8px 0 2px 12px' : '10px 0') + ';text-decoration:none;color:inherit">' +
-        '<span style="min-width:0"><span class="muted" style="display:block;font-size:11px;margin-bottom:2px">Subscription plan</span><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(plan.name) + '</span><span style="display:block;font-size:12px;line-height:1.45;margin-top:3px;color:var(--muted)">' + esc(planDetail(plan)) + '</span></span>' +
-        '<span style="display:flex;align-items:center;gap:6px;flex:none">' + statusBadge(plan.status) + '<span style="color:var(--muted);font-size:16px">&rsaquo;</span></span>' +
+    const purchaseRow = (href, title, type, status, detail) =>
+      '<a href="' + href + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 0;text-decoration:none;color:inherit">' +
+        '<span style="min-width:0;flex:1"><span style="font-size:13px;font-weight:500;line-height:1.4;color:var(--ink);display:block">' + esc(title) + '</span>' +
+          '<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="muted" style="font-size:12px">' + esc(type) + '</span>' + statusBadge(status) + '</span>' +
+          (detail ? '<span class="muted" style="display:block;font-size:12px;line-height:1.45;margin-top:4px">' + esc(detail) + '</span>' : '') + '</span>' +
+        '<span style="color:var(--ink);font-size:18px;line-height:1;flex:none">&rsaquo;</span>' +
       '</a>';
-    const bundleMeta = (bundle) => (bundle.template === 'ab' ? 'A+B Set' : 'Volume') + ' · ' + bundle.tierCount + ' ' + (bundle.tierCount === 1 ? 'tier' : 'tiers');
-    const bundleRow = (bundle) => {
-      const plans = bundlePlanLinks(p, bundle.id);
-      const planContent = plans.length
-        ? plans.map((plan) => planRow(plan, true)).join('')
-        : '<div class="muted" style="padding:8px 0 2px 12px;font-size:12px">No subscription plan</div>';
-      return '<div style="border-top:1px solid var(--hair);padding:2px 0 8px">' +
-        '<a href="#/bundles/edit/' + bundle.id + '" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:8px 0;text-decoration:none;color:inherit">' +
-          '<span style="min-width:0"><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(bundle.name) + '</span><span class="muted" style="display:block;font-size:12px;line-height:1.45;margin-top:3px">' + esc(bundleMeta(bundle)) + '</span></span>' +
-          '<span style="display:flex;align-items:center;gap:6px;flex:none">' + statusBadge(bundle.status) + '<span style="color:var(--muted);font-size:16px">&rsaquo;</span></span>' +
-        '</a><div style="margin:0 0 0 16px;border-left:1px solid var(--hair)">' + planContent + '</div>' +
-      '</div>';
-    };
-    const groupTitle = (title, count) => '<div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 2px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase"><span>' + title + '</span><span>' + count + '</span></div>';
+    const planRow = (plan) => purchaseRow(
+      '#/subscriptions/plans/' + plan.id,
+      'Subscription - ' + plan.name,
+      'Subscription plan',
+      plan.status,
+      ''
+    );
+    const bundleRow = (bundle) => '<div style="border-top:1px solid var(--hair)">' +
+      purchaseRow('#/bundles/edit/' + bundle.id, bundle.name, 'Bundle', bundle.status, '') +
+    '</div>';
     let rows = '';
-    if (directPlans.length) rows += groupTitle('Subscription plans', directPlans.length) + directPlans.map((plan) => '<div style="border-top:1px solid var(--hair)">' + planRow(plan, false) + '</div>').join('');
-    if (bundles.length) rows += groupTitle('Bundles', bundles.length) + bundles.map(bundleRow).join('');
+    if (plans.length) rows += plans.map((plan) => '<div style="border-top:1px solid var(--hair)">' + planRow(plan) + '</div>').join('');
+    if (bundles.length) rows += bundles.map(bundleRow).join('');
     const intro = '<div class="muted" style="font-size:12px;line-height:1.5;margin-bottom:2px">How customers can buy this beyond a one-time purchase.</div>';
     return card('Purchase options', intro + rows, null, true);
   }
