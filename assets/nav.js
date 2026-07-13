@@ -18,12 +18,14 @@ window.SITE = { brand: 'BestShopio', store: 'Lovocross', role: 'Owner', email: '
 window.STORES = [
   { name: 'Lovocross',    url: 'm.lovocross.com' },
   { name: 'Silixwear-ES', url: 'www.silixwear-es.com' },
+  { name: 'Nutrofuels',   url: 'nutrofuels.stores.bestshopio.com', homeState: 'setup', stateLabel: 'Setting up' },
   { name: 'Gigaxin',      url: 'www.gugaxin.com' },
 ];
 
 // Top-level base modules (no group label). Order: Orders / Products / Customers
 // / Discounts / Analytics / Content (analytics intentionally before content).
 window.NAV_MENU = [
+  { id: 'home',         label: 'Home',         icon: 'home',         route: '#/home',         desc: 'Store operations, performance and setup progress.' },
   { id: 'orders',       label: 'Orders',       icon: 'inbox',        route: '#/orders',       desc: 'Orders, fulfillment, refunds and returns.' },
   { id: 'products',     label: 'Products',     icon: 'tag',          route: '#/products',     desc: 'Products, variants, inventory, media and metafields.', children: [
     { id: 'collections', label: 'Collections', route: '#/collections', desc: 'Group products into collections with nesting and SEO.' },

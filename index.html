@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="assets/tailwind-config.js?v=20260607k"></script>
-  <link rel="stylesheet" href="assets/theme.css?v=20260712d" />
+  <link rel="stylesheet" href="assets/theme.css?v=20260713n" />
   <!-- ECharts GL must register after ECharts. `defer` keeps the page non-blocking
        while preserving execution order for the Live View globe. -->
   <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
@@ -17,13 +17,13 @@
   <!-- Single-page app: the shell (sidebar + header) and every module view are rendered by shell.js. -->
   <div id="app" class="flex h-screen overflow-hidden"></div>
 
-  <script src="assets/nav.js?v=20260706a"></script>
+  <script src="assets/nav.js?v=20260713o"></script>
   <!-- Bundle catalog is loaded eagerly so the shared bundle picker (used by Subscriptions → Add plan) always has data,
        even before the Bundles module is visited. Pure data; the lazy module loader re-uses the same cached file. -->
   <script src="bundles/js/data.js?v=20260706ab"></script>
   <!-- Subscription data is also a read-only dependency of order-detail deep links. -->
   <script src="subscriptions/js/data.js?v=20260713k"></script>
-  <script src="assets/shell.js?v=20260713l"></script>
+  <script src="assets/shell.js?v=20260713n"></script>
   <script src="assets/widgets.js?v=20260622o"></script>
   <!-- Runtime i18n overlay: engine + shared-chrome dict, then the per-module dictionary.
        Default language is ZH; the top-right toggle switches and persists. -->

@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260713l'; // cache-bust for lazy-loaded module scripts
+  var V = '20260713n'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -49,18 +49,20 @@
   var ROUTE_MODULE = window.ROUTE_MODULE || {};
   var SITE = window.SITE || { store: 'Store' };
   var STORES = window.STORES || [];
-  // The SSO stores panel enters a store via index.html?store=<name>; reflect it in the chrome.
-  var isNewStore = false;
+  // A store's Home state comes from store metadata in production. The query fallback
+  // preserves the existing Provisioning -> Home prototype handoff.
+  var isNewStore = false, activeStore = null;
   try {
     var qsStore = new URLSearchParams(location.search).get('store');
-    if (qsStore) SITE.store = qsStore;
-    // V1.139: provisioning sends merchants here with ?new=1 so Home shows the Setup guide.
-    isNewStore = new URLSearchParams(location.search).get('new') === '1';
+    activeStore = STORES.filter(function (store) { return store.name === qsStore; })[0] || null;
+    if (activeStore) SITE.store = activeStore.name;
+    // V1.139 provisioning still sends ?new=1. Normal entry derives the Home from store state.
+    isNewStore = !!(activeStore && activeStore.homeState === 'setup') || new URLSearchParams(location.search).get('new') === '1';
   } catch (e) {}
   var setupDismissed = false;
   window.VIEWS = window.VIEWS || {};
 
-  var navEl, footEl, settingsBar, root, current = null, loaded = {}, curActiveId = 'home';
+  var navEl, footEl, settingsBar, root, current = null, loaded = {}, curActiveId = 'home', homeLoaded = null, homeRange = '7d';
 
   // Sidebar menu source: prefer nav.js buildMenu() (adds enabled pluggable apps), else static MENU.
   function getMenu() { return (typeof window.buildMenu === 'function') ? window.buildMenu() : MENU; }
@@ -178,6 +180,14 @@
     return loaded[id];
   }
 
+  function loadHomeDependencies() {
+    if (homeLoaded) return homeLoaded;
+    var homeData = window.DATA_HOME ? Promise.resolve() : loadScript('home/js/data.js?v=' + V);
+    var orderData = window.DATA_ORDERS ? Promise.resolve() : loadScript('orders/js/data.js?v=' + V);
+    homeLoaded = Promise.all([homeData, orderData]).catch(function () {});
+    return homeLoaded;
+  }
+
   // ---------- Setup guide (V1.139) — store-onboarding card on Home ----------
   // Shown when a merchant enters a freshly-provisioned store (?new=1). Tasks bind
   // to the activation milestones (D1 product / D3 payments / D7 go-live). PRD §7.4.
@@ -229,8 +239,8 @@
     if (x) x.onclick = function () { setupDismissed = true; var c = root.querySelector('.sg-card'); if (c) c.remove(); };
   }
 
-  // ---------- Home hub view ----------
-  function renderHome() {
+  // ---------- Legacy Home hub (kept as a reference while Home becomes an operations dashboard) ----------
+  function renderLegacyHome() {
     var CL = window.CHANGELOG || [];
     var cards = [];
     getMenu().forEach(function (m) {
@@ -271,6 +281,139 @@
     if (setupHtml) wireSetupGuide();
   }
 
+  // ---------- Merchant operating Home ----------
+  function homeEsc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+  function homePill(label, tone) {
+    return '<span class="home-pill home-pill-' + tone + '"><i></i>' + homeEsc(label) + '</span>';
+  }
+  function homeOrderState(order) {
+    var states = {
+      to_ship: ['To fulfill', 'warn'],
+      shipped: ['Fulfilled', 'ok'],
+      review: ['Fulfilled', 'ok'],
+      archived: ['Fulfilled', 'ok'],
+      to_pay: ['To pay', 'muted'],
+      cancel: ['Cancelled', 'muted'],
+      refund: ['Refunded', 'danger']
+    };
+    return states[order.order_status] || ['Open', 'muted'];
+  }
+  function homeOrderTags(order) {
+    var tags = [];
+    if (order.source === 'BestCheckout') tags.push('<span class="home-order-tag home-order-source">BestCheckout</span>');
+    if (order.bundle) tags.push('<span class="home-order-tag">Bundle</span>');
+    if (order.sub || order.has_subscription) tags.push('<span class="home-order-tag home-order-sub">Subscription</span>');
+    return tags.join('');
+  }
+  function homeChartHtml(period) {
+    var values = period.series || [];
+    var labels = period.labels || [];
+    var width = 720, height = 178, padX = 18, padY = 18;
+    var max = Math.max.apply(null, values.concat([1]));
+    var min = Math.min.apply(null, values.concat([0]));
+    var span = Math.max(max - min, 1);
+    var points = values.map(function (value, index) {
+      var x = padX + (width - padX * 2) * (values.length === 1 ? 0 : index / (values.length - 1));
+      var y = height - padY - ((value - min) / span) * (height - padY * 2 - 8);
+      return [x.toFixed(1), y.toFixed(1)];
+    });
+    var line = points.map(function (point) { return point.join(','); }).join(' ');
+    var area = points.length ? 'M' + points[0].join(',') + ' L' + points.map(function (point) { return point.join(','); }).join(' L') + ' L' + points[points.length - 1][0] + ',' + (height - padY) + ' L' + points[0][0] + ',' + (height - padY) + ' Z' : '';
+    var grid = [0.18, 0.45, 0.72].map(function (ratio) {
+      var y = (padY + (height - padY * 2) * ratio).toFixed(1);
+      return '<line x1="' + padX + '" x2="' + (width - padX) + '" y1="' + y + '" y2="' + y + '" class="home-chart-grid" />';
+    }).join('');
+    var xLabels = labels.map(function (label, index) {
+      var x = points[index] ? points[index][0] : padX;
+      return '<text x="' + x + '" y="' + (height - 2) + '" text-anchor="middle" class="home-chart-label">' + homeEsc(label) + '</text>';
+    }).join('');
+    return '<div class="home-chart-wrap"><svg class="home-chart" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" role="img" aria-label="Sales trend for ' + homeEsc(period.label) + '">' +
+      grid + '<path d="' + area + '" class="home-chart-area" /><polyline points="' + line + '" class="home-chart-line" />' + xLabels + '</svg></div>';
+  }
+  function homeMetricHtml(metric, comparison) {
+    return '<a class="home-kpi" href="' + metric.href + '"><span class="home-kpi-label">' + homeEsc(metric.title) + '</span>' +
+      '<strong>' + homeEsc(metric.value) + '</strong><span class="home-kpi-meta"><b>' + homeEsc(metric.change) + '</b> ' + homeEsc(comparison) + '</span></a>';
+  }
+  function homeAttentionHtml(orders, subscriptions) {
+    var fulfillment = orders.filter(function (order) { return order.order_status === 'to_ship' && order.payment_status === 'paid'; }).length;
+    var writeback = orders.filter(function (order) {
+      return order.source === 'BestCheckout' && (order.shopify_writeback_status === 'pending' || order.shopify_writeback_status === 'failed');
+    }).length;
+    var pastDue = subscriptions.filter(function (subscription) { return subscription.status === 'past_due'; }).length;
+    var items = [];
+    if (fulfillment) items.push({ count: fulfillment, label: 'Orders to fulfill', detail: 'Paid orders are ready to ship', href: '#/orders', icon: 'inbox', tone: 'warn' });
+    if (pastDue) items.push({ count: pastDue, label: 'Subscription charge failed', detail: 'Review the contract before the next retry', href: '#/subscriptions/contracts', icon: 'refresh', tone: 'danger' });
+    if (writeback) items.push({ count: writeback, label: 'BestCheckout order needs review', detail: 'Shopify write-back requires attention', href: '#/bestcheckout/connect', icon: 'card', tone: 'warn' });
+    if (!items.length) return '<section class="home-attention home-attention-clear"><div class="home-attention-clear-icon">' + ICONS.home + '</div><div><strong>Everything is on track</strong><span>No orders, subscriptions, or checkout connections need action right now.</span></div></section>';
+    return '<section class="home-attention"><div class="home-attention-top"><div><div class="home-overline">Needs attention</div><div class="home-attention-title">Keep today&apos;s sales moving</div></div><a class="home-text-link" href="#/orders">View all orders</a></div><div class="home-attention-grid">' + items.map(function (item) {
+      return '<a class="home-attention-item" href="' + item.href + '"><span class="home-attention-icon home-attention-' + item.tone + '">' + (ICONS[item.icon] || ICONS.inbox) + '</span><span class="home-attention-copy"><b>' + item.count + '</b><strong>' + item.label + '</strong><small>' + item.detail + '</small></span><span class="home-row-caret">&rsaquo;</span></a>';
+    }).join('') + '</div></section>';
+  }
+  function homeRecentOrdersHtml(orders) {
+    var rows = orders.slice(0, 5).map(function (order) {
+      var state = homeOrderState(order);
+      return '<a class="home-order-row" href="#/orders/' + homeEsc(order.order_id) + '"><span class="home-order-main"><span class="home-order-id">' + homeEsc(order.order_sn) + '</span><span class="home-order-customer">' + homeEsc((order.user || {}).nickname || 'Guest') + '</span><span class="home-order-tags">' + homeOrderTags(order) + '</span></span><span class="home-order-side">' + homePill(state[0], state[1]) + '<strong>$' + Number(order.total || 0).toFixed(2) + '</strong></span></a>';
+    }).join('');
+    return rows || '<div class="home-empty-list">Your latest paid orders will appear here.</div>';
+  }
+  function homeHealthHtml(items) {
+    var icons = ['globe', 'card', 'pin', 'analytics'];
+    return items.map(function (item, index) {
+      return '<a class="home-health-row" href="' + item.href + '"><span class="home-health-icon">' + (ICONS[icons[index]] || ICONS.settings) + '</span><span class="home-health-copy"><strong>' + homeEsc(item.label) + '</strong><small>' + homeEsc(item.detail) + '</small></span><span class="home-health-value home-health-' + item.tone + '">' + homeEsc(item.value) + '</span></a>';
+    }).join('');
+  }
+  function homeRevenueHtml(orders, subscriptions, subMetrics) {
+    var bcOrders = orders.filter(function (order) { return order.source === 'BestCheckout' && order.payment_status === 'paid'; }).length;
+    var bcIssues = orders.filter(function (order) {
+      return order.source === 'BestCheckout' && (order.shopify_writeback_status === 'pending' || order.shopify_writeback_status === 'failed');
+    }).length;
+    var pastDue = subscriptions.filter(function (subscription) { return subscription.status === 'past_due'; }).length;
+    var subHtml = subMetrics ? '<a class="home-app-row" href="#/subscriptions/contracts"><span class="home-app-icon home-app-sub">' + ICONS.refresh + '</span><span class="home-app-copy"><strong>Subscriptions</strong><small>Recurring revenue health</small></span><span class="home-app-stats"><b>' + homeEsc(subMetrics.activeSubs) + '</b><small>active</small><b class="' + (pastDue ? 'home-stat-danger' : '') + '">' + pastDue + '</b><small>past due</small></span><span class="home-row-caret">&rsaquo;</span></a>' : '';
+    var bcHtml = '<a class="home-app-row" href="#/bestcheckout"><span class="home-app-icon home-app-checkout">' + ICONS.card + '</span><span class="home-app-copy"><strong>BestCheckout</strong><small>External checkout operations</small></span><span class="home-app-stats"><b>' + bcOrders + '</b><small>paid orders</small><b class="' + (bcIssues ? 'home-stat-warn' : '') + '">' + bcIssues + '</b><small>needs review</small></span><span class="home-row-caret">&rsaquo;</span></a>';
+    return subHtml + bcHtml;
+  }
+  function renderNewStoreHome() {
+    var launchRows = [
+      { label: 'Products', value: '1 added', tone: 'ok', href: '#/products' },
+      { label: 'Payments', value: 'Required', tone: 'warn', href: '#/settings/payments' },
+      { label: 'Domain', value: 'Optional', tone: 'muted', href: '#/settings/domains' },
+      { label: 'Store visibility', value: 'Private', tone: 'warn', href: '#/online-store' }
+    ];
+    var setupHtml = setupDismissed ? '' : setupGuideHtml();
+    root.innerHTML = '<div class="home-page home-launch"><div class="home-head"><div><div class="home-overline">Store setup</div><h1>Finish setting up ' + homeEsc(SITE.store || 'your store') + '</h1><p>Complete the required steps before customers can place an order.</p></div><div class="home-actions"><a class="btn" href="#/products">Products</a><a class="btn btn-primary" href="#/online-store">Preview store</a></div></div>' + setupHtml +
+      '<section class="home-panel home-launch-status"><div class="home-section-head"><div><h2>Store readiness</h2><p>Required and optional launch checks</p></div></div><div class="home-launch-grid">' + launchRows.map(function (row) {
+        return '<a class="home-launch-row" href="' + row.href + '"><span>' + homeEsc(row.label) + '</span>' + homePill(row.value, row.tone) + '<span class="home-row-caret">&rsaquo;</span></a>';
+      }).join('') + '</div></section></div>';
+    if (setupHtml) wireSetupGuide();
+  }
+  function wireHome() {
+    Array.prototype.forEach.call(root.querySelectorAll('[data-home-range]'), function (button) {
+      button.onclick = function () { homeRange = this.getAttribute('data-home-range'); renderHome(); };
+    });
+  }
+  function renderHome() {
+    if (isNewStore) { renderNewStoreHome(); return; }
+    var data = window.DATA_HOME || { periods: {}, storeHealth: [], update: {} };
+    var period = data.periods[homeRange] || data.periods['7d'] || { label: 'Last 7 days', comparison: 'vs previous period', metrics: [], series: [], labels: [] };
+    var orders = ((window.DATA_ORDERS || {}).ORDERS || []).filter(function (order) { return order && order.payment_status === 'paid'; });
+    var subscriptions = ((window.DATA_SUBS || {}).contracts || []);
+    var subMetrics = (window.DATA_SUBS || {}).metrics || null;
+    var rangeTabs = [['today', 'Today'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days']].map(function (tab) {
+      return '<button type="button" class="home-range-tab' + (homeRange === tab[0] ? ' active' : '') + '" data-home-range="' + tab[0] + '" aria-pressed="' + (homeRange === tab[0] ? 'true' : 'false') + '">' + tab[1] + '</button>';
+    }).join('');
+    root.innerHTML = '<div class="home-page"><div class="home-head"><div><div class="home-overline">Store overview</div><h1>Good morning, ' + homeEsc(SITE.store || 'your store') + '</h1><p>Keep an eye on the work that moves today&apos;s sales forward.</p></div><div class="home-actions"><a class="btn" href="#/online-store">View store</a><a class="btn btn-primary" href="#/products">Add product</a></div></div>' +
+      homeAttentionHtml(orders, subscriptions) +
+      '<section class="home-performance"><div class="home-section-head home-performance-head"><div><h2>Performance</h2><p>' + homeEsc(period.label) + ' ' + homeEsc(period.comparison) + '</p></div><div class="home-range-tabs" role="group" aria-label="Performance period">' + rangeTabs + '</div></div><div class="home-kpi-grid">' + (period.metrics || []).map(function (metric) { return homeMetricHtml(metric, period.comparison); }).join('') + '</div></section>' +
+      '<div class="home-main-grid"><section class="home-panel home-chart-panel"><div class="home-section-head"><div><h2>Sales performance</h2><p>' + homeEsc(period.label) + '</p></div><a class="home-text-link" href="#/analytics/reports">Open Analytics</a></div>' + homeChartHtml(period) + '</section><section class="home-panel home-health-panel"><div class="home-section-head"><div><h2>Store health</h2><p>Sales-critical connections</p></div><a class="home-icon-link" href="#/settings/base" aria-label="Open settings">' + ICONS.settings + '</a></div><div class="home-health-list">' + homeHealthHtml(data.storeHealth || []) + '</div></section></div>' +
+      '<div class="home-detail-grid"><section class="home-panel home-orders-panel"><div class="home-section-head"><div><h2>Recent orders</h2><p>Latest paid orders across your sales channels</p></div><a class="home-text-link" href="#/orders">View all orders</a></div><div class="home-order-list">' + homeRecentOrdersHtml(orders) + '</div></section><section class="home-panel home-revenue-panel"><div class="home-section-head"><div><h2>Revenue health</h2><p>Recurring and external checkout</p></div></div><div class="home-app-list">' + homeRevenueHtml(orders, subscriptions, subMetrics) + '</div></section></div>' +
+      '<section class="home-update"><span class="home-update-mark">' + homeEsc((data.update || {}).version || 'Update') + '</span><div><strong>' + homeEsc((data.update || {}).title || 'BestShopio updates') + '</strong><span>' + homeEsc((data.update || {}).detail || '') + '</span></div><a class="home-text-link" href="' + homeEsc((data.update || {}).href || '#/home') + '">Review</a></section></div>';
+    wireHome();
+  }
+
   // ---------- router ----------
   function dispatch() {
     var p = parse();
@@ -286,7 +429,14 @@
     if (current && current !== moduleId && window.VIEWS[current] && window.VIEWS[current].unmount) {
       try { window.VIEWS[current].unmount(); } catch (e) {}
     }
-    if (moduleId === 'home') { renderHome(); current = 'home'; root.scrollTop = 0; return; }
+    if (moduleId === 'home') {
+      root.innerHTML = '<div class="view-wrap"><div class="placeholder">Loading...</div></div>';
+      loadHomeDependencies().then(function () {
+        if (parse().first !== 'home' || parse().settings) return;
+        renderHome(); current = 'home'; root.scrollTop = 0;
+      });
+      return;
+    }
     root.innerHTML = '<div class="view-wrap"><div class="placeholder">Loading…</div></div>';
     loadModule(moduleId).then(function () {
       if (parse().first !== p.first || parse().settings) return; // route changed while loading
@@ -328,9 +478,10 @@
   function storeSwitcherHtml() {
     var rows = STORES.map(function (st) {
       var cur = st.name === SITE.store;
+      var state = st.stateLabel ? '<span class="hdr-store-state">' + st.stateLabel + '</span>' : '';
       return '<button class="hdr-store-row' + (cur ? ' current' : '') + '" data-store="' + st.name + '">' +
         '<span class="hdr-store-ico"></span>' +
-        '<span class="hdr-store-meta"><span class="hdr-store-name">' + st.name + '</span><span class="hdr-store-url">' + st.url + '</span></span>' +
+        '<span class="hdr-store-meta"><span class="hdr-store-name">' + st.name + state + '</span><span class="hdr-store-url">' + st.url + '</span></span>' +
         (cur ? '<span class="hdr-store-check">' + MICO.check + '</span>' : '') +
       '</button>';
     }).join('');
@@ -403,7 +554,7 @@
             closeHdrMenus();
             if (name === SITE.store) return;
             // PRD 7.3: open the chosen store admin in a new tab
-            window.open('index.html?store=' + encodeURIComponent(name), '_blank', 'noopener');
+            window.open('index.html?store=' + encodeURIComponent(name) + '#/home', '_blank', 'noopener');
           };
         });
       });
