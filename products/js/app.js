@@ -235,27 +235,40 @@
     wireList();
   }
 
+  function allPlans() {
+    return (window.DATA_SUBS && window.DATA_SUBS.plans) || [];
+  }
+
   function bundleLinks(p) {
-    const configured = ((p && p.po && p.po.bundles) || []);
     const live = (window.DATA_BUNDLES && window.DATA_BUNDLES.bundles) || [];
-    if (!configured.length) return [];
-    if (!live.length) return configured.map((b) => Object.assign({ status: 'active' }, b));
-    return configured.map((b) => {
-      const current = live.find((x) => String(x.id) === String(b.id));
-      return Object.assign({}, b, current ? { name: current.name, status: current.status } : { status: b.status || 'active' });
-    });
+    return live.filter((bundle) => String(bundle.parentProductId) === String(p.product_id));
+  }
+
+  function planLinks(p) {
+    return allPlans().filter((plan) => String(plan.productId) === String(p.product_id));
+  }
+
+  function directPlanLinks(p) {
+    return planLinks(p).filter((plan) => !plan.bundleId);
+  }
+
+  function bundlePlanLinks(p, bundleId) {
+    return planLinks(p).filter((plan) => String(plan.bundleId) === String(bundleId));
   }
 
   function activeBundleLinks(p) {
-    return bundleLinks(p).filter((b) => b.status === 'active');
+    return bundleLinks(p).filter((bundle) => bundle.status === 'active');
+  }
+
+  function activePlanLinks(p) {
+    return planLinks(p).filter((plan) => plan.status === 'active');
   }
 
   // Cross-module purchase-option tags shown under the product name (subscription / active bundle awareness).
   function poTags(p) {
-    if (!p.po) return '';
     const tag = (txt, bg, fg) => '<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1;padding:3px 6px;border-radius:4px;background:' + bg + ';color:' + fg + '">' + txt + '</span>';
     let out = '';
-    if (p.po.subscription) out += tag('Subscription', '#e6f0ff', '#1d6fe0');
+    if (activePlanLinks(p).length) out += tag('Subscription', '#e6f0ff', '#1d6fe0');
     if (activeBundleLinks(p).length) out += tag('Bundle', '#eef0f4', '#525a6b');
     return out ? '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">' + out + '</div>' : '';
   }
@@ -552,34 +565,51 @@
     return secSettings(isEdit) + secPurchaseOptions() + secSeo() + (isEdit ? secTemplate() : '');
   }
 
-  // Read-only "Purchase options" card — surfaces how this product is sold beyond a one-time purchase
-  // (Subscribe & Save plan / bundle membership), with jump links into the Subscriptions + Bundles apps.
+  // Read-only purchase-option relationship map. Direct plans stay top-level; bundle plans live under their bundle.
   function secPurchaseOptions() {
     const p = D.PRODUCTS.find((x) => String(x.product_id) === String(EDIT_ID));
-    if (!p || !p.po) return '';
-    const po = p.po;
-    const row = (href, title, type, status, detail) =>
-      '<a href="' + href + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--hair);text-decoration:none;color:inherit">' +
-        '<span style="min-width:0"><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(title) + '</span>' +
-          '<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px"><span class="muted" style="font-size:12px">' + esc(type) + '</span>' + statusBadge(status) + '</span>' +
-          (detail ? '<span class="muted" style="display:block;font-size:12px;margin-top:3px">' + esc(detail) + '</span>' : '') + '</span>' +
-        '<span style="flex:none;color:var(--muted);font-size:16px">›</span>' +
+    if (!p) return '';
+    const bundles = bundleLinks(p);
+    const directPlans = directPlanLinks(p);
+    if (!bundles.length && !directPlans.length) return '';
+    const statusBadge = (status) => {
+      const states = {
+        active: ['Active', '#dcfce7', '#166534'],
+        draft: ['Draft', '#fff3d6', '#9a5a00'],
+        deactivated: ['Deactivated', '#f3f4f6', '#596274'],
+      };
+      const state = states[status] || states.deactivated;
+      return '<span style="display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:500;background:' + state[1] + ';color:' + state[2] + '">' + state[0] + '</span>';
+    };
+    const planDetail = (plan) => {
+      const cycle = plan.cycle ? 'Every ' + plan.cycle.every + ' ' + plan.cycle.unit + (plan.cycle.every === 1 ? '' : 's') : '';
+      const discount = plan.discountType === 'fixed'
+        ? 'Save $' + Number(plan.discountValue || 0).toFixed(2)
+        : 'Save ' + (plan.discountValue || plan.discountPct || 0) + '%';
+      return [cycle, discount].filter(Boolean).join(' · ');
+    };
+    const planRow = (plan, nested) =>
+      '<a href="#/subscriptions/plans/' + plan.id + '" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:' + (nested ? '8px 0 2px 12px' : '10px 0') + ';text-decoration:none;color:inherit">' +
+        '<span style="min-width:0"><span class="muted" style="display:block;font-size:11px;margin-bottom:2px">Subscription plan</span><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(plan.name) + '</span><span style="display:block;font-size:12px;line-height:1.45;margin-top:3px;color:var(--muted)">' + esc(planDetail(plan)) + '</span></span>' +
+        '<span style="display:flex;align-items:center;gap:6px;flex:none">' + statusBadge(plan.status) + '<span style="color:var(--muted);font-size:16px">&rsaquo;</span></span>' +
       '</a>';
-    const statusBadge = (status) => '<span style="display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:500;background:' + (status === 'active' ? '#dcfce7;color:#166534' : '#f3f4f6;color:#596274') + '">' + (status === 'active' ? 'Activated' : 'Deactivated') + '</span>';
-    const bundleRow = (b) =>
-      '<a href="#/bundles/edit/' + b.id + '" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--hair);text-decoration:none;color:inherit">' +
-        '<span style="min-width:0"><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(b.name) + '</span>' +
-          '<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px"><span class="muted" style="font-size:12px">Bundle</span>' + statusBadge(b.status) + '</span></span>' +
-        '<span style="flex:none;color:var(--muted);font-size:16px">&rsaquo;</span>' +
-      '</a>';
+    const bundleMeta = (bundle) => (bundle.template === 'ab' ? 'A+B Set' : 'Volume') + ' · ' + bundle.tierCount + ' ' + (bundle.tierCount === 1 ? 'tier' : 'tiers');
+    const bundleRow = (bundle) => {
+      const plans = bundlePlanLinks(p, bundle.id);
+      const planContent = plans.length
+        ? plans.map((plan) => planRow(plan, true)).join('')
+        : '<div class="muted" style="padding:8px 0 2px 12px;font-size:12px">No subscription plan</div>';
+      return '<div style="border-top:1px solid var(--hair);padding:2px 0 8px">' +
+        '<a href="#/bundles/edit/' + bundle.id + '" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:8px 0;text-decoration:none;color:inherit">' +
+          '<span style="min-width:0"><span style="font-size:13px;font-weight:500;color:var(--ink);display:block">' + esc(bundle.name) + '</span><span class="muted" style="display:block;font-size:12px;line-height:1.45;margin-top:3px">' + esc(bundleMeta(bundle)) + '</span></span>' +
+          '<span style="display:flex;align-items:center;gap:6px;flex:none">' + statusBadge(bundle.status) + '<span style="color:var(--muted);font-size:16px">&rsaquo;</span></span>' +
+        '</a><div style="margin:0 0 0 16px;border-left:1px solid var(--hair)">' + planContent + '</div>' +
+      '</div>';
+    };
+    const groupTitle = (title, count) => '<div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 2px;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase"><span>' + title + '</span><span>' + count + '</span></div>';
     let rows = '';
-    if (po.subscription) {
-      const plans = (window.DATA_SUBS && window.DATA_SUBS.plans) || [];
-      const plan = plans.find((item) => String(item.id) === String(po.subscription.planId));
-      const detail = [po.subscription.save, po.subscription.frequency || (po.subscription.via ? 'via ' + po.subscription.via : '')].filter(Boolean).join(' · ');
-      rows += row('#/subscriptions/plans/' + po.subscription.planId, plan ? plan.name : 'Subscribe & Save', 'Subscription plan', plan ? plan.status : 'inactive', detail);
-    }
-    bundleLinks(p).forEach((b) => { rows += bundleRow(b); });
+    if (directPlans.length) rows += groupTitle('Subscription plans', directPlans.length) + directPlans.map((plan) => '<div style="border-top:1px solid var(--hair)">' + planRow(plan, false) + '</div>').join('');
+    if (bundles.length) rows += groupTitle('Bundles', bundles.length) + bundles.map(bundleRow).join('');
     const intro = '<div class="muted" style="font-size:12px;line-height:1.5;margin-bottom:2px">How customers can buy this beyond a one-time purchase.</div>';
     return card('Purchase options', intro + rows, null, true);
   }

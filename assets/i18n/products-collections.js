@@ -119,6 +119,8 @@ window.I18N.extend({
   "Purchase options": "购买方式",
   "How customers can buy this beyond a one-time purchase.": "展示顾客除一次性购买外可选择的购买方式。",
   "Subscription plan": "订阅计划",
+  "Subscription plans": "订阅计划",
+  "No subscription plan": "暂无订阅计划",
   "Subscribe & Save": "订阅省",
   "Every 2 Months": "每 2 个月",
   "Search engine optimization": "搜索引擎优化",
