@@ -91,6 +91,21 @@ window.PLUGGABLE_APPS = [
       ] },
   },
   {
+    id: 'post-purchase', name: 'Post purchase', icon: 'refresh', builtin: true, category: 'Selling', status: 'available', defaultEnabled: true,
+    tagline: 'One-click upsells and downsells after a paid checkout.',
+    blurb: 'Build post-payment offer paths that work with Native checkout and BestCheckout. Buyers receive one eligible offer path only; unsupported payment methods, multi-currency sessions, inventory issues and unmatched variants skip safely to Thank you. Accepted offers are added to the original order only after the additional charge succeeds.',
+    permissions: ['Read completed checkout context and catalog availability', 'Return an eligible offer decision and idempotency key to the checkout host', 'Record post-purchase session events for analytics and support'],
+    menu: { id: 'post-purchase', label: 'Post purchase', icon: 'refresh', route: '#/post-purchase',
+      desc: 'Post-payment upsells, downsells, eligibility, delivery diagnostics and incremental revenue.',
+      children: [
+        { id: 'post-purchase-funnels', label: 'Funnels', route: '#/post-purchase/funnels' },
+        { id: 'post-purchase-recommendations', label: 'Recommendations', route: '#/post-purchase/recommendations' },
+        { id: 'post-purchase-analytics', label: 'Analytics', route: '#/post-purchase/analytics' },
+        { id: 'post-purchase-activity', label: 'Activity', route: '#/post-purchase/activity' },
+        { id: 'post-purchase-settings', label: 'Settings', route: '#/post-purchase/settings' },
+      ] },
+  },
+  {
     id: 'subscriptions', name: 'Subscriptions', icon: 'refresh', builtin: true, category: 'Selling', status: 'available',
     tagline: 'Sell products on a recurring schedule — Subscribe & Save.',
     blurb: 'Turn one-off products into recurring revenue. Customers subscribe on the product page and are billed automatically through your connected Airwallex, Stripe or PayPal; every cycle drops a fresh order into Orders.',
@@ -144,7 +159,7 @@ window.ROUTE_MODULE = {
   reviews: 'reviews', customers: 'customers', discounts: 'discounts',
   blog: 'blog', page: 'page', menu: 'menu', analytics: 'analytics',
   'online-store': 'online-store', google: 'google', facebook: 'facebook', settings: 'settings',
-  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles', bestcheckout: 'bestcheckout',
+  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles', bestcheckout: 'bestcheckout', 'post-purchase': 'post-purchase',
 };
 
 /* Newest first. `modules` lists the route ids each version touched (for the Home changelog). */

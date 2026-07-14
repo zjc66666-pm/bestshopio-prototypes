@@ -424,6 +424,7 @@
     if (p.first === 'analytics') { var asub = p.rest.split('/')[0]; activeId = asub ? 'analytics-' + asub : 'analytics'; }
     if (p.first === 'subscriptions') { var ssub = p.rest.split('/')[0]; activeId = ssub ? 'subscriptions-' + ssub : 'subscriptions'; }
     if (p.first === 'bestcheckout') { var bsub = p.rest.split('/')[0]; activeId = bsub ? 'bestcheckout-' + bsub : 'bestcheckout'; }
+    if (p.first === 'post-purchase') { var psub = p.rest.split('/')[0]; activeId = psub ? 'post-purchase-' + psub : 'post-purchase'; }
     curActiveId = activeId;
     renderSidebar(activeId);
     if (current && current !== moduleId && window.VIEWS[current] && window.VIEWS[current].unmount) {
