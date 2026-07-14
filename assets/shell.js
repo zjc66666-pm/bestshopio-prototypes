@@ -30,6 +30,7 @@
     pin: s('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>'),
     search: s('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'),
     bell: s('<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'),
+    help: s('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.65 2.65 0 1 1 4.36 2.03c-.98.8-1.86 1.34-1.86 2.77"/><path d="M12 17.35h.01"/>'),
     chevDown: s('<path d="m6 9 6 6 6-6"/>'),
     caret: s('<path d="m9 18 6-6-6-6"/>'),
     menu: s('<path d="M3 6h18M3 12h18M3 18h18"/>'),
@@ -569,6 +570,12 @@
     };
   }
 
+  function helpCenterUrl() {
+    if (window.BESTSHOPIO_HELP_CENTER_URL) return window.BESTSHOPIO_HELP_CENTER_URL;
+    var isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+    return isLocal ? 'http://127.0.0.1:10830/help/' : 'https://www.bestshopio.com/help/';
+  }
+
   // ---------- build persistent chrome ----------
   function build() {
     var app = document.getElementById('app');
@@ -579,6 +586,7 @@
         '<button class="sidebar-toggle" aria-label="Menu">' + ICONS.menu + '</button>' +
         '<a class="hdr-logo" href="#/home" title="Home"><span class="brand-mark">' + String(SITE.store || 'S').charAt(0) + '</span><span class="hdr-logo-name">' + (SITE.store || 'Store') + '</span></a>' +
         '<div class="hdr-right">' +
+          '<a class="hdr-help" href="' + helpCenterUrl() + '" aria-label="Help Center" title="Help Center" data-tooltip="Help Center">' + ICONS.help + '</a>' +
           '<div class="hdr-menu-wrap"><button class="hdr-store" id="hdr-store">' + (SITE.store || 'Store') + ICONS.chevDown + '</button></div>' +
           '<div class="hdr-menu-wrap"><button class="hdr-user" id="hdr-user" aria-label="Account">' + ICONS.user + '</button></div>' +
         '</div>' +

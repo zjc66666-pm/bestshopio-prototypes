@@ -550,6 +550,11 @@ select::-ms-expand { display: none; }
 
 /* ---- Header right: store switcher + user (matches live admin) ---- */
 .app-header .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.hdr-help { order: -1; position: relative; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; color: var(--ink-muted); text-decoration: none; }
+.hdr-help:hover, .hdr-help:focus-visible { background: var(--panel); border-color: var(--hair); color: var(--ink-body); outline: none; }
+.hdr-help .nav-ico { width: 19px; height: 19px; }
+.hdr-help::after { content: attr(data-tooltip); position: absolute; top: calc(100% + 8px); right: 0; z-index: 90; padding: 6px 8px; border-radius: 6px; background: var(--ink); color: #fff; font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; opacity: 0; pointer-events: none; transform: translateY(-2px); transition: opacity .16s ease, transform .16s ease; }
+.hdr-help:hover::after, .hdr-help:focus-visible::after { opacity: 1; transform: translateY(0); }
 .hdr-store { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border: none; background: transparent; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; border-radius: 8px; }
 .hdr-store:hover { background: rgb(0 0 0 / 4%); }
 .hdr-store .nav-ico { width: 16px; height: 16px; color: var(--ink-muted); }
