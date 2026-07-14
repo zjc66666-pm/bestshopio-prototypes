@@ -573,7 +573,7 @@
   function helpCenterUrl() {
     if (window.BESTSHOPIO_HELP_CENTER_URL) return window.BESTSHOPIO_HELP_CENTER_URL;
     var isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-    return isLocal ? 'http://127.0.0.1:10830/help/' : 'https://www.bestshopio.com/help/';
+    return isLocal ? 'http://127.0.0.1:10830/help/' : 'https://zjc66666-pm.github.io/shop/official-site/help/';
   }
 
   // ---------- build persistent chrome ----------
