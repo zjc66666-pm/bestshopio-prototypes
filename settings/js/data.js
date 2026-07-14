@@ -1,7 +1,7 @@
 /* BestShopio Admin · Settings prototype — sample data.
    Mirrors reference/bestvoy-admin web-antd settings module field shapes & copy:
      base/components/render.tsx + EditForm.tsx (config_function_settings,
-       tab_oauth_google/_facebook, tab_google_tag)
+       tab_oauth_google/_facebook)
      payments/components/* (tab_switch_payment_processor + tab_pay_stripe/
        _airwallex/_paypal — credentials live in per-provider modals)
      currency/index.vue + edit.vue (/country/currency/list, CurrencyItem)
@@ -103,8 +103,8 @@ window.DATA_SETTINGS = {
   },
 
   // =========================================================================
-  // BASE  (config_function_settings + tab_oauth_google / tab_oauth_facebook /
-  //        tab_google_tag).  Page title in real admin: "Basic settings".
+  // BASE  (config_function_settings + tab_oauth_google / tab_oauth_facebook).
+  // Page title in real admin: "Basic settings".
   // =========================================================================
   base: {
     store: {
@@ -143,13 +143,6 @@ window.DATA_SETTINGS = {
         },
       },
     ],
-    analytics: {
-      // tab_google_tag -> google_measurement_id
-      key: 'googleAnalytics', name: 'Google Analytics', linked: true,
-      modalTitle: 'Connect Google developer account',
-      blurb: 'Track store traffic & conversions by connecting Google Analytics.',
-      measurementId: 'G-PROTO4XK2P',
-    },
   },
 
   // =========================================================================

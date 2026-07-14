@@ -84,10 +84,9 @@ window.I18N.extend({
   "Order Auto-Receive Time": "订单自动收货时间",
   "Days": "天",
   "Orders are auto-Receive after a set number of days from shipping (e.g., 10 days).": "订单在发货后达到设定天数将自动收货（例如 10 天）。",
-  // ---- Social login / analytics ----
+  // ---- Social login ----
   "Login through social media": "通过社交媒体登录",
   "After connecting, customers can log in to the online store through their social media accounts.": "连接后，顾客可使用社交媒体账号登录网上商店。",
-  "Data analysis": "数据分析",
   "Google login": "Google 登录",
   "Connect Google developer account": "连接 Google 开发者账号",
   "Allows users to sign up and login with their Google account.": "允许用户使用 Google 账号注册和登录。",
@@ -97,10 +96,6 @@ window.I18N.extend({
   "Please enter App ID": "请输入 App ID",
   "Please enter App Secret": "请输入 App Secret",
   "Please enter Redirect URIs, You can enter your store's homepage URL.": "请输入重定向 URI，可填写店铺首页网址。",
-  "Google Analytics": "Google Analytics",
-  "Track store traffic & conversions by connecting Google Analytics.": "连接 Google Analytics，追踪店铺流量与转化。",
-  "Measurement Id": "Measurement ID",
-  "Please enter Measurement Id": "请输入 Measurement ID",
   // ---- Add font modal ----
   "Font:": "字体：",
   "Stored securely · value is masked": "已安全存储 · 值已隐藏",
