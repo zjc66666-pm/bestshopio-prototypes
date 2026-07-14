@@ -1151,7 +1151,7 @@
       linked: !!g.measurementId,
       fields: [
         wField('Measurement ID', g.measurementId, 'G-XXXXXXXXXX', { key: 'measurementId' }),
-        wField('API secret (Measurement Protocol)', g.apiSecret, 'gtm_…', { secret: true, key: 'apiSecret', hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' }),
+        wField('API secret (Measurement Protocol)', g.apiSecret, 'gtm_…', { optional: true, secret: true, key: 'apiSecret', hint: 'GA4 Admin → Data Streams → your stream → Measurement Protocol API secrets → Create.' }),
       ].join(''),
       discHint: 'Clears Measurement ID and API secret',
     };
