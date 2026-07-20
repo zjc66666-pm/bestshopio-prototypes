@@ -311,7 +311,8 @@
     applepay: payImg('applepay.svg'), googlepay: payImg('googlepay.svg'), link: payImg('link.svg'),
     amazonpay: payImg('amazonpay.svg'), klarna: payImg('klarna.svg'), paypal: payImg('paypal-logo.svg', 16),
   };
-  // 各处理方「我们采用的集成方式」下 Express 块实际能出的方式（均已查官方文档核实 2026-06，见 PRD §5.2）
+  // 各处理方「我们采用的集成方式」下 Express 块实际能出的方式（均已查官方文档核实 2026-06，见 PRD §5.2）。
+  // PayPal Cards 没有条目：当前接入不提供 PayPal Apple Pay / Google Pay，不能假装成 Express 钱包。
   // Adyen=Components / Checkout=Flow / NMI=Collect.js / Mollie=Components(GooglePay 待确认) / Braintree=Hosted Fields
   const PAY_EXPRESS = {
     stripe: ['applepay', 'googlepay', 'link', 'klarna', 'amazonpay'], airwallex: ['applepay', 'googlepay'],
@@ -333,7 +334,7 @@
         { k: 'wsec', label: 'Webhook Secret Key', msg: 'Please enter Webhook Secret Key' },
         { k: 'wip', label: 'Webhook Whitelist IP addresses', msg: 'Please enter Webhook Whitelist IP addresses', learn: 'https://www.airwallex.com/docs/developer-tools/webhooks/listen-for-webhook-events#whitelist-ip-addresses' },
       ], file: 'Airwallex domain verification file' },
-    paypal: { desc: 'Allows users to pay with PayPal.', fields: [
+    paypal: { desc: 'Connect one PayPal account for PayPal Wallet and, where eligible, PayPal Cards.', fields: [
       { k: 'cid', label: 'Client ID' }, { k: 'sec', label: 'Client secret' }, { k: 'whid', label: 'Webhook ID' },
     ] },
     adyen: { fields: [{ k: 'api', label: 'API key' }, { k: 'mer', label: 'Merchant account' }, { k: 'ck', label: 'Client key' }, { k: 'hmac', label: 'HMAC key' }] },
@@ -344,24 +345,44 @@
     klarna_direct: { fields: [{ k: 'uid', label: 'API username (UID)' }, { k: 'pwd', label: 'API password' }, { k: 'region', label: 'Region（EU / NA / OC）' }] },
   };
 
-  const pProcsVis = () => D.payments.processors;
+  // PayPal Cards reuses the connected PayPal account. It is a primary-card candidate,
+  // not a second card form and not an Express wallet provider.
+  const pProcsVis = () => {
+    const pp = D.payments.paypal;
+    const paypalCards = pp.connected && pp.capabilities.cards === 'eligible'
+      ? [{ key: 'paypal_cards', name: 'PayPal Cards', logo: 'paypal-logo.svg', connected: true, accountKey: 'paypal' }]
+      : [];
+    return D.payments.processors.concat(paypalCards);
+  };
   const pConnected = () => pProcsVis().filter((p) => p.connected);
-  function pActive() { let a = D.payments.processors.find((p) => p.key === D.payments.cardProcessor && p.connected); if (!a) a = pConnected()[0] || null; return a; }
-  const pLogo = (p, hh) => p.logo ? payImg(p.logo, hh || 20) : '<span class="pm-mono">' + esc(p.name) + '</span>';
+  function pActive() { let a = pProcsVis().find((p) => p.key === D.payments.cardProcessor && p.connected); if (!a) a = pConnected()[0] || null; return a; }
+  const pLogo = (p, hh) => p.logo
+    ? payImg(p.logo, hh || 20) + (p.key === 'paypal_cards' ? '<span>PayPal Cards</span>' : '')
+    : '<span class="pm-mono">' + esc(p.name) + '</span>';
   function pMethPill(connected, on) {
     if (!connected) return '<span class="pill pill-gray"><span class="dot"></span>Not connected</span>';
     return on ? '<span class="pill pill-green"><span class="dot"></span>Connected</span>' : '<span class="pill pill-gray"><span class="dot"></span>Disabled</span>';
+  }
+  function pPaypalCapabilities() {
+    const c = D.payments.paypal.capabilities;
+    const row = (name, state, note) => '<div class="paypal-cap"><span>' + name + '</span><span class="paypal-cap-state ' + (state === 'Eligible' || state === 'Available' ? 'ok' : 'off') + '">' + state + '</span>' + (note ? '<small>' + note + '</small>' : '') + '</div>';
+    return '<div class="paypal-caps">' +
+      row('Cards', c.cards === 'eligible' ? 'Eligible' : 'Unavailable', 'Use as primary processor') +
+      row('PayPal Wallet', c.wallet === 'eligible' ? 'Available' : 'Unavailable') +
+      row('Apple Pay', 'Not available') +
+      row('Google Pay', 'Not available') +
+    '</div>';
   }
 
   // ① 卡 + Express 单处理方槽位（picker 内连接/切换/管理）
   function pSlot() {
     const a = pActive();
     const picker = '<div class="proc-pick"><span class="lab">Card processor</span>' +
-      D.payments.processors.map((p) => {
+      pProcsVis().map((p) => {
         if (p.connected) {
           const on = a && p.key === a.key;
           // ⚙ on every connected provider → edit credentials anytime; click a non-active name = switch
-          const cog = '<button class="pchip-cog" data-cfg="' + p.key + '" title="Manage credentials">⚙</button>';
+          const cog = '<button class="pchip-cog" data-cfg="' + (p.accountKey || p.key) + '" title="Manage credentials">⚙</button>';
           if (on) return '<span class="pchip on"><span class="pchip-name">' + pLogo(p, 15) + '</span>' + cog + '</span>';
           return '<span class="pchip"><button class="pchip-name" data-setproc="' + p.key + '" title="Set as processor">' + pLogo(p, 15) + '</button>' + cog + '</span>';
         }
@@ -371,12 +392,20 @@
       return '<div class="panel card-pad"><div class="slot-head"><span class="slot-title">Cards &amp; Express processor</span>' + picker + '</div>' +
         '<div class="muted" style="padding:14px 0 4px;font-size:13px">No processor connected yet. Click “+ …” above to connect one and start accepting cards and Apple/Google Pay.</div></div>';
     }
+    const paypalCards = a.key === 'paypal_cards';
     const expIcos = (PAY_EXPRESS[a.key] || []).map((id) => PAY_ICON[id]).join(' ');
+    const intro = paypalCards
+      ? 'PayPal Cards uses the connected PayPal account. It replaces the card processor only; PayPal Apple Pay and Google Pay are not available in this integration.'
+      : 'Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.';
+    const cardMeta = paypalCards ? 'PayPal Card Fields · Visa / Mastercard / Amex …' : 'Visa / Mastercard / Amex / UnionPay …';
+    const expressRow = paypalCards
+      ? '<div class="slot-row"><span class="ic"><span class="pill pill-gray"><span class="dot"></span>Not available</span></span><div class="bd"><span class="lbl">Express wallets</span><span class="meta">Apple Pay and Google Pay are not available with the current PayPal integration.</span></div></div>'
+      : '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span></span></div></div>';
     return '<div class="panel card-pad">' +
       '<div class="slot-head"><span class="slot-title">Processed by ' + esc(a.name) + '</span>' + picker + '</div>' +
-      '<div class="sec-sub" style="margin:0 0 14px">Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.</div>' +
-      '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Cards</span><span class="meta">Visa / Mastercard / Amex / UnionPay …</span></div></div>' +
-      '<div class="slot-row"><span class="ic">' + (expIcos || '<span class="muted" style="font-size:12px">This processor has no Express</span>') + '</span><div class="bd"><span class="lbl">Express Checkout</span><span class="meta">Auto-rendered by buyer environment · <span class="lnkico" data-dash="' + a.key + '">Manage in dashboard ↗</span></span></div></div>' +
+      '<div class="sec-sub" style="margin:0 0 14px">' + intro + '</div>' +
+      '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Cards</span><span class="meta">' + cardMeta + '</span></div></div>' +
+      expressRow +
       '<div class="syncline">Synced from the active processor · just now · <span class="lnkico" data-dash="' + a.key + '">↻ Refresh</span></div>' +
     '</div>';
   }
@@ -384,7 +413,7 @@
   // ② 独立支付方式（PayPal / Klarna 自有直连）
   function pIndep() {
     let html = ''; const pp = D.payments.paypal;
-    html += '<div class="panel imeth"><span class="lg">' + payImg('paypal-logo.svg', 24) + '</span><div><div class="nm">PayPal</div><div class="sub">Independent wallet, self-settling · runs alongside the card processor</div></div><div class="right">' + pMethPill(pp.connected, pp.on) + (pp.connected ? '<span class="sw' + (pp.on ? ' on' : '') + '" data-itg="paypal"><i></i></span><button class="set-prim" data-cfg="paypal">Manage</button>' : '<button class="btn btn-primary" data-cfg="paypal">Connect</button>') + '</div></div>';
+    html += '<div class="panel imeth paypal-method"><div class="imeth-head"><span class="lg">' + payImg('paypal-logo.svg', 24) + '</span><div><div class="nm">PayPal Wallet</div><div class="sub">Independent wallet, self-settling · runs alongside the card processor</div></div><div class="right">' + pMethPill(pp.connected, pp.walletOn) + (pp.connected ? '<span class="sw' + (pp.walletOn ? ' on' : '') + '" data-itg="paypal"><i></i></span><button class="set-prim" data-cfg="paypal">Manage</button>' : '<button class="btn btn-primary" data-cfg="paypal">Connect</button>') + '</div></div>' + (pp.connected ? pPaypalCapabilities() + '<div class="dnote">Use the same PayPal account for Wallet and, when eligible, PayPal Cards. Choose PayPal Cards above to replace the current card processor; Apple Pay and Google Pay stay unavailable for this connection.</div>' : '') + '</div>';
     {
       const k = D.payments.klarna;
       if (k.directConnected) {
@@ -400,7 +429,7 @@
   function pPreview() {
     const a = pActive();
     const express = a ? (PAY_EXPRESS[a.key] || []).slice() : [];
-    const hasPaypal = D.payments.paypal.connected && D.payments.paypal.on;
+    const hasPaypal = D.payments.paypal.connected && D.payments.paypal.walletOn;
     const klarnaDirect = D.payments.klarna.directConnected && D.payments.klarna.directOn;
     const hasCard = !!a;
     if (!express.length && !hasPaypal && !klarnaDirect && !hasCard) return '<div class="muted" style="text-align:center;padding:24px 0;font-size:13px">No payment provider connected yet, buyers can\'t pay.</div>';
@@ -421,7 +450,8 @@
     if (hasCard) {
       const anyW = hasPaypal || express.length || klarnaDirect;
       if (anyW) html += '<div style="text-align:center;font-size:11px;color:var(--ink-muted);margin:2px 0 10px">or pay with card</div>';
-      html += '<div class="ck-opt sel"><span class="ck-radio"></span><span>Cards</span><span class="ck-ico">' + PAY_ICON.cards + '</span></div>';
+      const cardLabel = a && a.key === 'paypal_cards' ? 'Cards · PayPal' : 'Cards';
+      html += '<div class="ck-opt sel"><span class="ck-radio"></span><span>' + cardLabel + '</span><span class="ck-ico">' + PAY_ICON.cards + '</span></div>';
     }
     return html + '<div class="ck-pay">Pay now</div>';
   }
@@ -433,23 +463,30 @@
 
   // Switch processor — confirm dialog (reuses SPA modal())
   function pConfirmSwitch(key) {
-    const cur = pActive(); const p = D.payments.processors.find((x) => x.key === key);
+    const cur = pActive(); const p = pProcsVis().find((x) => x.key === key);
+    const paypalImpact = key === 'paypal_cards'
+      ? '<div class="dnote" style="margin-top:10px">Cards will move to PayPal. Apple Pay and Google Pay from the current processor will no longer be shown.</div>'
+      : '';
     modal({ title: 'Switch card processor', width: 440, okText: 'Switch',
-      body: '<div style="font-size:13.5px;line-height:1.65;color:var(--ink-body)">Cards and Express Checkout at checkout will switch processor. The payment methods buyers see may change accordingly.</div><div style="font-size:13px;margin-top:8px"><b>' + esc(cur ? cur.name : '—') + '</b> → <b>' + esc(p.name) + '</b></div><div class="muted" style="font-size:12px;margin-top:10px">Switch during off-peak hours; in-flight transactions are unaffected.</div>',
+      body: '<div style="font-size:13.5px;line-height:1.65;color:var(--ink-body)">Cards and Express Checkout at checkout will switch processor. The payment methods buyers see may change accordingly.</div><div style="font-size:13px;margin-top:8px"><b>' + esc(cur ? cur.name : '—') + '</b> → <b>' + esc(p.name) + '</b></div>' + paypalImpact + '<div class="muted" style="font-size:12px;margin-top:10px">Switch during off-peak hours; in-flight transactions are unaffected.</div>',
       onOk: (m, close) => { D.payments.cardProcessor = key; close(); renderPayments(); toast('Switched successfully'); } });
   }
 
-  function pIsConnected(key) { if (key === 'paypal') return D.payments.paypal.connected; if (key === 'klarna_direct') return D.payments.klarna.directConnected; const p = D.payments.processors.find((p) => p.key === key); return p && p.connected; }
-  function pEntName(key) { if (key === 'paypal') return 'PayPal'; if (key === 'klarna_direct') return 'Klarna Direct'; const p = D.payments.processors.find((p) => p.key === key); return p ? p.name : ''; }
+  function pIsConnected(key) { if (key === 'paypal') return D.payments.paypal.connected; if (key === 'paypal_cards') return D.payments.paypal.connected && D.payments.paypal.capabilities.cards === 'eligible'; if (key === 'klarna_direct') return D.payments.klarna.directConnected; const p = D.payments.processors.find((p) => p.key === key); return p && p.connected; }
+  function pEntName(key) { if (key === 'paypal' || key === 'paypal_cards') return 'PayPal'; if (key === 'klarna_direct') return 'Klarna Direct'; const p = D.payments.processors.find((p) => p.key === key); return p ? p.name : ''; }
 
   // 连接 / 管理弹窗（复用 SPA modal()；凭证按 shop_id 隔离 + webhook 提示）
   function pConnect(key) {
     if (key === 'paypal') D.payments.paypal.connected = true;
+    else if (key === 'paypal_cards') return;
     else if (key === 'klarna_direct') { D.payments.klarna.directConnected = true; D.payments.klarna.directOn = true; }
     else { const pr = D.payments.processors.find((p) => p.key === key); pr.connected = true; if (!D.payments.processors.some((p) => p.connected && p.key === D.payments.cardProcessor)) D.payments.cardProcessor = key; }
   }
   function pDisconnect(key) {
-    if (key === 'paypal') D.payments.paypal.connected = false;
+    if (key === 'paypal') {
+      D.payments.paypal.connected = false;
+      if (D.payments.cardProcessor === 'paypal_cards') { const n = pConnected()[0]; D.payments.cardProcessor = n ? n.key : null; }
+    }
     else if (key === 'klarna_direct') D.payments.klarna.directConnected = false;
     else { const pr = D.payments.processors.find((p) => p.key === key); pr.connected = false; if (D.payments.cardProcessor === key) { const n = pConnected()[0]; D.payments.cardProcessor = n ? n.key : null; } }
   }
@@ -458,6 +495,7 @@
     const spec = PAY_FORMS[key] || { fields: [{ k: 'k1', label: 'API key' }, { k: 'k2', label: 'Secret' }] };
     let body = '';
     if (spec.desc) body += '<div class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.5">' + esc(spec.desc) + '</div>';
+    if (key === 'paypal') body += pPaypalCapabilities();
     body += '<div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">Credentials are used for this store only (isolated by shop_id). Webhook callback URL:<br/><code style="font-size:11.5px;color:var(--brand)">/webhook/' + key + '/{shop_id}</code></div>';
     body += spec.fields.map((f) => {
       const learn = f.learn ? '<a href="' + f.learn + '" target="_blank" style="font-size:12px;color:var(--brand);font-weight:400">Learn more</a>' : '';
@@ -531,6 +569,7 @@
     '.payv2 .lnkico{color:var(--brand);cursor:pointer}.payv2 .lnkico:hover{text-decoration:underline}' +
     '.payv2 .syncline{font-size:12px;color:var(--ink-muted);padding-top:12px;border-top:1px solid var(--hair);display:flex;gap:8px;flex-wrap:wrap;align-items:center}' +
     '.payv2 .imeth{display:flex;align-items:center;gap:13px;padding:15px 16px;margin-bottom:12px}' +
+    '.payv2 .paypal-method{display:block}.payv2 .imeth-head{display:flex;align-items:center;gap:13px}' +
     '.payv2 .imeth .lg{height:24px;display:flex;align-items:center}.payv2 .imeth .lg img{height:24px}' +
     '.payv2 .imeth .nm{font-weight:700;font-size:14px;color:var(--ink)}' +
     '.payv2 .imeth .sub{font-size:12.5px;color:var(--ink-muted);margin-top:2px}' +
@@ -539,6 +578,7 @@
     '.payv2 .set-prim{font-size:12px;color:var(--brand);background:#fff;border:1px solid var(--ctl);border-radius:8px;padding:5px 11px;cursor:pointer}' +
     '.payv2 .set-prim:hover{border-color:var(--brand);background:var(--brand-50)}' +
     '.payv2 .pm-mono{font-weight:800;font-size:13px;color:var(--ink)}' +
+    '.paypal-caps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 0}.paypal-cap{min-height:48px;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px;font-size:12px;color:var(--ink-body)}.paypal-cap small{grid-column:1 / -1;color:var(--ink-muted);font-size:11px}.paypal-cap-state{font-size:11px;font-weight:700}.paypal-cap-state.ok{color:var(--ok)}.paypal-cap-state.off{color:var(--ink-muted)}' +
     '.payv2 .reco{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #cfe1ff;background:linear-gradient(95deg,#eef4ff,#f7faff);border-radius:12px;margin-bottom:18px}' +
     '.payv2 .reco .star{width:38px;height:38px;border-radius:10px;background:var(--brand);color:#fff;display:grid;place-items:center;flex:none}' +
     '.payv2 .preview-col{position:sticky;top:16px}' +
@@ -559,7 +599,7 @@
   function renderPayments() {
     const main =
       '<div class="sec-title" style="margin-top:0">① Cards &amp; Express checkout</div>' +
-      '<div class="sec-sub">Only one processor at a time renders cards and Express Checkout. Switching the processor moves cards and Apple/Google Pay together.</div>' +
+      '<div class="sec-sub">Only one processor at a time renders card fields. Express wallets follow the active processor; PayPal Cards does not provide Apple Pay or Google Pay in this integration.</div>' +
       pSlot() +
       '<div class="sec-title">② Independent payment methods</div>' +
       '<div class="sec-sub">Self-settling — can run alongside the card processor, each on its own rails.</div>' +
@@ -578,7 +618,7 @@
       false
     );
     root.querySelectorAll('[data-setproc]').forEach((el) => el.onclick = () => pConfirmSwitch(el.dataset.setproc));
-    root.querySelectorAll('[data-itg]').forEach((el) => el.onclick = () => { const k = el.dataset.itg; if (k === 'paypal') D.payments.paypal.on = !D.payments.paypal.on; else if (k === 'klarna_direct') D.payments.klarna.directOn = !D.payments.klarna.directOn; renderPayments(); });
+    root.querySelectorAll('[data-itg]').forEach((el) => el.onclick = () => { const k = el.dataset.itg; if (k === 'paypal') D.payments.paypal.walletOn = !D.payments.paypal.walletOn; else if (k === 'klarna_direct') D.payments.klarna.directOn = !D.payments.klarna.directOn; renderPayments(); });
     root.querySelectorAll('[data-cfg]').forEach((el) => el.onclick = () => pOpenConnect(el.dataset.cfg));
     root.querySelectorAll('[data-dash]').forEach((el) => el.onclick = () => toast('(Prototype) Opens the processor dashboard — Payment method configurations'));
   }

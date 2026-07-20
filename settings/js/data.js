@@ -149,10 +149,12 @@ window.DATA_SETTINGS = {
   // PAYMENTS  (tab_switch_payment_processor + tab_pay_airwallex/_stripe/_paypal)
   //   The page itself only persists the processor radio; each provider's
   //   credentials are entered in its own modal. Card order in real admin:
-  //   Airwallex first, then Stripe. PayPal is a separate card.
+  //   Airwallex first, then Stripe. PayPal contributes one shared account to
+  //   both PayPal Wallet and (when eligible) the primary Cards slot.
   // =========================================================================
   // v2 渠道/方式模型（见 app.js renderPayments + docs/支付对接现状_Stripe_Airwallex.md）
-  //   卡+Express = 单处理方槽位（cardProcessor，仅 active 一个）；独立方式 = PayPal / Klarna 自有直连。
+  //   卡+Express = 单处理方槽位（cardProcessor，仅 active 一个）；PayPal Wallet /
+  //   Klarna 自有直连为独立方式。PayPal Cards 复用 PayPal 账户，但仍受主卡槽位互斥约束。
   //   phase 1 = 上线版（3 BYO）；phase 2 = 渠道扩展（更多 PSP + Klarna 直连）。
   payments: {
     phase: 1,                 // 1 = 一期上线版；2 = 二期渠道扩展（演示路线图）
@@ -169,8 +171,13 @@ window.DATA_SETTINGS = {
       { key: 'nmi',       name: 'NMI',          connected: false, phase2: true },
       { key: 'braintree', name: 'Braintree',    connected: false, phase2: true },
     ],
-    // 独立方式（自带清算，与卡处理方并存）
-    paypal: { connected: true, on: true },
+    // PayPal 账户只连一次：Wallet 可独立启用；Cards 只在 eligible 时加入主卡处理方候选。
+    // Apple Pay / Google Pay 是当前 PayPal 接入明确不支持的能力，不能被本地开关“打开”。
+    paypal: {
+      connected: true,
+      walletOn: true,
+      capabilities: { cards: 'eligible', wallet: 'eligible', applePay: 'unavailable', googlePay: 'unavailable' },
+    },
     klarna: { directConnected: true, directOn: true }, // 自有直连，仅二期展示
   },
 
