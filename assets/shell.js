@@ -418,6 +418,9 @@
   // ---------- router ----------
   function dispatch() {
     var p = parse();
+    // The standalone Post purchase app has been retired. Preserve old bookmarks
+    // without attempting to lazy-load its deleted assets.
+    if (p.first === 'post-purchase') { location.hash = '#/home'; return; }
     if (p.settings) { renderSettings(p); return; }   // settings = full-screen modal overlay
     removeSettings();
     var moduleId = ROUTE_MODULE[p.first] || p.first;
@@ -425,7 +428,6 @@
     if (p.first === 'analytics') { var asub = p.rest.split('/')[0]; activeId = asub ? 'analytics-' + asub : 'analytics'; }
     if (p.first === 'subscriptions') { var ssub = p.rest.split('/')[0]; activeId = ssub ? 'subscriptions-' + ssub : 'subscriptions'; }
     if (p.first === 'bestcheckout') { var bsub = p.rest.split('/')[0]; activeId = bsub ? 'bestcheckout-' + bsub : 'bestcheckout'; }
-    if (p.first === 'post-purchase') { var psub = p.rest.split('/')[0]; activeId = psub ? 'post-purchase-' + psub : 'post-purchase'; }
     curActiveId = activeId;
     renderSidebar(activeId);
     if (current && current !== moduleId && window.VIEWS[current] && window.VIEWS[current].unmount) {
