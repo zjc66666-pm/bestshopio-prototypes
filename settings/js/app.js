@@ -363,17 +363,6 @@
     if (!connected) return '<span class="pill pill-gray"><span class="dot"></span>Not connected</span>';
     return on ? '<span class="pill pill-green"><span class="dot"></span>Connected</span>' : '<span class="pill pill-gray"><span class="dot"></span>Disabled</span>';
   }
-  function pPaypalCapabilities() {
-    const c = D.payments.paypal.capabilities;
-    const row = (name, state, note) => '<div class="paypal-cap"><span>' + name + '</span><span class="paypal-cap-state ' + (state === 'Eligible' || state === 'Available' ? 'ok' : 'off') + '">' + state + '</span>' + (note ? '<small>' + note + '</small>' : '') + '</div>';
-    return '<div class="paypal-caps">' +
-      row('Cards', c.cards === 'eligible' ? 'Eligible' : 'Unavailable', 'Use as primary processor') +
-      row('PayPal Wallet', c.wallet === 'eligible' ? 'Available' : 'Unavailable') +
-      row('Apple Pay', 'Not available') +
-      row('Google Pay', 'Not available') +
-    '</div>';
-  }
-
   // ① 卡 + Express 单处理方槽位（picker 内连接/切换/管理）
   function pSlot() {
     const a = pActive();
@@ -413,7 +402,7 @@
   // ② 独立支付方式（PayPal / Klarna 自有直连）
   function pIndep() {
     let html = ''; const pp = D.payments.paypal;
-    html += '<div class="panel imeth paypal-method"><div class="imeth-head"><span class="lg">' + payImg('paypal-logo.svg', 24) + '</span><div><div class="nm">PayPal Wallet</div><div class="sub">Independent wallet, self-settling · runs alongside the card processor</div></div><div class="right">' + pMethPill(pp.connected, pp.walletOn) + (pp.connected ? '<span class="sw' + (pp.walletOn ? ' on' : '') + '" data-itg="paypal"><i></i></span><button class="set-prim" data-cfg="paypal">Manage</button>' : '<button class="btn btn-primary" data-cfg="paypal">Connect</button>') + '</div></div>' + (pp.connected ? pPaypalCapabilities() + '<div class="dnote">Use the same PayPal account for Wallet and, when eligible, PayPal Cards. Choose PayPal Cards above to replace the current card processor; Apple Pay and Google Pay stay unavailable for this connection.</div>' : '') + '</div>';
+    html += '<div class="panel imeth paypal-method"><div class="imeth-head"><span class="lg">' + payImg('paypal-logo.svg', 24) + '</span><div><div class="nm">PayPal Wallet</div><div class="sub">Independent wallet, self-settling · runs alongside the card processor</div></div><div class="right">' + pMethPill(pp.connected, pp.walletOn) + (pp.connected ? '<span class="sw' + (pp.walletOn ? ' on' : '') + '" data-itg="paypal"><i></i></span><button class="set-prim" data-cfg="paypal">Manage</button>' : '<button class="btn btn-primary" data-cfg="paypal">Connect</button>') + '</div></div></div>';
     {
       const k = D.payments.klarna;
       if (k.directConnected) {
@@ -578,7 +567,6 @@
     '.payv2 .set-prim{font-size:12px;color:var(--brand);background:#fff;border:1px solid var(--ctl);border-radius:8px;padding:5px 11px;cursor:pointer}' +
     '.payv2 .set-prim:hover{border-color:var(--brand);background:var(--brand-50)}' +
     '.payv2 .pm-mono{font-weight:800;font-size:13px;color:var(--ink)}' +
-    '.paypal-caps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 0}.paypal-cap{position:relative;min-height:48px;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px;font-size:12px;color:var(--ink-body)}.paypal-cap small{grid-column:1 / -1;color:var(--ink-muted);font-size:11px}.paypal-cap-state{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:700}.paypal-cap-state.ok{color:var(--ok)}.paypal-cap-state.off{color:var(--ink-muted)}' +
     '.payv2 .reco{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #cfe1ff;background:linear-gradient(95deg,#eef4ff,#f7faff);border-radius:12px;margin-bottom:18px}' +
     '.payv2 .reco .star{width:38px;height:38px;border-radius:10px;background:var(--brand);color:#fff;display:grid;place-items:center;flex:none}' +
     '.payv2 .preview-col{position:sticky;top:16px}' +
