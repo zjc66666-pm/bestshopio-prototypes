@@ -1765,9 +1765,11 @@
     { domain: 'promo.nutrofuels.io',        type: 'custom', primary: false, status: 'ssl_failed',           redirectTo: null },
     { domain: 'nutrofuels.stores.bestshopio.com', type: 'system', primary: false, status: 'connected',      redirectTo: null },
   ];
-  let domainStep = null;   // null = list · 'add' = configure DNS · 'bound' = success (set by show())
+  let domainStep = null;   // null = list · 'add' = configure DNS · 'bound' = binding / success (set by show())
   let pendingDomain = '';  // domain being added through the wizard
-  let domainVerifyFailed = false; // wizard: first "Verify now" shows the DNS-not-detected state, retry succeeds
+  let domainBinding = null; // { domain, ready, failed, phase } — prototype stand-in for the async Ops task
+  let domainVerificationDomain = '';
+  let domainVerificationAttempt = 0;
 
   const DOMAIN_BADGE = {
     connected:            { cls: 'pill-green',  label: 'Connected' },
@@ -1815,6 +1817,8 @@
   .dns-fail svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
   .dbound { text-align: center; padding: 30px 20px 12px; }
   .dbound .ck { width: 60px; height: 60px; border-radius: 50%; background: #e7f7ee; color: #2bb673; display: grid; place-items: center; margin: 0 auto 16px; }
+  .dbinding { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .dbinding .ssl-spin { width: 34px; height: 34px; border-width: 3px; margin: 0 auto 18px; }
   /* modal form fields (Connect domain) — same look as the Roles/Staff modal inputs */
   .sp-field { margin-bottom: 16px; }
   .sp-label { display: block; margin-bottom: 7px; font-size: 13.5px; font-weight: 600; color: #2f3542; }
@@ -1871,11 +1875,13 @@
     root.querySelectorAll('[data-del]').forEach((b) => b.onclick = () => deleteDomain(b.getAttribute('data-del')));
     root.querySelectorAll('[data-primary]').forEach((b) => b.onclick = () => setPrimaryDomain(b.getAttribute('data-primary')));
     root.querySelectorAll('[data-verify]').forEach((b) => b.onclick = () => verifyDomain(b.getAttribute('data-verify')));
-    root.querySelectorAll('[data-guide]').forEach((b) => b.onclick = () => { pendingDomain = b.getAttribute('data-guide'); domainVerifyFailed = false; location.hash = '#/settings/domains/add'; });
+    root.querySelectorAll('[data-guide]').forEach((b) => b.onclick = () => { pendingDomain = b.getAttribute('data-guide'); location.hash = '#/settings/domains/add'; });
     root.querySelectorAll('[data-redirect]').forEach((b) => b.onclick = () => redirectDomain(b.getAttribute('data-redirect')));
   }
   function renderAddDomainDNS() {
     const dom = pendingDomain || 'yourdomain.com';
+    const entry = domainsData.find((d) => d.domain === dom);
+    const hasDnsError = !!entry && entry.status === 'dns_error';
     paint(
       '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
         pageHead('Add a domain') +
@@ -1892,12 +1898,12 @@
             '<div class="dns-tr"><div class="dns-cell dns-mono">A</div><div class="dns-cell dns-mono">@</div><div class="dns-cell dns-mono">' + PLATFORM_IP + '</div><div class="dns-cell"><button class="dns-copy" data-copy="' + PLATFORM_IP + '">Copy</button></div></div>' +
             '<div class="dns-tr"><div class="dns-cell dns-mono">CNAME</div><div class="dns-cell dns-mono">www</div><div class="dns-cell dns-mono">' + PLATFORM_CNAME + '</div><div class="dns-cell"><button class="dns-copy" data-copy="' + PLATFORM_CNAME + '">Copy</button></div></div>' +
           '</div>' +
-          (domainVerifyFailed
-            ? '<div class="dns-fail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div><b>We couldn\'t detect your DNS records yet.</b> DNS changes can take up to 30 minutes to take effect. Double-check the records above match exactly, then verify again.</div></div>'
-            : '<div class="ssl-pill"><span class="ssl-spin"></span>Waiting for DNS to propagate, then SSL is issued automatically (usually within 30 minutes).</div>') +
+          (hasDnsError
+            ? '<div class="dns-fail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div><b>We couldn\'t detect your DNS records yet.</b> Double-check the A and CNAME records, then verify again.</div></div>'
+            : '<div class="ssl-pill"><span class="ssl-spin"></span>After adding the records, click Verify now to check your domain.</div>') +
           '<div class="flex items-center justify-between" style="margin-top:22px">' +
             '<a class="lnk" data-guide-faq style="font-size:13px;cursor:pointer">Having issues? View the setup guide</a>' +
-            '<div class="flex" style="gap:10px"><button class="btn btn-gray" data-verify-later>Verify later</button><button class="btn btn-primary" data-verify-now>' + (domainVerifyFailed ? 'Verify again' : 'Verify now') + '</button></div>' +
+            '<div class="flex" style="gap:10px"><button class="btn btn-gray" data-verify-later>Verify later</button><button class="btn btn-primary" data-verify-now>' + (hasDnsError ? 'Verify again' : 'Verify now') + '</button></div>' +
           '</div>' +
         '</div>' +
       '</div>',
@@ -1905,38 +1911,120 @@
     );
     root.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => { try { navigator.clipboard.writeText(b.getAttribute('data-copy')); } catch (e) {} toast('Copied'); });
     root.querySelector('[data-verify-later]').onclick = () => { location.hash = '#/settings/domains'; };
-    root.querySelector('[data-verify-now]').onclick = () => {
-      if (!domainVerifyFailed) { domainVerifyFailed = true; renderAddDomainDNS(); }    // first check: DNS not propagated yet → show failure state
-      else { domainVerifyFailed = false; location.hash = '#/settings/domains/bound'; } // retry: records detected → bound
-    };
+    root.querySelector('[data-verify-now]').onclick = () => startDomainBinding(dom);
     root.querySelector('[data-guide-faq]').onclick = () => openDomainGuide();
   }
+  function ensureCustomDomain(dom, status) {
+    let entry = domainsData.find((d) => d.domain === dom);
+    if (!entry) {
+      const systemIndex = domainsData.findIndex((d) => d.type === 'system');
+      entry = { domain: dom, type: 'custom', primary: false, status: status || 'pending_verification', redirectTo: null };
+      domainsData.splice(systemIndex < 0 ? domainsData.length : systemIndex, 0, entry);
+    } else if (status) {
+      entry.status = status;
+    }
+    return entry;
+  }
+  function resetDomainVerificationDemo(dom) {
+    domainVerificationDomain = dom;
+    domainVerificationAttempt = 0;
+  }
+  function startDomainBinding(dom) {
+    if (domainVerificationDomain !== dom) resetDomainVerificationDemo(dom);
+    domainVerificationAttempt += 1;
+    const result = domainVerificationAttempt === 1
+      ? 'dns_error'
+      : domainVerificationAttempt === 2
+        ? 'ssl_failed'
+        : 'connected';
+    ensureCustomDomain(dom, result === 'dns_error' ? 'pending_verification' : 'ssl_pending');
+    domainBinding = { domain: dom, ready: false, failed: null, phase: result === 'dns_error' ? 'dns' : 'ssl' };
+    if (location.hash === '#/settings/domains/bound') renderAddDomainBound();
+    else location.hash = '#/settings/domains/bound';
+
+    // Prototype-only walkthrough: first DNS failure → SSL failure → connected.
+    // Production UI polls the Ops task instead of deriving results from click count.
+    window.setTimeout(() => {
+      const entry = domainsData.find((d) => d.domain === dom);
+      if (!entry) return; // The merchant removed it while the simulated task was running.
+      if (result === 'dns_error') {
+        entry.status = 'dns_error';
+        if (domainBinding && domainBinding.domain === dom) {
+          domainBinding = null;
+          if (location.hash === '#/settings/domains/bound') location.hash = '#/settings/domains/add';
+        }
+        if (location.hash === '#/settings/domains') renderDomainList();
+        return;
+      }
+      if (result === 'ssl_failed') {
+        entry.status = 'ssl_failed';
+        if (domainBinding && domainBinding.domain === dom) {
+          domainBinding.failed = 'ssl_failed';
+          if (location.hash === '#/settings/domains/bound') renderAddDomainBound();
+        }
+        if (location.hash === '#/settings/domains') renderDomainList();
+        return;
+      }
+      entry.status = 'connected';
+      if (domainBinding && domainBinding.domain === dom) {
+        domainBinding.ready = true;
+        if (location.hash === '#/settings/domains/bound') renderAddDomainBound();
+      }
+      if (location.hash === '#/settings/domains') renderDomainList();
+    }, 3200);
+  }
   function renderAddDomainBound() {
-    const dom = pendingDomain || 'yourdomain.com';
-    paint(
-      '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
-        pageHead('Add a domain') +
-        '<div class="dstep">' +
-          '<span class="sp ok"><span class="sn">' + I.check + '</span>Add a domain</span><span class="ln"></span>' +
-          '<span class="sp ok"><span class="sn">' + I.check + '</span>Configure DNS</span><span class="ln"></span>' +
-          '<span class="sp on"><span class="sn">3</span>Domain bound</span>' +
-        '</div>' +
-        '<div class="panel card-pad"><div class="dbound">' +
+    const binding = domainBinding && domainBinding.domain === pendingDomain ? domainBinding : null;
+    const dom = (binding && binding.domain) || pendingDomain || 'yourdomain.com';
+    const isSslFailed = !!binding && binding.failed === 'ssl_failed';
+    const isBinding = !!binding && !binding.ready && !isSslFailed;
+    const isCheckingDns = isBinding && binding.phase === 'dns';
+    const loadingTitle = isCheckingDns ? 'Checking your DNS records…' : 'Connecting your domain…';
+    const loadingCopy = isCheckingDns
+      ? 'We\'re checking the records for <b>' + esc(dom) + '</b>.'
+      : 'We\'re securing <b>' + esc(dom) + '</b>.';
+    const body = isBinding
+      ? '<div class="panel card-pad"><div class="dbound dbinding">' +
+          '<span class="ssl-spin"></span>' +
+          '<div class="page-title" style="font-size:20px">' + loadingTitle + '</div>' +
+          '<div class="muted" style="font-size:13.5px;margin-top:6px;line-height:1.6">' + loadingCopy + ' This takes just a few seconds.</div>' +
+          '<div class="muted" style="font-size:12.5px;margin-top:5px">You can safely leave this page.</div>' +
+          '<div style="margin-top:20px"><button class="btn btn-gray" data-back-domains>Back to domains</button></div>' +
+        '</div></div>'
+      : isSslFailed
+        ? '<div class="panel card-pad"><div class="dbound">' +
+            '<div class="ck" style="background:#fdecea;color:#d33612"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></div>' +
+            '<div class="page-title" style="font-size:20px">We couldn\'t issue an SSL certificate</div>' +
+            '<div class="muted" style="font-size:13.5px;margin-top:6px;line-height:1.6">Your DNS records are detected, but the certificate for <b>' + esc(dom) + '</b> could not be issued.</div>' +
+            '<div style="margin-top:20px;display:flex;justify-content:center;gap:10px"><button class="btn btn-gray" data-back-domains>Back to domains</button><button class="btn btn-primary" data-retry-binding>Retry</button></div>' +
+          '</div></div>'
+      : '<div class="panel card-pad"><div class="dbound">' +
           '<div class="ck"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>' +
           '<div class="page-title" style="font-size:20px">' + esc(dom) + ' is connected</div>' +
           '<div class="muted" style="font-size:13.5px;margin-top:6px;line-height:1.6">Both <b>https://' + esc(dom) + '</b> and <b>https://www.' + esc(dom) + '</b> are live and secured with SSL.</div>' +
           '<div style="color:#2bb673;font-weight:600;font-size:13px;margin-top:8px">SSL active · auto-renews before expiry</div>' +
           '<div style="margin-top:20px"><button class="btn btn-primary" data-back-domains>Back to domains</button></div>' +
-        '</div></div>' +
+        '</div></div>';
+    paint(
+      '<style>' + DOMAIN_STYLES + '</style><div class="dom-wrap">' +
+        pageHead('Add a domain') +
+        '<div class="dstep">' +
+          '<span class="sp ok"><span class="sn">' + I.check + '</span>Add a domain</span><span class="ln"></span>' +
+          (isCheckingDns
+            ? '<span class="sp on"><span class="sn">2</span>Checking DNS</span><span class="ln"></span><span class="sp"><span class="sn">3</span>Domain bound</span>'
+            : '<span class="sp ok"><span class="sn">' + I.check + '</span>Configure DNS</span><span class="ln"></span><span class="sp on"><span class="sn">3</span>' + (isBinding ? 'Connecting domain' : isSslFailed ? 'SSL failed' : 'Domain bound') + '</span>') +
+        '</div>' +
+        body +
       '</div>',
       false
     );
+    const retry = root.querySelector('[data-retry-binding]');
+    if (retry) retry.onclick = () => startDomainBinding(dom);
     root.querySelector('[data-back-domains]').onclick = () => {
-      // persist the newly-connected domain into the list (idempotent)
-      if (pendingDomain && !domainsData.some((d) => d.domain === pendingDomain)) {
-        domainsData.splice(domainsData.length - 1, 0, { domain: pendingDomain, type: 'custom', primary: false, status: 'connected', redirectTo: null });
+      if (!isBinding) {
+        pendingDomain = '';
+        if (domainBinding && domainBinding.domain === dom) domainBinding = null;
       }
-      pendingDomain = '';
       location.hash = '#/settings/domains';
     };
   }
@@ -1960,7 +2048,7 @@
         if (!v) { setErr(m, 'add-dom', 'Please enter a domain'); m.querySelector('#add-dom').classList.add('err'); return; }
         if (!validDomain(v)) { setErr(m, 'add-dom', 'Enter a valid domain without www or https://'); m.querySelector('#add-dom').classList.add('err'); return; }
         if (domainsData.some((d) => d.domain === v || d.domain === 'www.' + v)) { setErr(m, 'add-dom', 'This domain is already added'); m.querySelector('#add-dom').classList.add('err'); return; }
-        pendingDomain = v; domainVerifyFailed = false; close(); location.hash = '#/settings/domains/add';
+        pendingDomain = v; domainBinding = null; resetDomainVerificationDemo(v); ensureCustomDomain(v, 'pending_verification'); close(); location.hash = '#/settings/domains/add';
       },
     });
   }
@@ -1984,9 +2072,8 @@
     if (d) { d.redirectTo = primary.domain; toast('Now redirecting to ' + primary.domain); renderDomainList(); }
   }
   function verifyDomain(dom) {
-    const d = domainsData.find((x) => x.domain === dom);
-    if (d) { d.status = 'connected'; }
-    toast('Domain connected · SSL active'); renderDomainList();
+    pendingDomain = dom;
+    startDomainBinding(dom);
   }
   // "Having issues? View the setup guide" — DNS records recap + troubleshooting.
   function openDomainGuide() {
