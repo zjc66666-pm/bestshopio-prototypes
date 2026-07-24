@@ -277,26 +277,17 @@
   // ==========================================================================
   //  BUILDER  (#/online-store/edit/:handle)
   // ==========================================================================
-  function renderBuilder(handle, page, exitTo, tpl, saved) {
+  function renderBuilder(handle, page, tpl) {
     if (!ED || ED.meta.handle !== handle) startEditor(handle);
     // One-click checkout template: replace the checkout page's sections with the chosen preset.
     if (tpl && D.CHECKOUT_TEMPLATES && D.CHECKOUT_TEMPLATES[tpl] && ED.theme.templates.checkout) {
       ED.theme.templates.checkout.sections = D.CHECKOUT_TEMPLATES[tpl].seeds.map(matSection);
-    }
-    // Load a merchant-saved BestCheckout template (localStorage) into its page.
-    if (saved) {
-      let store; try { store = JSON.parse(localStorage.getItem('bsio_bc_templates') || '{}'); } catch (e) { store = {}; }
-      Object.keys(store).forEach((k) => {
-        const tp = (store[k] || []).filter((x) => x.id === saved)[0];
-        if (tp && tp.sections) { const pg2 = k === 'thankyou' ? 'thank-you' : k; if (ED.theme.templates[pg2]) ED.theme.templates[pg2].sections = tp.sections.map(matSection); }
-      });
     }
     if (page && ED.theme.templates[page]) {
       ED.currentPage = page;
       const secs0 = ED.theme.templates[page].sections;
       ED.selection = (secs0 && secs0.length) ? { kind: 'section', sectionId: secs0[0].id } : { kind: 'announcement' };
     }
-    ED.exitTo = exitTo || null; // where the back button returns (default: theme list)
     closeBuilder(); ensureStyles();
     const b = h('<div class="os-builder" id="os-builder"></div>');
     b.appendChild(topBar());
@@ -337,7 +328,6 @@
         '</div>' +
       '</div>' +
       '<div class="os-top-r">' +
-        ((ED.exitTo && ED.exitTo.indexOf('#/bestcheckout') === 0) ? '<button class="btn btn-default" id="t-saveas" title="Save the current layout as a new template in the library">Save as template</button>' : '') +
         '<button class="btn btn-default" id="t-discard"' + (dirty && !busy ? '' : ' disabled') + '>Discard</button>' +
         '<button class="btn btn-default" id="t-save"' + (dirty && !busy ? '' : ' disabled') + '>' + (busy === 'saving' ? 'Saving…' : 'Save') + '</button>' +
         '<button class="btn ' + (issues.length ? 'btn-warn' : 'btn-primary') + '" id="t-pub"' + (((dirty || draft) && !busy) ? '' : ' disabled') + ' title="' + (issues.length ? issues.length + ' validation issue(s)' : 'Publish to storefront') + '">' +
@@ -347,26 +337,13 @@
   }
   function wireTop() {
     const b = document.getElementById('os-builder');
-    b.querySelector('#t-back').onclick = () => attemptLeave(() => { location.hash = (ED && ED.exitTo) || '#/online-store'; });
+    b.querySelector('#t-back').onclick = () => attemptLeave(() => { location.hash = '#/online-store'; });
     b.querySelectorAll('[data-rail]').forEach((x) => x.onclick = () => { ED.leftMode = x.getAttribute('data-rail'); if (ED.leftMode === 'settings') ED.selection = { kind: 'theme-settings' }; else if (ED.selection.kind === 'theme-settings') ED.selection = { kind: 'header' }; rerender(); });
     b.querySelector('#t-page').onclick = (e) => openPageMenu(e.currentTarget);
     b.querySelectorAll('[data-dev]').forEach((x) => x.onclick = () => { const d = x.getAttribute('data-dev'); if (d !== ED.device) { ED.device = d; refreshTop(); refreshCanvas(); } });
     const dis = b.querySelector('#t-discard'); if (dis && !dis.disabled) dis.onclick = onDiscard;
     const sv = b.querySelector('#t-save'); if (sv && !sv.disabled) sv.onclick = onSave;
     const pb = b.querySelector('#t-pub'); if (pb && !pb.disabled) pb.onclick = onPublish;
-    const sa = b.querySelector('#t-saveas'); if (sa) sa.onclick = saveAsBcTemplate;
-  }
-  // Save the current page's layout as a new merchant template in the BestCheckout library (localStorage).
-  function saveAsBcTemplate() {
-    const page = ED.currentPage;
-    const ptKey = page === 'thank-you' ? 'thankyou' : page;
-    const name = (window.prompt('Save as new template — name:', pageLabel() + ' v2') || '').trim();
-    if (!name) return;
-    let store; try { store = JSON.parse(localStorage.getItem('bsio_bc_templates') || '{}'); } catch (e) { store = {}; }
-    store[ptKey] = store[ptKey] || [];
-    store[ptKey].push({ id: 'saved-' + ptKey + '-' + (store[ptKey].length + 1), name: name, accent: '#1f8f4e', layout: page === 'checkout' ? '2col' : 'solo', sections: clone(ED.theme.templates[page].sections) });
-    try { localStorage.setItem('bsio_bc_templates', JSON.stringify(store)); } catch (e) {}
-    toast('Saved as template: ' + name);
   }
 
   // -------------------------------------------------------------- LEFT (tree / settings groups)
@@ -1342,17 +1319,12 @@
     closePops();
     const m = (rest || '').match(/^edit\/([^\/?]+)(?:\/([^?]+))?(?:\?(.*))?$/);
     if (m) {
-      // No page in the URL → open on Home (the storefront default). Without this the shared editor
-      // state could stay on Checkout after editing it via BestCheckout, hiding the Home template.
+      // No page in the URL → open on Home, the storefront default.
       const pg = m[2] ? decodeURIComponent(m[2]) : 'home';
       const q = m[3] || '';
       const tplM = q.match(/(?:^|&)tpl=([^&]+)/);
       const tpl = tplM ? decodeURIComponent(tplM[1]) : null;
-      const savedM = q.match(/(?:^|&)saved=([^&]+)/);
-      const saved = savedM ? decodeURIComponent(savedM[1]) : null;
-      // from BestCheckout: 装修 is always reached from the Funnel (template choice is contextual there) → return to it
-      const exitTo = /(^|&)from=bestcheckout(&|$)/.test(q) ? '#/bestcheckout/funnel' : null;
-      ensureSections().then(() => renderBuilder(decodeURIComponent(m[1]), pg, exitTo, tpl, saved));
+      ensureSections().then(() => renderBuilder(decodeURIComponent(m[1]), pg, tpl));
     } else renderList();
   }
   window.VIEWS = window.VIEWS || {};

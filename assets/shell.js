@@ -9,7 +9,7 @@
    #/orders/5042, or 'base' for #/settings/base). Internal navigation just sets
    location.hash; the router re-dispatches. */
 (function () {
-  var V = '20260722domains'; // cache-bust for lazy-loaded module scripts
+  var V = '20260724legacycleanup1'; // cache-bust for lazy-loaded module scripts
   var s = function (p) { return '<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
   var ICONS = {
     home: s('<path d="M3 9.5 12 3l9 6.5"/><path d="M5 10v10h14V10"/>'),
@@ -166,7 +166,11 @@
   }
   function loadModule(id) {
     if (loaded[id]) return loaded[id];
-    var chain = loadScript(id + '/js/icons.js?v=' + V).catch(function () {});            // optional (analytics)
+    // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every
+    // other lazily loaded module.
+    var chain = id === 'analytics'
+      ? loadScript(id + '/js/icons.js?v=' + V).catch(function () {})
+      : Promise.resolve();
     // Customer detail renders canonical order snapshots. Load the shared order data
     // first so a direct #/customers entry cannot fall back to stale duplicate mocks.
     chain = chain.then(function () {
@@ -421,13 +425,22 @@
     // The standalone Post purchase app has been retired. Preserve old bookmarks
     // without attempting to lazy-load its deleted assets.
     if (p.first === 'post-purchase') { location.hash = '#/home'; return; }
+    // BestCheckout now has its own standalone merchant admin. Preserve old
+    // BestShopio bookmarks by handing them off to the matching destination.
+    if (p.first === 'bestcheckout') {
+      var legacyBestCheckoutSection = p.rest.split('/')[0];
+      var bestCheckoutHash = legacyBestCheckoutSection === 'funnel' ? '#/flows'
+        : legacyBestCheckoutSection === 'connect' ? '#/settings/base'
+          : '#/home';
+      window.location.assign('https://zjc66666-pm.github.io/BestCheckout/app/' + bestCheckoutHash);
+      return;
+    }
     if (p.settings) { renderSettings(p); return; }   // settings = full-screen modal overlay
     removeSettings();
     var moduleId = ROUTE_MODULE[p.first] || p.first;
     var activeId = p.first;
     if (p.first === 'analytics') { var asub = p.rest.split('/')[0]; activeId = asub ? 'analytics-' + asub : 'analytics'; }
     if (p.first === 'subscriptions') { var ssub = p.rest.split('/')[0]; activeId = ssub ? 'subscriptions-' + ssub : 'subscriptions'; }
-    if (p.first === 'bestcheckout') { var bsub = p.rest.split('/')[0]; activeId = bsub ? 'bestcheckout-' + bsub : 'bestcheckout'; }
     curActiveId = activeId;
     renderSidebar(activeId);
     if (current && current !== moduleId && window.VIEWS[current] && window.VIEWS[current].unmount) {

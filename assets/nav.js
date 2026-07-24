@@ -74,21 +74,8 @@ window.NAV_SETTINGS = [
    workspace is a resident top-level item in the sidebar — the separate "Apps"
    shell was dropped as redundant while there's a single built-in app.
    PLUGGABLE_APPS / AppState are kept for a future app marketplace. */
-// Apps Store — order matters for the Apps catalog. Only entries with
-// `showInSidebar !== false` are also rendered in the persistent sidebar.
+// Apps Store — order matters for both the Apps catalog and sidebar group.
 window.PLUGGABLE_APPS = [
-  {
-    id: 'bestcheckout', name: 'BestCheckout', icon: 'card', builtin: true, category: 'Selling', status: 'available', showInSidebar: false,
-    tagline: 'High-converting external checkout for your Shopify store — and your on-ramp to BestShopio.',
-    blurb: 'Bring your Shopify store: products, discounts, shipping and customers sync automatically from Shopify for checkout. Paid orders write back to Shopify for fulfillment. Sell through a faster checkout with one-click post-purchase upsells and multi-MID payment routing, then migrate to a native BestShopio store with a single domain switch. Subscriptions reuse the Subscriptions app.',
-    permissions: ['Connect a Shopify store (OAuth)', 'Auto-sync products, collections, discounts, shipping and customers from Shopify', 'Write paid orders back to Shopify to trigger fulfillment', 'Use connected payment gateways for checkout & routing'],
-    // App workspace with a second-level menu (like Subscriptions / Analytics): parent = Overview, children below.
-    menu: { id: 'bestcheckout', label: 'BestCheckout', icon: 'card', route: '#/bestcheckout', desc: 'External high-converting checkout, payment routing & post-purchase for a connected Shopify store.',
-      children: [
-        { id: 'bestcheckout-funnel',     label: 'Funnel',     route: '#/bestcheckout/funnel' },
-        { id: 'bestcheckout-connect',    label: 'Connection', route: '#/bestcheckout/connect' },
-      ] },
-  },
   {
     id: 'subscriptions', name: 'Subscriptions', icon: 'refresh', builtin: true, category: 'Selling', status: 'available',
     tagline: 'Sell products on a recurring schedule — Subscribe & Save.',
@@ -143,21 +130,11 @@ window.ROUTE_MODULE = {
   reviews: 'reviews', customers: 'customers', discounts: 'discounts',
   blog: 'blog', page: 'page', menu: 'menu', analytics: 'analytics',
   'online-store': 'online-store', google: 'google', facebook: 'facebook', settings: 'settings',
-  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles', bestcheckout: 'bestcheckout',
+  apps: 'apps', subscriptions: 'subscriptions', bundles: 'bundles',
 };
 
 /* Newest first. `modules` lists the route ids each version touched (for the Home changelog). */
 window.CHANGELOG = [
-  {
-    version: 'V1.143', date: '2026-06', title: 'BestCheckout — external checkout for Shopify merchants',
-    modules: [],
-    items: [
-      'New app (sits under Bundles): connect a Shopify store and sell through a faster external checkout with one-click post-purchase upsells and multi-MID payment routing',
-      'Shopify auto-sync — products, collections, discounts, shipping and customers are read from Shopify for checkout; paid orders write back to trigger the merchant’s existing fulfillment apps',
-      'Connection hub gathers the whole Shopify bridge — authorization (OAuth), Shopify data auto-sync, checkout injection (App Embed) and the checkout domain — and retires at migration',
-      'One-domain-switch migration to a native BestShopio store; subscriptions reuse the Subscriptions app rather than a second engine',
-    ],
-  },
   {
     version: 'V1.142', date: '2026-06', title: 'Subscriptions — sell on a recurring schedule',
     modules: [],

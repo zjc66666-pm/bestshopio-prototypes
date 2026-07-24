@@ -17,18 +17,6 @@ window.DATA_APPS = {
       // Mirrors the two-layer model in 系统架构认知 §2.3.
       worksWith: 'Reuses your connected payment gateways and writes recurring orders straight into your main Orders — turn it off and the store runs exactly as before.',
     },
-    bestcheckout: {
-      tagline: 'Win the checkout. Keep the customer.',
-      features: [
-        'External high-converting checkout: one-page checkout with order bumps and one-click post-purchase upsell / downsell — no re-entering the card',
-        'Multi-MID payment routing (ATRI): cascade on soft declines, load-balance across processors, recycle failed rebills',
-        'Bring your Shopify store: products, collections, discounts and shipping sync both ways and stay editable here in BestShopio',
-        'Paid orders write back to Shopify and trigger your existing fulfillment apps (Bestfulfill / Zendrop) — nothing to re-wire',
-        'Connection hub for the Shopify bridge: OAuth authorization, two-way data sync, checkout injection (App Embed) and the checkout domain',
-        'Funnel editor reuses the BestShopio theme builder; one-domain-switch migration to a native store',
-      ],
-      worksWith: 'Reuses your connected payment gateways, the Subscriptions app for recurring billing, and your native Products / Discounts / Shipping / Orders — which is exactly why migrating later is just a domain switch.',
-    },
     loyalty:   { features: ['Points for purchases, reviews and referrals', 'Reward tiers and a redeemable points store'] },
     wholesale: { features: ['Wholesale price lists and per-customer pricing', 'Minimum order quantities and B2B customer groups'] },
     affiliate: { features: ['Referral links and discount codes per affiliate', 'Commission tracking and payout reports'] },

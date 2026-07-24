@@ -1,4 +1,4 @@
-/* i18n: subscriptions + bundles + bestcheckout */
+/* i18n: subscriptions + bundles + shared checkout terminology */
 window.I18N.extend({
   // ============================================================
   //  SUBSCRIPTIONS  (prototypes/subscriptions/js/app.js + data.js)
@@ -330,10 +330,9 @@ window.I18N.extend({
   "Percent off the box": "组合整体折扣",
 
   // ============================================================
-  //  BESTCHECKOUT  (prototypes/bestcheckout/js/app.js + pagebuilder.js)
-  //  Note: most strings are pre-swapped by the module's own inline ZH
-  //  map via t()/bcI18n(); the entries below cover the raw English
-  //  literals and data.js values that reach the global engine.
+  //  SHARED CHECKOUT TERMINOLOGY
+  //  Retained because several labels are reused by current selling,
+  //  checkout and reporting surfaces after the legacy module was removed.
   // ============================================================
   // sidebar sections / nav
   "Overview": "总览",
@@ -413,7 +412,7 @@ window.I18N.extend({
   "Soft declines auto-retry to the next-best MID — up to 5 attempts, never the same MID twice. Hard declines stop immediately.": "软拒会自动重试到次优 MID——最多 5 次，绝不重复同一 MID。硬拒立即停止。",
   "Failed rebills auto-retry with price-reduction + waiting interval (soft declines only) — up to 9 attempts before “Recycle failed”.": "续费失败会带降价 + 等待间隔自动重试（仅限软拒）——最多 9 次后标记“回收失败”。",
 
-  // subscriptions section (within bestcheckout)
+  // subscription-related checkout terminology
   "Next bill": "下次扣款",
   "Next MID": "下次 MID",
   "No subscriptions in this state.": "该状态下暂无订阅。",
@@ -588,9 +587,9 @@ window.I18N.extend({
   "This block has no settings.": "该区块没有可调设置。",
 
   // ============================================================
-  //  WELCOME / ONBOARDING / SHOPIFY OAUTH / CONNECTION HUB / MIGRATE
-  //  (bestcheckout — covered by the module's inline ZH map; mirrored
-  //   here so the global engine renders them too)
+  //  SHARED ONBOARDING / SHOPIFY OAUTH / CONNECTION TERMINOLOGY
+  //  Retained for current checkout and cross-product copy rendered by the
+  //  global translation engine.
   // ============================================================
   "Welcome to BestCheckout": "欢迎使用 BestCheckout",
   "Connect your store, sell through your new checkout, and move into BestShopio at your own pace.": "连接店铺、用新结账卖货，再按你自己的节奏搬进 BestShopio。",
@@ -752,7 +751,7 @@ window.I18N.extend({
   "Auto-sync retry queued": "已排入自动同步重试",
   "Copied": "已复制",
 
-  // demo toasts (bestcheckout)
+  // shared demo toasts
   "Demo: opens the “Add MID / gateway” form": "演示：打开「添加 MID / 网关」表单",
   "Demo: opens the routing-rule builder": "演示：打开路由规则编辑器",
   "Demo: opens the offer builder": "演示：打开报价编辑器",
@@ -844,8 +843,8 @@ window.I18N.addRules([
   // tier "Default selection" stays in dict; tier index "Tier N"
   { re: /^Tier (\d+)$/, zh: function (m) { return '档位 ' + m[1]; } },
 
-  // ===================== BESTCHECKOUT =====================
-  // A/B split chips: "BestCheckout N%" / "Shopify N%"
+  // ===================== CHECKOUT =====================
+  // A/B split chips retained for checkout comparison labels
   { re: /^BestCheckout (\d+)%$/, zh: function (m) { return 'BestCheckout ' + m[1] + '%'; } },
   { re: /^Shopify (\d+)%$/, zh: function (m) { return 'Shopify ' + m[1] + '%'; } },
   // store-header meta is composed of dict labels + data values (no rule needed)
