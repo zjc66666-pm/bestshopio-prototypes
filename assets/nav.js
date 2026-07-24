@@ -74,12 +74,11 @@ window.NAV_SETTINGS = [
    workspace is a resident top-level item in the sidebar — the separate "Apps"
    shell was dropped as redundant while there's a single built-in app.
    PLUGGABLE_APPS / AppState are kept for a future app marketplace. */
-// Apps Store — order matters for the "Apps" sidebar group:
-// BestCheckout first (focus app, sits under the Channels group), then
-// Subscriptions and Bundles (older built-ins).
+// Apps Store — order matters for the Apps catalog. Only entries with
+// `showInSidebar !== false` are also rendered in the persistent sidebar.
 window.PLUGGABLE_APPS = [
   {
-    id: 'bestcheckout', name: 'BestCheckout', icon: 'card', builtin: true, category: 'Selling', status: 'available',
+    id: 'bestcheckout', name: 'BestCheckout', icon: 'card', builtin: true, category: 'Selling', status: 'available', showInSidebar: false,
     tagline: 'High-converting external checkout for your Shopify store — and your on-ramp to BestShopio.',
     blurb: 'Bring your Shopify store: products, discounts, shipping and customers sync automatically from Shopify for checkout. Paid orders write back to Shopify for fulfillment. Sell through a faster checkout with one-click post-purchase upsells and multi-MID payment routing, then migrate to a native BestShopio store with a single domain switch. Subscriptions reuse the Subscriptions app.',
     permissions: ['Connect a Shopify store (OAuth)', 'Auto-sync products, collections, discounts, shipping and customers from Shopify', 'Write paid orders back to Shopify to trigger fulfillment', 'Use connected payment gateways for checkout & routing'],
@@ -129,7 +128,7 @@ window.AppState = {
      → "Apps" divider → enabled PLUGGABLE_APPS in declaration order */
 window.buildMenu = function () {
   var apps = window.PLUGGABLE_APPS
-    .filter(function (a) { return a.menu && a.status === 'available'; })
+    .filter(function (a) { return a.menu && a.status === 'available' && a.showInSidebar !== false; })
     .map(function (a) { return a.menu; });
   return window.NAV_MENU
     .concat([{ _group: 'Channels' }])
