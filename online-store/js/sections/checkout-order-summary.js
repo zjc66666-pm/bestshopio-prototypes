@@ -8,6 +8,12 @@
 
   const blk = (id, html, sel) => '<div class="ck-blk' + (sel ? ' os-block-sel' : '') + '" data-block-id="' + esc(id) + '">' + html + '</div>';
   const TAG = '<svg class="ck-tag-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+  const SUB = '<svg class="ck-tag-i" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>';
+  const lineDealAmount = (l) => {
+    if (!l.compareAt || l.compareAt <= l.price) return 0;
+    const subSave = l.subscription && l.subscription.save ? Number(l.subscription.save) : 0;
+    return Math.max(0, (l.compareAt - l.price - subSave) * (l.qty || 1));
+  };
   const discountPart = (item, key) => {
     const direct = +((item || {})[key]) || 0;
     if (direct || key !== 'order') return direct;
@@ -26,15 +32,16 @@
       const comparePrice = (+line.compareAt || 0) * qty;
       const compareHtml = comparePrice > finalPrice
         ? '<span class="ck-mo-price-cmp">' + money(comparePrice) + '</span>' : '';
-      const deal = line.deal && comparePrice > finalPrice
-        ? '<div class="ck-mo-meta">' + TAG + '<span>' + esc(line.deal) + ' (−' + money(comparePrice - finalPrice) + ')</span></div>'
+      const dealAmt = lineDealAmount(line);
+      const deal = line.deal && dealAmt > 0
+        ? '<div class="ck-mo-meta">' + TAG + '<span>' + esc(line.deal) + ' (−' + money(dealAmt) + ')</span></div>'
         : '';
       const subscription = line.subscription
-        ? '<div class="ck-mo-meta">' + TAG + '<span>' + esc(line.subscription.label) +
+        ? '<div class="ck-mo-meta">' + SUB + '<span>' + esc(line.subscription.label) +
           (line.subscription.save ? ' (−' + money(line.subscription.save) + ')' : '') + '</span></div>'
         : '';
       const image = line.bundle
-        ? '<div class="ck-mo-bundle-badge">Bundle</div>'
+        ? '<div class="ck-mo-bundle-badge i18n-skip">Bundle</div>'
         : '<div class="ck-mo-img"><img src="' + esc(line.image || '') + '" alt=""><span>' + qty + '</span></div>';
       const children = line.bundle
         ? '<div class="ck-mo-bundle-items">' + (line.bundleItems || []).map((item) =>
@@ -199,8 +206,9 @@
       const imgHtml = (src, qty, extra) => '<div class="ck-line-img' + (extra || '') + '" style="background-image:url(' + esc(src) + ')"><span class="ck-line-qty">' + (qty == null ? 1 : qty) + '</span></div>';
       const lines = cart.map((l) => {
         const cmp = l.compareAt && l.compareAt > l.price ? '<span class="ck-line-cmp">' + money(l.compareAt) + '</span>' : '';
-        const deal = (l.deal && l.compareAt && l.compareAt > l.price)
-          ? '<div class="ck-line-deal">' + TAG + '<span>' + esc(l.deal) + ' (−' + money((l.compareAt - l.price) * l.qty) + ')</span></div>' : '';
+        const dealAmt = lineDealAmount(l);
+        const deal = (l.deal && dealAmt > 0)
+          ? '<div class="ck-line-deal">' + TAG + '<span>' + esc(l.deal) + ' (−' + money(dealAmt) + ')</span></div>' : '';
         // Base-order previews use one buyer-facing label for either offer source.
         const source = l.lineSource || (l.downsell ? 'DOWNSELL' : (l.upsell ? 'UPSELL' : ''));
         const flag = source === 'UPSELL' || source === 'DOWNSELL'
@@ -208,7 +216,7 @@
         const variantHtml = l.variant ? '<div class="ck-line-v">' + esc(l.variant) + '</div>' : '';
         // Item 3 — subscription cadence tag (the (−$x) is the subscription saving).
         const subTag = l.subscription
-          ? '<div class="ck-line-sub">' + TAG + '<span>' + esc(l.subscription.label) +
+          ? '<div class="ck-line-sub">' + SUB + '<span>' + esc(l.subscription.label) +
             (l.subscription.save ? ' (−' + money(l.subscription.save) + ')' : '') + '</span></div>' : '';
         // Item 3 — bundle parent: black "Bundle" badge instead of the thumb, then
         // indented "Included" children (small thumb + orange pill, no own price).
@@ -220,9 +228,13 @@
               (c.variant ? '<div class="ck-line-v">' + esc(c.variant) + '</div>' : '') + '</div>' +
             '</div>').join('');
           return '<div class="ck-line ck-line--bundle">' +
-              '<div class="ck-line-bundle-badge">Bundle</div>' +
-              '<div class="ck-line-info"><div class="ck-line-t">' + esc(l.title) + flag + '</div>' + variantHtml + deal + '</div>' +
-              '<div class="ck-line-pr">' + cmp + money(l.price * l.qty) + '</div>' +
+              '<div class="ck-line-info">' +
+                '<div class="ck-line-head">' +
+                  '<span class="ck-line-bundle-badge i18n-skip">Bundle</span>' +
+                  '<span class="ck-line-t">' + esc(l.title) + flag + '</span>' +
+                  '<span class="ck-line-pr">' + cmp + money(l.price * l.qty) + '</span>' +
+                '</div>' + variantHtml + deal + subTag +
+              '</div>' +
             '</div>' + kids;
         }
         return '<div class="ck-line">' +

@@ -8,7 +8,7 @@
   const CHECK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>';
 
   OS.register('checkout-offer-progress', {
-    name: 'Progress', icon: 'layers', hideable: true,
+    name: 'Progress', icon: 'layers',
     schema: [
       { info: 'This is a generic buyer-facing progress cue, not the real Funnel node path.' },
       { key: 'order_label', label: 'Order stage label', control: 'text', default: 'Order confirmed' },

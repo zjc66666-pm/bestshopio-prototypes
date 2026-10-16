@@ -58,6 +58,41 @@
         : 'Save ' + Math.max(0, value) + '%',
     };
   };
+  const activeSubscription = (product) => {
+    const plan = product && product.subscription;
+    if (!plan || plan.status === 'draft' || plan.status === 'inactive' || plan.status === 'disabled') return null;
+    return plan;
+  };
+  const previewInstrument = () => {
+    try {
+      const query = String(location.hash || '').split('?')[1] || '';
+      return new URLSearchParams(query).get('instrument') === 'one-shot' ? 'one_shot' : '';
+    } catch (_) {
+      return '';
+    }
+  };
+  const paymentSupportsSubscription = (ctx) => {
+    if (previewInstrument() === 'one_shot') return false;
+    const payment = ((ctx || {}).checkout || {}).payment || {};
+    return payment.supports_subscription !== false;
+  };
+  const offerableSubscription = (product, ctx) =>
+    paymentSupportsSubscription(ctx) ? activeSubscription(product) : null;
+  const intervalLabel = (interval) => {
+    const every = Math.max(1, +((interval && interval.every) || 1));
+    const unit = String((interval && interval.unit) || 'month');
+    const plural = every === 1 ? unit : (unit.endsWith('s') ? unit : unit + 's');
+    return 'Delivery every ' + every + ' ' + plural;
+  };
+  const planRecurringUnit = (basePrice, plan, currency) => {
+    const base = Math.max(0, +basePrice || 0);
+    const discount = (plan && plan.discount) || {};
+    const value = +discount.value || 0;
+    const raw = discount.type === 'fixed' ? Math.max(base - value, 0) : Math.max(base * (1 - value / 100), 0);
+    return roundCurrency(raw, currency);
+  };
+  const recurringCopy = (amount, currency, interval) =>
+    'Then ' + formatMoney(amount, currency) + ' · ' + intervalLabel(interval);
   const maxProducts = (settings) => Math.max(1, Math.min(10, +settings.maximum_products || 4));
   const availableVariant = (variant) => variant && variant.available !== false && +variant.price > 0 &&
     (variant.inventory == null || variant.inventory > 0 || variant.allowOversell);
@@ -246,7 +281,7 @@
         ? '<div class="cko-disc-error">' + esc(issues[0]) + '</div>'
         : '<p>If your product is ' + formatMoney(base, currency) + ', customer pays <strong>' +
           formatMoney(quote.finalUnit, currency) + '</strong> (saves ' + formatMoney(quote.discountAmount, currency) + ').</p>') +
-      '<small>Calculated from the current selling price. Shopify discounts and compare-at price are not applied.</small>' +
+      '<small>Calculated from the current selling price. Shopify discounts and compare-at price are not applied. On Upsell / Downsell, this is the first-cycle price when the product has an active subscription; renewals use the subscription price.</small>' +
     '</div>';
   }
 
@@ -415,6 +450,21 @@
           '<label class="cko-choice cko-qty-choice"><span>' + esc(s.quantity_label || 'Quantity') + '</span>' +
             '<select data-offer-qty' + (alreadyAdded ? ' disabled' : '') + '>' + quantities + '</select></label>';
         const choices = variant || qty ? '<div class="cko-choices">' + variant + qty + '</div>' : '';
+        const plan = offerableSubscription(product, ctx);
+        const recurringUnit = plan ? planRecurringUnit(+shown.price || +product.price || 0, plan, cur) : 0;
+        const purchase = plan
+          ? '<div class="cko-purchase" data-offer-purchase-wrap>' +
+              '<span>Purchase option</span>' +
+              '<div class="cko-purchase-opts" role="radiogroup" aria-label="Purchase option">' +
+                '<button type="button" class="cko-purchase-opt" data-offer-purchase="one_time"' +
+                  (alreadyAdded ? ' disabled' : '') + '>One-time</button>' +
+                '<button type="button" class="cko-purchase-opt on" data-offer-purchase="subscribe" aria-pressed="true"' +
+                  (alreadyAdded ? ' disabled' : '') + '>Subscribe</button>' +
+              '</div></div>' +
+              '<div class="cko-recurring" data-offer-recurring>' +
+                esc(recurringCopy(roundCurrency(recurringUnit * initialQty, cur), cur, plan.interval)) +
+              '</div>'
+          : '';
         const shipping = s.show_shipping === false ? '' :
           '<div class="cko-shipping"><span>Shipping</span><strong>' +
             esc(product.shippingLabel || 'Calculated by offer') + '</strong></div>';
@@ -424,7 +474,7 @@
         const info = '<div class="cko-info">' +
           '<div class="cko-titleline"><h2>' + esc(product.title || 'Preview offer product') + '</h2></div>' +
           '<div class="cko-price">' + compare + '<strong data-offer-price>' + formatMoney(quote.finalUnit, cur) + '</strong>' + savings + '</div>' +
-          rating + desc + choices + shipping +
+          rating + desc + choices + purchase + shipping +
           '<button class="cko-accept" type="button" data-offer-accept data-accept-template="' + esc(acceptTemplate) +
             '" data-offer-id="' + esc(product.id || String(index + 1)) +
             '"' + (alreadyAdded ? ' disabled data-offer-added="1"' : '') +
@@ -439,7 +489,13 @@
           'px" data-offer-id="' + esc(product.id || String(index + 1)) +
           '" data-offer-title="' + esc(product.title || 'Offer product') +
           '" data-offer-image="' + esc(product.image || '') +
-          '" data-base-price="' + quote.basePrice + '">' + media + info + '</article>';
+          '" data-base-price="' + quote.basePrice + '"' +
+          (plan ? ' data-has-subscription="1" data-purchase="subscribe"' +
+            ' data-plan-every="' + esc(String((plan.interval && plan.interval.every) || 1)) +
+            '" data-plan-unit="' + esc(String((plan.interval && plan.interval.unit) || 'month')) +
+            '" data-plan-discount-type="' + esc(String((plan.discount && plan.discount.type) || 'percent')) +
+            '" data-plan-discount-value="' + esc(String((plan.discount && plan.discount.value) || 0)) + '"' : '') +
+          '>' + media + info + '</article>';
       }).join('');
       const layout = multi && s.multiple_layout === 'grid' ? ' grid' : ' stacked';
       const sharedFlowActions = multi ? '<div class="cko-flow-actions">' + decline + paymentNote + '</div>' : '';
@@ -460,10 +516,25 @@
       let adding = false;
       const disableCardChoices = (card, disabled) => {
         if (!card) return;
-        card.querySelectorAll('[data-offer-variant],[data-offer-qty]').forEach((control) => {
+        card.querySelectorAll('[data-offer-variant],[data-offer-qty],[data-offer-purchase]').forEach((control) => {
           control.disabled = !!disabled;
         });
       };
+      const cardPurchase = (card) => {
+        if (!card || card.getAttribute('data-has-subscription') !== '1') return 'one_time';
+        const selected = card.querySelector('[data-offer-purchase].on');
+        return (selected && selected.getAttribute('data-offer-purchase')) || card.getAttribute('data-purchase') || 'subscribe';
+      };
+      const cardPlan = (card) => ({
+        interval: {
+          every: card.getAttribute('data-plan-every') || 1,
+          unit: card.getAttribute('data-plan-unit') || 'month',
+        },
+        discount: {
+          type: card.getAttribute('data-plan-discount-type') || 'percent',
+          value: +card.getAttribute('data-plan-discount-value') || 0,
+        },
+      });
       const allPurchasableProductsAdded = () => accepts.every((button) =>
         button.hasAttribute('data-offer-added') || button.hasAttribute('data-offer-unavailable'));
       const refreshAcceptAvailability = () => {
@@ -496,12 +567,20 @@
         const qty = qtyEl ? (+qtyEl.value || 1) : 1;
         const quote = quotePrice(base, qty, settings, currency);
         const validPrice = Number.isFinite(base) && base > 0;
+        const purchase = cardPurchase(card);
+        const plan = cardPlan(card);
+        const recurringUnit = card.getAttribute('data-has-subscription') === '1'
+          ? planRecurringUnit(base, plan, currency) : 0;
+        const recurringSubtotal = roundCurrency(recurringUnit * qty, currency);
         card.dataset.basePrice = String(quote.basePrice);
         card.dataset.finalUnit = String(quote.finalUnit);
         card.dataset.subtotal = String(quote.subtotal);
+        card.dataset.purchase = purchase;
+        card.dataset.recurringUnit = String(recurringUnit);
         const price = card.querySelector('[data-offer-price]');
         const compare = card.querySelector('[data-offer-base]');
         const savings = card.querySelector('[data-offer-savings]');
+        const recurring = card.querySelector('[data-offer-recurring]');
         const accept = card.querySelector('[data-offer-accept]');
         if (price) price.textContent = validPrice ? formatMoney(quote.finalUnit, currency) : 'Unavailable';
         if (compare) {
@@ -512,6 +591,10 @@
         if (savings) {
           savings.textContent = quote.savingsText;
           savings.hidden = quote.discountAmount <= 0;
+        }
+        if (recurring) {
+          recurring.textContent = recurringCopy(recurringSubtotal, currency, plan.interval);
+          recurring.hidden = purchase !== 'subscribe';
         }
         if (accept && !accept.hasAttribute('data-offer-added')) {
           if (!validPrice) {
@@ -526,13 +609,24 @@
           }
         }
         updateUpsellThreshold(card, quote);
-        return quote;
+        return Object.assign(quote, { purchase, recurringUnit, recurringSubtotal, plan });
       };
       el.querySelectorAll('[data-offer-card]').forEach((card) => {
         const variant = card.querySelector('[data-offer-variant]');
         const qty = card.querySelector('[data-offer-qty]');
         if (variant) variant.addEventListener('change', () => updateCard(card));
         if (qty) qty.addEventListener('change', () => updateCard(card));
+        card.querySelectorAll('[data-offer-purchase]').forEach((button) => {
+          button.addEventListener('click', () => {
+            if (button.disabled) return;
+            card.querySelectorAll('[data-offer-purchase]').forEach((item) => {
+              const on = item === button;
+              item.classList.toggle('on', on);
+              item.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+            updateCard(card);
+          });
+        });
         updateCard(card);
       });
       accepts.forEach((accept) => {
@@ -554,6 +648,7 @@
             OS.ckSet('post-purchase-accepted', current);
             const locked = Array.isArray(OS.ckState['post-purchase-accepted-lines'])
               ? OS.ckState['post-purchase-accepted-lines'].slice() : [];
+            const subscribe = quote.purchase === 'subscribe';
             const line = {
               id: 'offer-' + ((ctx && ctx.checkoutPage) || 'upsell') + '-' + (id || locked.length + 1),
               productId: id,
@@ -574,6 +669,13 @@
               discount_amount: quote.discountAmount,
               offerFinalPrice: quote.finalUnit,
               offer_final_price: quote.finalUnit,
+              purchaseOption: quote.purchase || 'one_time',
+              is_subscribe: subscribe,
+              recurringPrice: subscribe ? quote.recurringUnit : 0,
+              subscription: subscribe ? {
+                label: intervalLabel((quote.plan && quote.plan.interval) || {}),
+                save: Math.max(0, roundCurrency(quote.basePrice - (quote.recurringUnit || 0), currency)),
+              } : undefined,
               currency,
               lineSource: (ctx && ctx.checkoutPage) === 'downsell' ? 'DOWNSELL' : 'UPSELL',
               orderRole: (((OS.ckState || {})['post-purchase-offer-flow'] || {}).mergeWindowClosed)
@@ -629,6 +731,13 @@
   .cko-rating .stars{color:#f5b301;letter-spacing:1px}
   .cko-desc{margin:10px 0 0;color:var(--ck-text);font-size:var(--ck-base-fs);line-height:1.45}
   .cko-choices{display:block;margin-top:12px}
+  .cko-purchase{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .cko-purchase>span{font-size:10px;color:var(--ck-muted);letter-spacing:.02em;text-transform:uppercase}
+  .cko-purchase-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cko-purchase-opt{height:36px;border:1px solid var(--ck-input-border);border-radius:var(--ck-input-radius);background:#fff;color:var(--ck-text);font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+  .cko-purchase-opt.on{border-color:var(--ck-text);background:color-mix(in srgb,var(--ck-text) 8%,#fff)}
+  .cko-purchase-opt:disabled{opacity:.6;cursor:default}
+  .cko-recurring{margin-top:8px;color:var(--ck-muted);font-size:12px;line-height:1.4}
   .cko-choice{display:flex;min-width:0;flex-direction:column;border:1px solid var(--ck-input-border);border-radius:var(--ck-input-radius);padding:6px 10px;box-sizing:border-box}
   .cko-variant-choice{width:100%}
   .cko-qty-choice{width:175px;margin-top:12px}

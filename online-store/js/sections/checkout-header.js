@@ -11,33 +11,30 @@
 
   OS.register('checkout-header', {
     name: 'Header', icon: 'image',
-    // Required component: can't be moved/deleted, but visibility is toggled from the tree's
-    // eye icon (s.hidden) instead of a "Show header" setting — keeps show/hide consistent.
-    hideable: true,
     schema: [
       { sub: 'Logo' },
-      { key: 'logo_image', label: 'Logo image', control: 'image', default: '', info: 'JPG / PNG / WebP / SVG. Falls back to the store brand name.' },
-      { key: 'logo_width', label: 'Logo width · PC', control: 'range', min: 40, max: 300, step: 1, unit: 'px', default: 120 },
-      { key: 'logo_width_mobile', label: 'Logo width · Mobile', control: 'range', min: 40, max: 240, step: 1, unit: 'px', default: 100 },
-      { key: 'logo_position', label: 'Logo alignment', control: 'select', default: 'left', info: 'The structural axis of the header. Left / Right anchor the logo to a side; Center pins it to the middle.', options: [
+      { key: 'logo_image', label: 'Logo image', control: 'image', default: '' },
+      { key: 'logo_width', label: 'Logo width PC', control: 'range', min: 40, max: 300, step: 1, unit: 'px', default: 120 },
+      { key: 'logo_width_mobile', label: 'Logo width mobile', control: 'range', min: 40, max: 240, step: 1, unit: 'px', default: 100 },
+      { key: 'logo_position', label: 'Logo alignment', control: 'select', default: 'left', options: [
         { value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' } ] },
       { sub: 'Trust message' },
-      { key: 'show_trust_text', label: 'Show trust message', control: 'toggle', default: true, info: 'Reassures buyers the checkout is secure.' },
-      { key: 'trust_text', label: 'Text', control: 'text', default: 'Secure checkout', placeholder: 'Secure checkout', visibleWhen: (v) => v.show_trust_text !== false },
+      { key: 'show_trust_text', label: 'Show trust message', control: 'toggle', default: true },
+      { key: 'trust_text', label: 'Text', control: 'text', default: 'Secure checkout', placeholder: 'Please enter', visibleWhen: (v) => v.show_trust_text !== false },
       { sub: 'Secure badge' },
-      { key: 'show_secure_badge', label: 'Show secure badge', control: 'toggle', default: false, info: 'A small padlock chip — extra reassurance next to the cart.' },
-      { key: 'secure_text', label: 'Text', control: 'text', default: 'SSL secure', placeholder: 'SSL secure', visibleWhen: (v) => !!v.show_secure_badge },
+      { key: 'show_secure_badge', label: 'Show secure badge', control: 'toggle', default: false },
+      { key: 'secure_text', label: 'Text', control: 'text', default: 'SSL secure', placeholder: 'Please enter', visibleWhen: (v) => !!v.show_secure_badge },
       { sub: 'Contact' },
-      { key: 'show_contact_info', label: 'Show contact', control: 'toggle', default: false, info: 'Shows a “need help?” block (title + email / phone).' },
-      { key: 'contact_title', label: 'Title', control: 'text', default: 'Need help?', visibleWhen: (v) => !!v.show_contact_info },
-      { key: 'contact_email', label: 'Email', control: 'text', default: '', placeholder: 'support@store.com', visibleWhen: (v) => !!v.show_contact_info },
-      { key: 'contact_phone', label: 'Phone', control: 'text', default: '', placeholder: '+1 555 000 0000', visibleWhen: (v) => !!v.show_contact_info },
+      { key: 'show_contact_info', label: 'Show contact', control: 'toggle', default: false },
+      { key: 'contact_title', label: 'Title', control: 'text', default: '', placeholder: 'Please enter', visibleWhen: (v) => !!v.show_contact_info },
+      { key: 'contact_email', label: 'Email', control: 'text', default: '', placeholder: 'Please enter', visibleWhen: (v) => !!v.show_contact_info },
+      { key: 'contact_phone', label: 'Phone', control: 'text', default: '', placeholder: 'Please enter', visibleWhen: (v) => !!v.show_contact_info },
       // Cart is meaningless on the Thank you page (order already placed), so the whole Cart
       // config is hidden there — the Thank you header is otherwise identical to Checkout.
       { sub: 'Cart', visibleWhen: (v, ctx) => !(ctx && ctx.isThankyou) },
-      { key: 'show_cart_icon', label: 'Show cart icon', control: 'toggle', default: true, info: 'A cart shortcut pinned to the end of the header.', visibleWhen: (v, ctx) => !(ctx && ctx.isThankyou) },
+      { key: 'show_cart_icon', label: 'Show cart icon', control: 'toggle', default: true, visibleWhen: (v, ctx) => !(ctx && ctx.isThankyou) },
       { sub: 'Colors' },
-      { key: 'background_color', label: 'Background color', control: 'color', default: '', info: 'Leave empty to inherit Checkout settings → Header.' },
+      { key: 'background_color', label: 'Background color', control: 'color', default: '' },
       { key: 'text_color', label: 'Text color', control: 'color', default: '' },
       { key: 'accent_color', label: 'Accent color', control: 'color', default: '', info: 'Cart icon, links.' },
       { key: 'show_divider', label: 'Show divider', control: 'toggle', default: true },
@@ -52,7 +49,9 @@
       const txt = s.text_color || 'var(--ck-h-text)';
       const accent = s.accent_color || 'var(--ck-h-accent)';
       const height = (mob ? (tk.header && tk.header.header_height_mobile) || 56 : (tk.header && tk.header.header_height_pc) || 64);
-      const lw = (mob ? s.logo_width_mobile : s.logo_width) || 110;
+      const lwPc = Number(s.logo_width); const lwMob = Number(s.logo_width_mobile);
+      const logoW = isFinite(lwPc) && lwPc > 0 ? lwPc : 120;
+      const logoWMob = isFinite(lwMob) && lwMob > 0 ? lwMob : 100;
       const maxw = (L.page_max_width_pc || 980);
       const axis = s.logo_position || 'left'; // left | center | right
       const center = axis === 'center';
@@ -61,8 +60,8 @@
       // grows to fit (see min-height below). For the text fallback we map the same
       // width slider onto the brand font-size so the control is never a no-op.
       const logo = s.logo_image
-        ? '<img src="' + esc(s.logo_image) + '" alt="' + esc(store) + '" style="width:' + lw + 'px;height:auto;display:block;object-fit:contain">'
-        : '<span class="ck-logo" style="color:' + txt + ';font-size:' + Math.max(14, Math.round(lw * 0.18)) + 'px">' + esc(store) + '</span>';
+        ? '<img class="ck-logo-img" src="' + esc(s.logo_image) + '" alt="' + esc(store) + '">'
+        : '<span class="ck-logo" style="color:' + txt + '">' + esc(store) + '</span>';
 
       // Independent content modules — hidden on mobile to protect the compact bar.
       const trust = (s.show_trust_text !== false && s.trust_text && !mob)
@@ -109,7 +108,7 @@
         '<div class="ck-h-slot end">' + c3 + '</div>' +
         '</div>';
       const css = s.custom_css ? '<style>' + s.custom_css + '</style>' : '';
-      return '<div class="ck-header' + (divider ? ' divline' : '') + '" style="background:' + bg + ';color:' + txt + '">' + inner + css + '</div>';
+      return '<div class="ck-header' + (divider ? ' divline' : '') + '" style="--ck-logo-w:' + logoW + 'px;--ck-logo-w-mob:' + logoWMob + 'px;background:' + bg + ';color:' + txt + '">' + inner + css + '</div>';
     },
   });
 })();

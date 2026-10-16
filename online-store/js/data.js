@@ -46,7 +46,6 @@
   // template and are picked directly (no submenu). `noun` labels the assignment count.
   const PAGE_OPTIONS = [
     { value: 'home',        label: 'Home page' },
-    { value: 'product',     label: 'Products',        multi: true, noun: 'products' },
     { value: 'collection',  label: 'Collections',     multi: true, noun: 'collections' },
     { value: 'collections', label: 'Collections list' },
   ];
@@ -332,8 +331,9 @@
     footer: { hidden: false, kind: 'footer', settings: {} },
     // Multi-template shape: each page type holds a `list` of named templates. `id:'default'`
     // is the built-in fallback (can't be deleted). `assigned` is a mock count shown in the
-    // selector submenu ("Assigned to N products"). Single types (home / collections) simply
-    // keep a one-item list. Extra product/collection templates seed the multi-template UX.
+    // selector submenu ("Assigned to N collections"). Single types (home / collections) simply
+    // keep a one-item list. Extra collection templates seed the multi-template UX.
+    // Product (PDP) templates are omitted until that page type is finished.
     templates: {
       home: { list: [
         { id: 'default', name: 'Home page', assigned: '—', sections: [
@@ -343,23 +343,6 @@
           { id: 'sec-home-testi', kind: 'testimonial' },
           { id: 'sec-home-faq', kind: 'faq' },
           { id: 'sec-home-news', kind: 'newsletter' },
-        ] },
-      ] },
-      product: { list: [
-        { id: 'default', name: 'Default product', assigned: '100+', assignedResourceIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'], sections: [
-          { kind: 'media-with-text' },
-        ] },
-        { id: 'buy-2-for-69', name: 'buy-2-for-69', basedOn: 'default', assigned: 1, assignedResourceIds: ['p1'], sections: [
-          { kind: 'media-with-text' }, { kind: 'faq' },
-        ] },
-        { id: 'dress-size-image', name: 'dress-size-image', basedOn: 'default', assigned: 24, assignedResourceIds: ['p2', 'p3', 'p4'], sections: [
-          { kind: 'media-with-text' }, { kind: 'media-grid' },
-        ] },
-        { id: 'explainer-template', name: 'explainer-template', basedOn: 'default', assigned: 0, assignedResourceIds: [], sections: [
-          { kind: 'media-with-text' }, { kind: 'feature-cards' },
-        ] },
-        { id: 'pre-order', name: 'pre-order', basedOn: 'default', assigned: 0, assignedResourceIds: [], sections: [
-          { kind: 'media-with-text' }, { kind: 'newsletter' },
         ] },
       ] },
       collection: { list: [
@@ -402,84 +385,105 @@
   // products, prices, routing and payment capability while Theme owns presentation only.
   const CHECKOUT_TEMPLATE_SETS = {
     checkout: [
-      { id: 'standard', name: 'Default checkout', isDefault: true },
-      { id: 'conversion', name: 'Conversion' },
+      // Keep the established ids for backward-compatible saved themes and preview URLs.
+      { id: 'standard', name: 'Checkout - New customer offer', isDefault: true },
+      { id: 'conversion', name: 'Checkout - Returning customer cross-sell' },
+      { id: 'trust-led', name: 'Checkout - Trust-led' },
+      { id: 'concise', name: 'Checkout - Concise' },
+      { id: 'social-proof', name: 'Checkout - Social Proof', status: 'draft' },
     ],
     upsell: [
-      { id: 'one-click-upsell', name: 'One-click upsell', isDefault: true },
-      { id: 'subscription-upsell', name: 'Subscription upsell' },
+      { id: 'one-click-upsell', name: 'Upsell - New customer offer', isDefault: true },
+      { id: 'subscription-upsell', name: 'Upsell - Returning customer cross-sell' },
+      { id: 'residual-offer', name: 'Upsell - Shared residual offer' },
+      { id: 'limited-proof', name: 'Upsell - Limited-time Proof', status: 'draft' },
     ],
     downsell: [
-      { id: 'standard-downsell', name: 'Standard', isDefault: true },
-      { id: 'save-offer', name: 'Save offer' },
+      { id: 'standard-downsell', name: 'Downsell - New customer offer', isDefault: true },
+      { id: 'save-offer', name: 'Downsell - Returning customer cross-sell' },
+      { id: 'residual-save', name: 'Downsell - Shared residual save' },
+      { id: 'gentle-last-chance', name: 'Downsell - Gentle Last Chance', status: 'draft' },
     ],
     thankyou: [
       { id: 'standard', name: 'Default thank you', isDefault: true, previewOrderScenario: 'standard' },
       { id: 'base-order', name: 'Base order', basedOn: 'standard', previewOrderScenario: 'base' },
       { id: 'survey-thankyou', name: 'Base order + Late Upsell order', previewOrderScenario: 'dual' },
+      { id: 'brand-celebration', name: 'Thank you - Brand Celebration', status: 'draft', previewOrderScenario: 'standard' },
     ],
   };
 
-  const FONT_CK = ['Default', 'Inter', 'Manrope', 'Playfair Display', 'Georgia', 'system-ui'].map((v) => ({ value: v, label: v }));
+  const CHECKOUT_HEADING_FONTS = [
+    { value: 'Default', label: 'Default' },
+    { value: "Georgia, 'Times New Roman', serif", label: 'Georgia' },
+    { value: "'Avenir Next', 'Segoe UI', sans-serif", label: 'Avenir Next' },
+    { value: "'Trebuchet MS', sans-serif", label: 'Trebuchet' },
+    { value: "'Courier New', monospace", label: 'Courier' },
+    { value: "'Playfair Display', Georgia, serif", label: 'Playfair Display' },
+    { value: 'Marcellus, Georgia, serif', label: 'Marcellus' },
+    { value: "'Cormorant Garamond', Georgia, serif", label: 'Cormorant Garamond' },
+  ];
+  const CHECKOUT_BODY_FONTS = [
+    { value: 'Default', label: 'Default' },
+    { value: "Georgia, 'Times New Roman', serif", label: 'Georgia' },
+    { value: "'Avenir Next', 'Segoe UI', sans-serif", label: 'Avenir Next' },
+    { value: "'Trebuchet MS', sans-serif", label: 'Trebuchet' },
+    { value: "'Courier New', monospace", label: 'Courier' },
+    { value: 'Inter, Arial, sans-serif', label: 'Inter' },
+    { value: "'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif", label: 'SF Pro' },
+    { value: 'Helvetica, Arial, sans-serif', label: 'Helvetica' },
+  ];
 
-  // Checkout Theme settings — 7 groups (PRD §6). Keys/defaults/ranges verbatim.
+  // Checkout Theme settings — 6 groups / 20 fields (Theme settings normalization PRD §3).
+  // `pages` on a group / field lists where the setting has a consuming element; the editor
+  // hides everything else on the current page (PRD §6). Omitted = all four pages.
+  // Removed fields (text / muted / divider, Header group, summary text colors, button height,
+  // font sizes & weights, section spacing, mobile padding) are frozen constants in
+  // checkoutVars(); text colors now auto-switch by background luminance (PRD §4.1).
+  const CK_SUMMARY_PAGES = ['checkout', 'thankyou'];
   const CHECKOUT_SETTINGS_GROUPS = [
-    { key: 'main', name: 'Main', desc: 'Page, content & summary surfaces', open: true, fields: [
-      { key: 'page_background', label: 'Page background', control: 'color', default: '#FFFFFF', info: 'Background of the whole left-hand form area. Form components sit transparently on top.' },
-      { key: 'text_color', label: 'Text color', control: 'color', default: '#1F1F1F' },
-      { key: 'muted_text_color', label: 'Muted text', control: 'color', default: '#777777' },
-      { key: 'divider_color', label: 'Divider', control: 'color', default: '#E5E5E5' },
+    { key: 'main', name: 'Main', desc: 'Page surface', open: true, fields: [
+      { key: 'page_background', label: 'Page background', control: 'color', default: '#FFFFFF', info: 'Text color adjusts automatically for readability.' },
     ] },
-    { key: 'header', name: 'Header', desc: 'Brand bar at the top', fields: [
-      { key: 'header_background', label: 'Header background', control: 'color', default: '#FFFFFF' },
-      { key: 'header_text_color', label: 'Header text', control: 'color', default: '#1F1F1F' },
-      { key: 'header_accent_color', label: 'Header accent', control: 'color', default: '#121212', info: 'Links and the cart icon.' },
-      { key: 'header_height_pc', label: 'Header height · PC', control: 'range', min: 48, max: 120, step: 1, unit: 'px', default: 64 },
-      { key: 'header_height_mobile', label: 'Header height · Mobile', control: 'range', min: 44, max: 100, step: 1, unit: 'px', default: 56 },
-      { key: 'header_divider', label: 'Bottom divider', control: 'toggle', default: true },
+    { key: 'order_summary', name: 'Order summary', desc: 'Right-hand summary surface', pages: CK_SUMMARY_PAGES, fields: [
+      { key: 'summary_background', label: 'Background', control: 'color', default: '#F5F5F5', info: 'Text color adjusts automatically for readability. Applies to the desktop summary, the mobile summary bar and the Thank you summary.' },
     ] },
-    { key: 'order_summary', name: 'Order Summary', desc: 'Right-hand summary surface', fields: [
-      { key: 'summary_background', label: 'Background', control: 'color', default: '#F5F5F5' },
-      { key: 'summary_text', label: 'Text', control: 'color', default: '#1F1F1F' },
-      { key: 'summary_muted_text', label: 'Muted text', control: 'color', default: '#777777', info: 'Variants, descriptions, secondary lines.' },
+    { key: 'accent', name: 'Accent and buttons', desc: 'Links, selected states & primary buttons', fields: [
+      { key: 'accent_color', label: 'Accent color', control: 'color', default: '#121212', info: 'Links, selected state, radio, checkbox, focus ring and success icon.' },
+      { key: 'button_background', label: 'Button background', control: 'color', default: '#121212', info: 'Pay now, Apply, Continue shopping and Add to my order.' },
+      { key: 'button_text_color', label: 'Button text color', control: 'color', default: '#FFFFFF' },
+      { key: 'button_hover_background', label: 'Button hover background', control: 'color', default: '#000000' },
+      { key: 'button_border_radius', label: 'Button border radius', control: 'range', min: 0, max: 40, step: 1, unit: 'px', default: 6 },
     ] },
-    { key: 'accent', name: 'Accent and buttons', desc: 'Primary action & accent color', fields: [
-      { key: 'accent_color', label: 'Accent color', control: 'color', default: '#121212', info: 'Links, selected state, radio, checkbox.' },
-      { key: 'button_background', label: 'Button background', control: 'color', default: '#121212' },
-      { key: 'button_text_color', label: 'Button text', control: 'color', default: '#FFFFFF' },
-      { key: 'button_hover_background', label: 'Button hover', control: 'color', default: '#000000' },
-      { key: 'button_border_radius', label: 'Button radius', control: 'range', min: 0, max: 40, step: 1, unit: 'px', default: 6 },
-      { key: 'button_height', label: 'Button height', control: 'range', min: 40, max: 64, step: 1, unit: 'px', default: 52 },
-    ] },
-    { key: 'input', name: 'Input fields', desc: 'Form inputs across checkout', fields: [
-      { key: 'input_background', label: 'Background', control: 'color', default: '#FFFFFF' },
-      { key: 'input_text_color', label: 'Text', control: 'color', default: '#1F1F1F' },
-      { key: 'placeholder_color', label: 'Placeholder', control: 'color', default: '#B5B5B5' },
-      { key: 'input_border_color', label: 'Border (default)', control: 'color', default: '#D9D9D9' },
-      { key: 'input_focus_border_color', label: 'Border (focused)', control: 'color', default: '#121212', info: 'Defaults to the Accent color.' },
-      { key: 'input_error_color', label: 'Error', control: 'color', default: '#D72C2C' },
-      { key: 'input_border_radius', label: 'Corner radius', control: 'range', min: 0, max: 24, step: 1, unit: 'px', default: 6 },
-      { key: 'input_height', label: 'Height', control: 'range', min: 40, max: 64, step: 1, unit: 'px', default: 48 },
+    { key: 'input', name: 'Input fields', desc: 'Contact, Delivery, Billing, Payment & Discount code', pages: ['checkout'], fields: [
+      { key: 'input_background', label: 'Input background', control: 'color', default: '#FFFFFF' },
+      { key: 'input_text_color', label: 'Input text color', control: 'color', default: '#1F1F1F' },
+      { key: 'placeholder_color', label: 'Placeholder color', control: 'color', default: '#B5B5B5' },
+      { key: 'input_border_color', label: 'Input border color', control: 'color', default: '#D9D9D9' },
+      { key: 'input_focus_border_color', label: 'Input focus border color', control: 'color', default: '', info: 'Uses the Accent color when empty.' },
+      { key: 'input_error_color', label: 'Input error color', control: 'color', default: '#D72C2C' },
+      { key: 'input_border_radius', label: 'Input border radius', control: 'range', min: 0, max: 24, step: 1, unit: 'px', default: 12 },
+      { key: 'input_height', label: 'Input height', control: 'range', min: 40, max: 64, step: 1, unit: 'px', default: 40 },
       { key: 'transparent_input', label: 'Transparent input', control: 'toggle', default: false },
+      { info: 'Fields rendered by payment providers keep their own styling.' },
     ] },
-    { key: 'typography', name: 'Typography', desc: 'Fonts and sizes', fields: [
-      { key: 'heading_font', label: 'Heading font', control: 'select', options: FONT_CK, default: 'Default' },
-      { key: 'body_font', label: 'Body font', control: 'select', options: FONT_CK, default: 'Default' },
-      { key: 'base_font_size', label: 'Base font size', control: 'range', min: 12, max: 18, step: 1, unit: 'px', default: 14 },
-      { key: 'heading_font_size', label: 'Heading font size', control: 'range', min: 14, max: 28, step: 1, unit: 'px', default: 18 },
-      { key: 'small_font_size', label: 'Small font size', control: 'range', min: 10, max: 14, step: 1, unit: 'px', default: 12 },
-      { key: 'font_weight_heading', label: 'Heading weight', control: 'select', default: '600', options: [
-        { value: '400', label: '400' }, { value: '500', label: '500' }, { value: '600', label: '600' }, { value: '700', label: '700' } ] },
-      { key: 'font_weight_body', label: 'Body weight', control: 'select', default: '400', options: [
-        { value: '400', label: '400' }, { value: '500', label: '500' }, { value: '600', label: '600' } ] },
+    { key: 'typography', name: 'Typography', desc: 'Heading & body fonts', fields: [
+      { key: 'heading_font', label: 'Heading font', control: 'select', options: CHECKOUT_HEADING_FONTS, default: 'Default', info: 'Store name, section titles and the Thank you title.' },
+      { key: 'body_font', label: 'Body font', control: 'select', options: CHECKOUT_BODY_FONTS, default: 'Default', info: 'Everything else, including totals and amounts.' },
     ] },
-    { key: 'layout', name: 'Layout', desc: 'Width, columns and spacing', fields: [
-      { key: 'page_max_width_pc', label: 'Max width · PC', control: 'range', min: 900, max: 1280, step: 10, unit: 'px', default: 980 },
-      { key: 'column_gap', label: 'Column gap', control: 'range', min: 16, max: 80, step: 1, unit: 'px', default: 40 },
-      { key: 'section_spacing', label: 'Section spacing', control: 'range', min: 12, max: 48, step: 1, unit: 'px', default: 24 },
-      { key: 'mobile_page_padding', label: 'Mobile page padding', control: 'range', min: 12, max: 24, step: 1, unit: 'px', default: 18 },
+    { key: 'layout', name: 'Layout', desc: 'Width and columns', fields: [
+      { key: 'page_max_width_pc', label: 'Page max width PC', control: 'range', min: 900, max: 1280, step: 1, unit: 'px', default: 980 },
+      { key: 'column_gap', label: 'Column gap', control: 'range', min: 16, max: 80, step: 1, unit: 'px', default: 40, pages: CK_SUMMARY_PAGES },
     ] },
   ];
+  // Theme fields removed in settingsVersion 2 — stripped from older snapshots on load.
+  const CHECKOUT_SETTINGS_REMOVED = {
+    main: ['text_color', 'muted_text_color', 'divider_color'],
+    header: null, // whole group; header_height_pc / header_height_mobile migrate into the Header component
+    order_summary: ['summary_text', 'summary_muted_text'],
+    accent: ['button_height'],
+    typography: ['base_font_size', 'heading_font_size', 'font_weight_heading', 'font_weight_body'],
+    layout: ['section_spacing', 'mobile_page_padding'],
+  };
 
   // Checkout commerce components (Commerce PRD §14.1) — the addable "transaction
   // enhancement" group. Unlike the required skeleton, these can be added / hidden /
@@ -534,35 +538,323 @@
     { id: 'bottom', label: 'Page bottom', after: 'checkout-policy-links', col: 'bottom', allow: ['checkout-testimonials', 'checkout-footer'] },
   ];
 
-  // Checkout skeleton. Required components are fixed; the commerce components seeded
-  // here (PRD §4.2 positions) can be added / hidden / deleted / reordered.
-  const CHECKOUT_TEMPLATE = {
-    sections: [
-      { id: 'ck-header', kind: 'checkout-header' },
-      { id: 'ck-summary-bar', kind: 'checkout-order-summary-bar' },
-      { id: 'ck-express', kind: 'checkout-express' },
-      { id: 'ck-contact', kind: 'checkout-contact' },
-      { id: 'ck-upsell', kind: 'checkout-product-upsell', zone: 'contact' },
-      { id: 'ck-shipinfo', kind: 'checkout-shipping-info' },
-      { id: 'ck-shipmethod', kind: 'checkout-shipping-method' },
-      { id: 'ck-insurance', kind: 'checkout-shipping-insurance', zone: 'shipping' },
-      { id: 'ck-payment', kind: 'checkout-payment' },
-      { id: 'ck-vip', kind: 'checkout-vip-club', zone: 'payment' },
-      { id: 'ck-cta', kind: 'checkout-cta' },
-      { id: 'ck-summary', kind: 'checkout-order-summary', blocks: [
-        { id: 'ck-blk-lines', kind: 'cart-lines' },
-        { id: 'ck-blk-coupon', kind: 'coupon' },
-        { id: 'ck-blk-subtotal', kind: 'subtotal' },
-        { id: 'ck-blk-discount', kind: 'discount' },
-        { id: 'ck-blk-shipping', kind: 'shipping' },
-        { id: 'ck-blk-tax', kind: 'tax' },
-        { id: 'ck-blk-total', kind: 'total' },
-      ] },
-      { id: 'ck-policy', kind: 'checkout-policy-links', settings: {
-        refund_policy_page: 'pg-refund', privacy_policy_page: 'pg-privacy', terms_of_service_page: 'pg-terms',
+  const checkoutSummaryBlocks = (prefix) => [
+    { id: prefix + '-blk-lines', kind: 'cart-lines' },
+    { id: prefix + '-blk-coupon', kind: 'coupon' },
+    { id: prefix + '-blk-subtotal', kind: 'subtotal' },
+    { id: prefix + '-blk-discount', kind: 'discount' },
+    { id: prefix + '-blk-shipping', kind: 'shipping' },
+    { id: prefix + '-blk-tax', kind: 'tax' },
+    { id: prefix + '-blk-total', kind: 'total' },
+  ];
+  const checkoutPolicy = () => ({
+    refund_policy_page: 'pg-refund', privacy_policy_page: 'pg-privacy',
+    terms_of_service_page: 'pg-terms',
+  });
+  // Shared records from the production default-template export. The prototype keeps
+  // Header / Policy Links as section instances, so the adapter injects these global
+  // records into each imported first template without changing the remaining presets.
+  const productionHeaderSettings = () => ({
+    logo_image: '', logo_width: 128, logo_width_mobile: 128, logo_position: 'center',
+    show_trust_text: true, trust_text: '', show_secure_badge: false, secure_text: '',
+    show_contact_info: false, contact_title: '', contact_email: '', contact_phone: '',
+    show_cart_icon: true, background_color: '', text_color: '', accent_color: '',
+    height_pc: 80, height_mobile: 44,
+    show_divider: true, custom_css: '',
+  });
+  const productionPolicySettings = () => ({
+    refund_policy_page: '', privacy_policy_page: '', terms_of_service_page: '',
+    shipping_policy_page: '', contact_page: '', link_color: '',
+    text_size: 'medium', text_alignment: 'left',
+  });
+  const checkoutTrustBadges = (prefix, opts) => ({
+    id: prefix + '-trust', kind: 'checkout-trust-badges', zone: (opts && opts.zone) || 'summary', settings: {
+      heading: (opts && opts.heading) || 'Shop with confidence', layout: (opts && opts.layout) || 'grid',
+      per_row_desktop: (opts && opts.per_row_desktop) || 2, per_row_mobile: (opts && opts.per_row_mobile) || 1,
+      icon_size: (opts && opts.icon_size) || 40,
+    }, blocks: [
+      { id: prefix + '-trust-payment', kind: 'badge', settings: {
+        icon_source: 'builtin', built_in: 'lock', title: 'Secure payment',
+        description: 'Your payment information is encrypted and protected.',
+      } },
+      { id: prefix + '-trust-confirmation', kind: 'badge', settings: {
+        icon_source: 'builtin', built_in: 'check', title: 'Email confirmation',
+        description: 'We will email your order details after payment.',
+      } },
+      { id: prefix + '-trust-status', kind: 'badge', settings: {
+        icon_source: 'builtin', built_in: 'truck', title: 'Track order status',
+        description: 'Follow fulfillment updates from your order confirmation.',
+      } },
+      { id: prefix + '-trust-privacy', kind: 'badge', settings: {
+        icon_source: 'builtin', built_in: 'shield', title: 'Privacy protected',
+        description: 'Your personal details are handled securely throughout checkout.',
       } },
     ],
+  });
+
+  // Showcase (Draft) helpers — richer decoration samples. Sample reviews / endorsements
+  // are layout-only; these templates stay off preset Flows until a merchant replaces them.
+  const showcaseAnnouncement = (prefix, messages) => ({
+    id: prefix + '-announce', kind: 'announcement-bar', zone: 'announce',
+    settings: { navigation: 'arrows', auto_rotate: true, rotate_seconds: 5, text_size: 'medium' },
+    blocks: messages.map((text, i) => ({
+      id: prefix + '-ann-' + (i + 1), kind: 'message', settings: { text },
+    })),
+  });
+  const showcasePayIcons = (prefix, zone, heading) => ({
+    id: prefix + '-payicons', kind: 'checkout-payment-icons', zone: zone,
+    settings: { heading: heading || 'We accept', layout: 'inline', alignment: 'left', icon_size: 42 },
+    blocks: ['visa', 'mastercard', 'amex', 'paypal', 'applepay', 'shoppay'].map((brand) => ({
+      id: prefix + '-pi-' + brand, kind: 'payicon', settings: { icon_source: 'builtin', built_in: brand },
+    })),
+  });
+  const showcaseCountdown = (prefix, zone, opts) => ({
+    id: prefix + '-countdown', kind: 'checkout-countdown', zone: zone,
+    settings: Object.assign({
+      style: 'alert', icon: 'clock', prefix_text: 'We will reserve your order for',
+      duration: 12, time_format: 'mmss', expired_behavior: 'stop',
+      text_alignment: 'left', background_color: '#FFF8EB', text_color: '#7A4A00',
+      border_color: '#F5D9A8', border_radius: 8,
+    }, opts || {}),
+  });
+  const showcaseReviewCard = (prefix, zone, cards) => ({
+    id: prefix + '-review', kind: 'checkout-review-card', zone: zone,
+    settings: { layout: 'carousel', card_background: '#FFFFFF', border_color: '#E5E5E5', border_radius: 10 },
+    blocks: cards.map((card, i) => ({
+      id: prefix + '-rc-' + (i + 1), kind: 'card', hidden: false,
+      settings: Object.assign({ image: IMG.av2, badge_image: '', image_position: 'left' }, card),
+    })),
+  });
+  const showcaseTrustpilot = (prefix, zone, reviews) => ({
+    id: prefix + '-tp', kind: 'checkout-trustpilot', zone: zone,
+    settings: { rating_label: 'Excellent', overall_rating: 4.8, show_trustpilot: true, trustpilot_text: 'Trustpilot' },
+    blocks: reviews.map((review, i) => ({
+      id: prefix + '-tp-' + (i + 1), kind: 'review', hidden: false,
+      settings: Object.assign({ star_rating: 5, verified_text: 'Verified customer' }, review),
+    })),
+  });
+  const showcaseTestimonials = (prefix, opts) => ({
+    id: prefix + '-tm', kind: 'checkout-testimonials', zone: 'policytop',
+    settings: Object.assign({
+      subheading: 'Loved by shoppers', heading: 'What our customers say',
+      desktop_columns: 3, mobile_columns: 1,
+    }, opts || {}),
+    blocks: [
+      { id: prefix + '-tm-1', kind: 'review', settings: {
+        avatar: IMG.av1, round_avatar: true, show_rating: true, rating: 5, author: 'Sarah M.',
+        show_verified: true, heading: 'Pure quality',
+        content: 'The fit is perfect and the fabric feels amazing. I\u2019ve already ordered two more.',
+      } },
+      { id: prefix + '-tm-2', kind: 'review', settings: {
+        avatar: IMG.av2, round_avatar: true, show_rating: true, rating: 4.5, author: 'James L.',
+        show_verified: true, heading: 'Great value',
+        content: 'Shipping was fast and the product exceeded my expectations for the price.',
+      } },
+      { id: prefix + '-tm-3', kind: 'review', settings: {
+        avatar: IMG.av3, round_avatar: true, show_rating: true, rating: 5, author: 'Mei K.',
+        show_verified: true, heading: 'Obsessed',
+        content: 'My new favourite. Comfortable enough to wear every single day.',
+      } },
+    ],
+  });
+  const showcaseFooter = (prefix, brand) => ({
+    id: prefix + '-footer', kind: 'checkout-footer', zone: 'bottom',
+    settings: {
+      brand_name: brand || 'AURA',
+      disclaimer: '<p>Replace sample reviews and endorsements with your own verified content before you publish.</p>',
+      show_policy_links: true, show_contact_info: true,
+      contact_email: 'hello@aura.example', copyright_text: 'Copyright {{ year }} · AURA',
+      show_payment_icons: true, background_color: '#083B1F', text_color: '#FFFFFF',
+      link_color: '#FFFFFF', text_alignment: 'center', padding_top: 40, padding_bottom: 40,
+    },
+    blocks: [
+      { id: prefix + '-ft-p1', kind: 'policy', settings: { link_text: 'Privacy Policy', open_new_tab: true } },
+      { id: prefix + '-ft-p2', kind: 'policy', settings: { link_text: 'Refund Policy', open_new_tab: true } },
+      { id: prefix + '-ft-p3', kind: 'policy', settings: { link_text: 'Terms of Service', open_new_tab: true } },
+      { id: prefix + '-ft-s1', kind: 'social', settings: { platform: 'instagram', open_new_tab: true } },
+      { id: prefix + '-ft-s2', kind: 'social', settings: { platform: 'tiktok', open_new_tab: true } },
+      { id: prefix + '-ft-s3', kind: 'social', settings: { platform: 'facebook', open_new_tab: true } },
+      { id: prefix + '-ft-pay1', kind: 'payment', settings: { icon_source: 'builtin', built_in: 'visa' } },
+      { id: prefix + '-ft-pay2', kind: 'payment', settings: { icon_source: 'builtin', built_in: 'mastercard' } },
+      { id: prefix + '-ft-pay3', kind: 'payment', settings: { icon_source: 'builtin', built_in: 'amex' } },
+      { id: prefix + '-ft-pay4', kind: 'payment', settings: { icon_source: 'builtin', built_in: 'paypal' } },
+      { id: prefix + '-ft-pay5', kind: 'payment', settings: { icon_source: 'builtin', built_in: 'applepay' } },
+    ],
+  });
+  const checkoutCoreSections = (prefix, headerSettings, additions) => {
+    const extras = additions || [];
+    const inZone = (zone) => extras.filter((section) => section.zone === zone);
+    const knownZones = ['announce', 'header', 'contact', 'shipping', 'payment', 'cta', 'summary', 'bottom'];
+    const unzoned = extras.filter((section) => !section.zone || knownZones.indexOf(section.zone) < 0);
+    const core = [
+      ...inZone('announce'),
+      { id: prefix + '-header', kind: 'checkout-header', settings: headerSettings || {} },
+      { id: prefix + '-summary-bar', kind: 'checkout-order-summary-bar' },
+      ...inZone('header'),
+      { id: prefix + '-express', kind: 'checkout-express' },
+      { id: prefix + '-contact', kind: 'checkout-contact' },
+      ...inZone('contact'),
+      { id: prefix + '-shipinfo', kind: 'checkout-shipping-info' },
+      { id: prefix + '-shipmethod', kind: 'checkout-shipping-method' },
+      ...inZone('shipping'),
+      { id: prefix + '-payment', kind: 'checkout-payment' },
+      ...inZone('payment'),
+    ];
+    core.push(
+      { id: prefix + '-cta', kind: 'checkout-cta', settings: { button_text: 'Pay now' } },
+      ...inZone('cta'),
+      { id: prefix + '-summary', kind: 'checkout-order-summary', blocks: checkoutSummaryBlocks(prefix) },
+      ...inZone('summary'),
+      { id: prefix + '-policy', kind: 'checkout-policy-links', settings: checkoutPolicy() },
+      ...unzoned,
+      ...inZone('bottom'),
+    );
+    return core;
   };
+
+  // First Checkout preset mirrors defaulttemplates/checkout.json. Disabled addable
+  // sections stay in the tree so merchants can opt in without recreating their content.
+  const FIRST_PURCHASE_CHECKOUT_TEMPLATE = {
+    sections: [
+      { id: 'nco-ck-header', kind: 'checkout-header', settings: productionHeaderSettings() },
+      { id: 'nco-ck-summary-bar', kind: 'checkout-order-summary-bar', settings: {
+        heading: 'Order summary', mobile_default: 'expanded',
+      } },
+      { id: 'nco-ck-static-content-1', kind: 'checkout-static-content', zone: 'header', hidden: true, settings: {
+        content_style: 'notice', icon: 'check', icon_image: '',
+        heading: 'Your payment is protected',
+        content: '<p>Card details stay encrypted. We email your confirmation immediately and send tracking as soon as the order ships. Your personal information is not shared.</p>',
+        link_text: '', link_url: '', open_new_tab: true, text_alignment: 'left',
+        background_color: '#F0F9EB', text_color: '#1F1F1F',
+        border_color: '#CDEBC8', border_radius: 4, custom_css: '',
+      } },
+      { id: 'nco-ck-express', kind: 'checkout-express', settings: {
+        heading: 'Express checkout',
+      } },
+      { id: 'nco-ck-contact', kind: 'checkout-contact', settings: {
+        heading: 'Contact', email_placeholder: 'Email or mobile phone number',
+        show_sign_in_link: true, sign_in_text: 'Sign in',
+      } },
+      { id: 'nco-ck-shipinfo', kind: 'checkout-shipping-info', settings: {
+        heading: 'Delivery', country_label: 'Country/Region',
+        first_name_placeholder: 'First name', last_name_placeholder: 'Last name',
+        address_placeholder: 'Address', apartment_placeholder: 'Apt, suite, unit, etc (optional)',
+        city_placeholder: 'City', state_placeholder: 'State/province',
+        zip_placeholder: 'ZIP code', phone_placeholder: 'Phone number',
+      } },
+      { id: 'nco-ck-shipmethod', kind: 'checkout-shipping-method', settings: {
+        heading: 'Shipping method',
+        empty_state_text: 'Enter your shipping address to view available shipping methods.',
+        selected_border_color: '',
+      } },
+      { id: 'nco-ck-payment', kind: 'checkout-payment', settings: {
+        heading: 'Payment', description: 'All transactions are secure and encrypted.',
+      } },
+      { id: 'nco-ck-cta', kind: 'checkout-cta', settings: {
+        button_text: 'Pay now', button_full_width: true, loading_text: 'Processing...',
+        button_background: '', button_text_color: '', button_border_radius: '',
+      } },
+      { id: 'nco-ck-trust-badges-2', kind: 'checkout-trust-badges', zone: 'cta', hidden: true, settings: {
+        content_mode: 'structured', heading: 'Protected at every step', full_image: '',
+        layout: 'grid', per_row_desktop: 2, per_row_mobile: 2, icon_size: 28,
+        background_color: '#ffffff', text_color: '#333', border_color: 'transparent',
+        border_radius: 4, custom_css: '',
+      }, blocks: [
+        { id: 'nco-ck-trust-badge-4', kind: 'badge', settings: {
+          icon_source: 'builtin', built_in: 'lock', custom_image: '',
+          title: 'Secure payment', description: 'Your payment information is encrypted and protected.',
+        } },
+        { id: 'nco-ck-trust-badge-5', kind: 'badge', settings: {
+          icon_source: 'builtin', built_in: 'check', custom_image: '',
+          title: 'Email confirmation', description: 'We will email your order details after payment.',
+        } },
+        { id: 'nco-ck-trust-badge-6', kind: 'badge', settings: {
+          icon_source: 'builtin', built_in: 'truck', custom_image: '',
+          title: 'Track order status', description: 'Follow fulfillment updates from your order confirmation.',
+        } },
+        { id: 'nco-ck-trust-badge-7', kind: 'badge', settings: {
+          icon_source: 'builtin', built_in: 'shield', custom_image: '',
+          title: 'Privacy protected', description: 'Your personal details are handled securely throughout checkout.',
+        } },
+      ] },
+      { id: 'nco-ck-summary', kind: 'checkout-order-summary', settings: {
+        heading: 'Order summary', show_heading_pc: true, show_heading_mobile: true,
+        mobile_default: 'collapsed',
+      }, blocks: [
+        { id: 'nco-ck-blk-lines', kind: 'cart-lines' },
+        { id: 'nco-ck-blk-coupon', kind: 'coupon', settings: {
+          show_coupon: true, placeholder: 'Discount code',
+        } },
+        { id: 'nco-ck-blk-subtotal', kind: 'subtotal', settings: { label: 'Subtotal' } },
+        { id: 'nco-ck-blk-discount', kind: 'discount' },
+        { id: 'nco-ck-blk-shipping', kind: 'shipping', settings: {
+          label: 'Shipping', zero_value: 'free',
+        } },
+        { id: 'nco-ck-blk-total', kind: 'total', settings: { label: 'Total' } },
+      ] },
+      { id: 'nco-ck-policy', kind: 'checkout-policy-links', settings: productionPolicySettings() },
+    ],
+  };
+
+  // Returning-customer checkout: keep the signed-in journey fast and concise. The Flow
+  // supplies identity; Theme only presents the saved-address-aware checkout structure.
+  const RETURNING_CUSTOMER_CHECKOUT_TEMPLATE = {
+    sections: checkoutCoreSections('rcc-ck', {
+      show_trust_text: true, trust_text: 'Secure checkout',
+      show_secure_badge: false, show_contact_info: false, show_cart_icon: true,
+    }, [
+      { id: 'rcc-ck-guidance', kind: 'checkout-static-content', zone: 'header', settings: {
+        content_style: 'notice', icon: 'check', heading: 'Ready when you are',
+        content: '<p>Review your delivery and payment details, then place your order when you\u2019re ready. We\u2019ll keep you updated by email.</p>',
+        text_alignment: 'left',
+      } },
+      checkoutTrustBadges('rcc-ck'),
+    ]),
+  };
+
+  // Residual A/B Variant A: identity-neutral security layer.
+  // Header / Footer are shared, so this variant does not customize them.
+  // Announcement bar and payment icons are intentionally omitted — the split
+  // uses page-only trust components around the payment decision.
+  const TRUST_LED_CHECKOUT_TEMPLATE = {
+    sections: checkoutCoreSections('ab-trust', {
+      show_trust_text: true, trust_text: 'Secure checkout',
+      show_secure_badge: false, show_contact_info: false, show_cart_icon: true,
+    }, [
+      { id: 'ab-trust-intro', kind: 'checkout-static-content', zone: 'header', settings: {
+        content_style: 'notice', icon: 'shield', heading: 'Your payment is protected',
+        content: '<p>Card details stay encrypted in transit. We email confirmation as soon as you pay and send tracking when the order ships. Your personal information is not shared.</p>',
+        text_alignment: 'left',
+      } },
+      checkoutTrustBadges('ab-trust', {
+        zone: 'payment', heading: 'Protected at every step', per_row_desktop: 2, per_row_mobile: 1,
+      }),
+      showcaseReviewCard('ab-trust', 'summary', [
+        { image: IMG.av2, title: 'Checkout you can trust',
+          content: '\u201cThe payment step felt considered \u2014 encrypted, quiet, and I had confirmation in my inbox before I closed the tab.\u201d',
+          author_name: 'Jordan Hale', author_subtitle: 'Verified buyer' },
+        { image: IMG.av1, title: 'Privacy first',
+          content: '\u201cI only needed the details required to ship. No extra account, no surprises after I paid.\u201d',
+          author_name: 'Mina Cho', author_subtitle: 'Verified buyer' },
+      ]),
+      showcaseTrustpilot('ab-trust', 'summary', [
+        { review_title: 'Paid without a hitch', review_content: 'Checkout was short and the confirmation email arrived immediately. Tracking showed up as soon as it shipped.', reviewer_name: 'Hannah W.', review_date: 'May 18, 2026' },
+        { review_title: 'Felt secure', review_content: 'Card form looked standard and protected. I never felt like I was leaving extra data behind.', reviewer_name: 'Marco D.', review_date: 'May 9, 2026' },
+      ]),
+    ]),
+  };
+
+  // Residual A/B Variant B: transaction skeleton only. No notice card, badges,
+  // payment icons, countdown or commerce boosters.
+  const CONCISE_CHECKOUT_TEMPLATE = {
+    sections: checkoutCoreSections('ab-concise', {
+      show_trust_text: true, trust_text: 'Secure checkout',
+      show_secure_badge: false, show_contact_info: false, show_cart_icon: true,
+    }),
+  };
+
+  // Backward-compatible fallback for code paths that still expect one Checkout seed.
+  const CHECKOUT_TEMPLATE = FIRST_PURCHASE_CHECKOUT_TEMPLATE;
 
   // Mock order used for the checkout preview (PRD §14.2). Amounts are illustrative;
   // in production the order calculation service is the source of truth.
@@ -570,16 +862,6 @@
     storeName: 'AURA',
     country: 'United States',
     currency: 'USD',
-    // Runtime payment capability mock. In production this is supplied by the active
-    // processor after account, checkout-domain, and buyer-environment checks; theme
-    // settings never turn an unavailable method on.
-    paymentCapabilities: {
-      provider: 'paypal',
-      cards: 'enabled',
-      wallet: 'enabled',
-      applePay: 'enabled',
-      googlePay: 'enabled',
-    },
     countries: ['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'Japan'],
     states: ['California', 'New York', 'Texas', 'Florida', 'Illinois', 'Washington', 'Massachusetts', 'Georgia'],
     cities: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Seattle', 'Boston', 'Atlanta', 'Miami'],
@@ -833,28 +1115,388 @@
     refund_policy_page: 'pg-refund', privacy_policy_page: 'pg-privacy',
     terms_of_service_page: 'pg-terms', contact_page: 'pg-contact',
   });
-  const offerSections = (prefix, downsell) => [
-    { id: prefix + '-header', kind: 'checkout-offer-header' },
-    { id: prefix + '-progress', kind: 'checkout-offer-progress' },
-    { id: prefix + '-intro', kind: 'checkout-static-content', zone: 'progress', settings: {
-      content_style: 'plain', icon: 'none', text_alignment: 'center', background_color: 'transparent', border_color: 'transparent',
-      heading: downsell ? 'Before you go\u2026' : 'Please Note:',
-      content: downsell
-        ? '<p>We don\u2019t want you to miss out, so here\u2019s a smaller offer at our best one-time price.</p><p><strong>Add it now without re-entering your payment details.</strong></p>'
-        : '<p>Due to extremely high demand, this product can sometimes go out of stock.</p><p>Your current order is already confirmed and being prepared for shipment.</p><p><strong>Add an extra supply now with this exclusive post-purchase discount.</strong></p>',
+  const offerSections = (prefix, config, additions) => {
+    const extras = additions || [];
+    const inZone = (zone) => extras.filter((section) => section.zone === zone);
+    return [
+      ...inZone('announce'),
+      { id: prefix + '-header', kind: 'checkout-offer-header', settings: {
+        confirmation_label: 'Confirmation', paid_message: 'You\u2019ve paid for your order.',
+        show_order_link: true, order_link_text: 'View order confirmation',
+      } },
+      ...inZone('header'),
+      { id: prefix + '-progress', kind: 'checkout-offer-progress', settings: {
+        order_label: 'Order confirmed', offer_label: config.progressLabel,
+        complete_label: 'Complete', show_labels: true,
+      } },
+      { id: prefix + '-intro', kind: 'checkout-static-content', zone: 'progress', settings: {
+        content_style: 'plain', icon: 'none', text_alignment: 'center',
+        background_color: 'transparent', border_color: 'transparent',
+        heading: config.heading, content: '<p>' + config.body + '</p>',
+      } },
+      ...inZone('progress'),
+      { id: prefix + '-product', kind: 'checkout-offer-product', settings: {
+        recommendation_rule: 'best_sellers',
+        fill_default_products: true,
+        maximum_products: config.maximumProducts,
+        discount_type: 'percentage',
+        discount_value: config.discount,
+        multiple_layout: config.multipleLayout,
+        layout: 'image_left',
+        image_ratio: 'square',
+        show_compare_price: true,
+        show_savings: true,
+        show_rating: true,
+        show_description: true,
+        show_variant: true,
+        show_quantity: config.showQuantity,
+        show_shipping: true,
+        accept_text: config.acceptText,
+        decline_text: config.declineText,
+        show_payment_note: true,
+        payment_note: 'Uses the payment method from your completed checkout',
+      } },
+      ...inZone('offer'),
+      { id: prefix + '-policy', kind: 'checkout-policy-links', settings: offerPolicy() },
+      ...inZone('policytop'),
+      ...inZone('bottom'),
+    ];
+  };
+
+  const productionOfferSections = (prefix, config) => [
+    { id: prefix + '-header', kind: 'checkout-offer-header', settings: {
+      logo_image: '', logo_text: '', logo_position: 'left',
+      confirmation_label: 'Confirmation #', paid_message: 'You\u2019ve paid for your order.',
+      show_order_link: true, order_link_text: 'View order confirmation',
+      background_color: '#FFFFFF', text_color: '#000000', accent_color: '',
+      custom_css: '',
     } },
-    { id: prefix + '-countdown', kind: 'checkout-countdown', zone: 'progress', settings: {
-      style: 'alert', icon: 'none', prefix_text: downsell ? 'Last chance \u2014 this offer ends in' : 'But hurry, this offer ends in',
-      duration: 5, text_alignment: 'center', background_color: '#FFF0F2', text_color: '#6E3038', border_color: '#F3CDD2',
+    { id: prefix + '-progress', kind: 'checkout-offer-progress', settings: {
+      order_label: 'Order confirmed', offer_label: 'Special offer', complete_label: 'Complete',
+      active_color: '', text_color: '#121927',
+      background_color: '#FFFFFF', custom_css: '',
+    } },
+    { id: prefix + '-intro', kind: 'checkout-static-content', zone: 'progress', settings: {
+      content_style: 'plainText', icon: 'none', icon_image: '',
+      heading: config.heading, content: '<p>' + config.body + '</p>',
+      link_text: '', link_url: '', open_new_tab: true, text_alignment: 'center',
+      background_color: '#ffffff', text_color: '#433134',
+      border_color: '#ffffff', border_radius: 0, custom_css: '',
     } },
     { id: prefix + '-product', kind: 'checkout-offer-product', settings: {
-      accept_text: downsell ? 'Add this offer · {amount}' : 'Add to my order · {amount}',
-      decline_text: downsell ? 'No thanks, complete my order' : 'No thanks, continue',
+      recommendation_rule: 'best_sellers', specific_products: [], default_products: [],
+      product_mappings: [], fill_default_products: config.fillDefaultProducts,
+      maximum_products: 1, discount_type: 'percentage', discount_value: config.discount,
+      multiple_layout: 'stacked', layout: 'image_left', image_ratio: 'square',
+      show_compare_price: true, show_savings: true, show_rating: true,
+      show_variant: true, show_quantity: true,
+      quantity_label: 'Quantity', show_shipping: true,
+      accept_text: config.acceptText, decline_text: config.declineText,
+      show_payment_note: true,
+      payment_note: 'Uses the payment method from your completed checkout',
+      card_background: '#FFFFFF', border_radius: 0, text_color: '#433134',
+      savings_color: '#121927', button_background: '', button_text_color: '',
     } },
-    { id: prefix + '-policy', kind: 'checkout-policy-links', settings: offerPolicy() },
+    { id: prefix + '-policy', kind: 'checkout-policy-links', settings: productionPolicySettings() },
   ];
-  const UPSELL_TEMPLATE = { sections: offerSections('up', false) };
-  const DOWNSELL_TEMPLATE = { sections: offerSections('dn', true) };
+
+  const NEW_CUSTOMER_UPSELL_TEMPLATE = { sections: productionOfferSections('nco-up', {
+    heading: 'A little something for your first order',
+    body: 'Your order is confirmed. Add a customer favorite now without entering your payment details again.',
+    fillDefaultProducts: true, discount: 15,
+    acceptText: 'Add to my order · {amount}', declineText: 'No thanks, continue',
+  }) };
+  const NEW_CUSTOMER_DOWNSELL_TEMPLATE = { sections: productionOfferSections('nco-dn', {
+    heading: 'Prefer something smaller?',
+    body: 'Here is one lower-priced customer favorite you can add before we complete your order.',
+    fillDefaultProducts: false, discount: 20,
+    acceptText: 'Add this offer · {amount}', declineText: 'No thanks, complete my order',
+  }) };
+  const RETURNING_CUSTOMER_UPSELL_TEMPLATE = { sections: offerSections('rcc-up', {
+    progressLabel: 'Recommended for you',
+    heading: 'Add more to your order',
+    body: 'Choose any popular additions below. Your payment details are already confirmed.',
+    maximumProducts: 4, discount: 10, multipleLayout: 'grid', showQuantity: true,
+    acceptText: 'Add to my order · {amount}', declineText: 'No thanks, continue',
+  }) };
+  const RETURNING_CUSTOMER_DOWNSELL_TEMPLATE = { sections: offerSections('rcc-dn', {
+    progressLabel: 'Value picks',
+    heading: 'A few lower-priced picks',
+    body: 'These popular additions are priced below the offer you just passed on.',
+    maximumProducts: 2, discount: 15, multipleLayout: 'grid', showQuantity: true,
+    acceptText: 'Add this offer · {amount}', declineText: 'No thanks, complete my order',
+  }) };
+  const RESIDUAL_UPSELL_TEMPLATE = { sections: offerSections('ab-up', {
+    progressLabel: 'Special offer',
+    heading: 'Add a popular extra',
+    body: 'Your order is confirmed. Add a customer favorite now without entering your payment details again.',
+    maximumProducts: 2, discount: 15, multipleLayout: 'stacked', showQuantity: true,
+    acceptText: 'Add to my order · {amount}', declineText: 'No thanks, continue',
+  }) };
+  const RESIDUAL_DOWNSELL_TEMPLATE = { sections: offerSections('ab-dn', {
+    progressLabel: 'Smaller offer',
+    heading: 'Prefer a smaller add-on?',
+    body: 'Here is one lower-priced customer favorite you can add before we complete your order.',
+    maximumProducts: 1, discount: 20, multipleLayout: 'stacked', showQuantity: false,
+    acceptText: 'Add this offer · {amount}', declineText: 'No thanks, complete my order',
+  }) };
+
+  // Showcase drafts — richer decoration to demonstrate Theme capability. Not bound
+  // to New / Returning / Residual preset Flows. Sample social proof is layout-only.
+  const SOCIAL_PROOF_CHECKOUT_TEMPLATE = {
+    sections: checkoutCoreSections('sp-ck', {
+      show_trust_text: true, trust_text: 'Rated 4.8 by shoppers',
+      show_secure_badge: true, secure_text: 'SSL secure',
+      show_contact_info: false, show_cart_icon: true,
+    }, [
+      showcaseAnnouncement('sp-ck', [
+        'Loved by 12,000+ shoppers this season',
+        'Free shipping on orders over $79',
+        'Easy 30-day returns · hassle-free',
+      ]),
+      { id: 'sp-ck-intro', kind: 'checkout-static-content', zone: 'header', settings: {
+        content_style: 'notice', icon: 'check', heading: 'Join thousands of happy orders',
+        content: '<p>Checkout is encrypted. Your confirmation arrives instantly, and shoppers rate this store Excellent on Trustpilot.</p>',
+        text_alignment: 'left',
+      } },
+      showcaseCountdown('sp-ck', 'header', {
+        prefix_text: 'Your cart is reserved for', duration: 10,
+      }),
+      { id: 'sp-ck-grab', kind: 'checkout-product-upsell', zone: 'contact', settings: {
+        heading: 'Customers also grabbed', product_source: 'manual',
+        products: ['p3', 'p4', 'p5'], products_limit: 3,
+        layout_desktop: 'slider', layout_mobile: 'slider',
+      } },
+      showcasePayIcons('sp-ck', 'payment'),
+      showcaseReviewCard('sp-ck', 'summary', [
+        { image: IMG.av2, title: 'Dermatologist Recommended',
+          content: '\u201cIn my practice I look for formulas that are gentle yet effective \u2014 this is one I happily recommend to my own patients.\u201d',
+          author_name: 'Dr. Elena Ross', author_subtitle: 'Board-certified Dermatologist' },
+        { image: IMG.av1, title: 'As seen in Vogue',
+          content: '\u201cA quiet luxury staple that actually earns its keep \u2014 polished enough for evening, easy enough for every day.\u201d',
+          author_name: 'Editorial desk', author_subtitle: 'Vogue Shopping' },
+      ]),
+      showcaseTrustpilot('sp-ck', 'summary', [
+        { review_title: 'Exactly as described', review_content: 'Ordering was effortless and the quality blew me away. Shipping was quick too \u2014 will definitely buy again.', reviewer_name: 'Hannah W.', review_date: 'May 18, 2026' },
+        { review_title: 'Great experience', review_content: 'Customer service answered all my questions fast and the product is fantastic value.', reviewer_name: 'Marco D.', review_date: 'May 9, 2026' },
+        { review_title: 'Will buy again', review_content: 'Fit is true to size and the fabric feels expensive. Already telling friends.', reviewer_name: 'Priya S.', review_date: 'Apr 28, 2026', star_rating: 4 },
+      ]),
+      checkoutTrustBadges('sp-ck', { heading: 'Shop with confidence' }),
+      showcaseTestimonials('sp-ck'),
+      showcaseFooter('sp-ck'),
+    ]),
+  };
+  const LIMITED_PROOF_UPSELL_TEMPLATE = { sections: offerSections('lp-up', {
+    progressLabel: 'Limited offer',
+    heading: 'A time-sensitive extra',
+    body: 'Add a customer favorite with the payment method you just used. Sample reviews are for layout only \u2014 replace them before you publish.',
+    maximumProducts: 2, discount: 18, multipleLayout: 'stacked', showQuantity: true,
+    acceptText: 'Add this offer · {amount}', declineText: 'No thanks, continue',
+  }, [
+    showcaseAnnouncement('lp-up', [
+      'This offer is only available on this page',
+      'No payment details needed \u2014 one tap to add',
+    ]),
+    showcaseCountdown('lp-up', 'progress', {
+      style: 'alert', icon: 'fire', prefix_text: 'This page-only offer expires in',
+      duration: 8, background_color: '#FFF2F2', text_color: '#B42318', border_color: '#F5C2C2',
+    }),
+    showcaseReviewCard('lp-up', 'offer', [
+      { image: IMG.av2, title: 'Most shoppers add this',
+        content: '\u201cI almost skipped the extra \u2014 glad I didn\u2019t. It completed the set and arrived with my original order.\u201d',
+        author_name: 'Alex P.', author_subtitle: 'Verified buyer' },
+    ]),
+    showcaseTestimonials('lp-up', { subheading: 'Post-purchase picks', heading: 'Shoppers who added this extra' }),
+    showcaseFooter('lp-up'),
+  ]) };
+  const GENTLE_LAST_CHANCE_DOWNSELL_TEMPLATE = { sections: offerSections('gl-dn', {
+    progressLabel: 'A smaller option',
+    heading: 'A gentler last look',
+    body: 'If the last offer was more than you wanted, here is one smaller favorite before we complete your order.',
+    maximumProducts: 1, discount: 22, multipleLayout: 'stacked', showQuantity: false,
+    acceptText: 'Add this smaller offer · {amount}', declineText: 'No thanks, complete my order',
+  }, [
+    showcaseAnnouncement('gl-dn', [
+      'One last smaller option before we finish',
+    ]),
+    showcaseCountdown('gl-dn', 'progress', {
+      style: 'inline', icon: 'clock', prefix_text: 'This smaller option stays available for',
+      duration: 6, text_alignment: 'center',
+      background_color: '#F4F7F5', text_color: '#1F3D2C', border_color: '#D5E3DA',
+    }),
+    { id: 'gl-dn-trust', kind: 'checkout-trust-badges', zone: 'offer', settings: {
+      heading: 'Still covered', layout: 'grid', per_row_desktop: 2, per_row_mobile: 1, icon_size: 36,
+    }, blocks: [
+      { id: 'gl-dn-trust-pay', kind: 'badge', settings: {
+        icon_source: 'builtin', built_in: 'lock', title: 'Same secure payment',
+        description: 'Uses the card you just paid with. No new details needed.',
+      } },
+      { id: 'gl-dn-trust-ship', kind: 'badge', settings: {
+        icon_source: 'builtin', built_in: 'truck', title: 'Ships with your order',
+        description: 'This add-on leaves with the order you already placed.',
+      } },
+    ] },
+    showcaseFooter('gl-dn'),
+  ]) };
+
+  const thankyouCoreSections = (prefix, additions) => {
+    const extras = additions || [];
+    const inZone = (zone) => extras.filter((section) => section.zone === zone);
+    return [
+      ...inZone('announce'),
+      { id: prefix + '-header', kind: 'checkout-header', settings: {
+        show_trust_text: true, trust_text: 'Order confirmed',
+        show_secure_badge: false, show_cart_icon: true,
+      } },
+      ...inZone('header'),
+      { id: prefix + '-status', kind: 'thankyou-order-status' },
+      ...inZone('status'),
+      { id: prefix + '-details', kind: 'thankyou-order-details' },
+      ...inZone('details'),
+      { id: prefix + '-continue', kind: 'thankyou-continue-shopping' },
+      { id: prefix + '-contact', kind: 'thankyou-contact-us' },
+      ...inZone('continue'),
+      { id: prefix + '-summary', kind: 'checkout-order-summary', settings: { mobile_default: 'expanded' }, blocks: [
+        { id: prefix + '-blk-lines', kind: 'cart-lines' },
+        { id: prefix + '-blk-subtotal', kind: 'subtotal' },
+        { id: prefix + '-blk-discount', kind: 'discount' },
+        { id: prefix + '-blk-shipping', kind: 'shipping' },
+        { id: prefix + '-blk-total', kind: 'total' },
+      ] },
+      ...inZone('summary'),
+      { id: prefix + '-policy', kind: 'checkout-policy-links', settings: {
+        refund_policy_page: 'pg-refund', privacy_policy_page: 'pg-privacy',
+        terms_of_service_page: 'pg-terms', contact_page: 'pg-contact',
+      } },
+      ...inZone('policytop'),
+      ...inZone('bottom'),
+    ];
+  };
+  const BRAND_CELEBRATION_THANKYOU_TEMPLATE = {
+    sections: thankyouCoreSections('bc-ty', [
+      showcaseAnnouncement('bc-ty', [
+        'You\u2019re in. Welcome to the AURA community',
+        'Tracking details will land in your inbox',
+      ]),
+      { id: 'bc-ty-thanks', kind: 'checkout-static-content', zone: 'header', settings: {
+        content_style: 'notice', icon: 'gift', heading: 'Thank you for choosing AURA',
+        content: '<p>Your order is confirmed. We\u2019re packing it with care and will email tracking as soon as it ships.</p>',
+        background_color: '#F4F7F5', border_color: '#D5E3DA', text_alignment: 'left',
+      } },
+      { id: 'bc-ty-next', kind: 'checkout-static-content', zone: 'status', settings: {
+        content_style: 'plain', icon: 'none', heading: 'What happens next',
+        content: '<p>We\u2019ll send a confirmation now, a shipping update when it leaves, and a note if anything needs your attention.</p>',
+        text_alignment: 'left', background_color: 'transparent', border_color: 'transparent',
+      } },
+      showcaseReviewCard('bc-ty', 'details', [
+        { image: IMG.av1, title: 'A brand people come back to',
+          content: '\u201cThe unboxing felt considered \u2014 not loud, just quietly well made. I\u2019ve already planned my next order.\u201d',
+          author_name: 'Camille R.', author_subtitle: 'Repeat customer' },
+      ]),
+      { id: 'bc-ty-fb', kind: 'checkout-fb-comments', zone: 'continue', settings: { heading: 'From the community' } },
+      showcasePayIcons('bc-ty', 'summary', 'Paid securely with'),
+      checkoutTrustBadges('bc-ty', { heading: 'You\u2019re in good hands' }),
+      showcaseTestimonials('bc-ty', { subheading: 'The community', heading: 'You\u2019re in good company' }),
+      showcaseFooter('bc-ty'),
+    ]),
+  };
+
+  function productionThankyouTemplate() {
+    return {
+      sections: [
+        { id: 'ty-header', kind: 'checkout-header', settings: productionHeaderSettings() },
+        { id: 'ty-status', kind: 'thankyou-order-status', settings: {
+          email_message: "You'll receive a confirmation email soon",
+          thankyou_text: 'Thank you, {{customer_name}}',
+          success_message: 'Your order is confirmed',
+          success_icon_color: '', show_confirmation_number: true,
+        } },
+        { id: 'ty-details', kind: 'thankyou-order-details', settings: {
+          heading: 'Order details', card_radius: 4, card_background: '#FFFFFF',
+          card_border_color: '#E0E1E3', show_payment_method: true,
+          show_billing_address: true, show_shipping_method: true,
+          show_shipping_address: true, show_contact_information: true,
+        } },
+        { id: 'ty-continue', kind: 'thankyou-continue-shopping', settings: {
+          link_url: '', button_text: 'Continue shopping',
+          show_button: true, button_style: 'primary',
+        } },
+        { id: 'ty-contact', kind: 'thankyou-contact-us', settings: {
+          help_text: 'Need help?', link_text: 'Contact us',
+          contact_link: '', show_contact_us: false,
+        } },
+        { id: 'ty-summary', kind: 'checkout-order-summary', settings: {
+          heading: 'Order summary', custom_css: '', mobile_default: 'expanded',
+          show_heading_pc: true, show_heading_mobile: true,
+        }, blocks: [
+          { id: 'ty-blk-lines', kind: 'cart-lines' },
+          { id: 'ty-blk-subtotal', kind: 'subtotal', settings: { label: 'Subtotal' } },
+          { id: 'ty-blk-discount', kind: 'discount' },
+          { id: 'ty-blk-shipping', kind: 'shipping', settings: {
+            label: 'Shipping', zero_value: 'free',
+          } },
+          { id: 'ty-blk-total', kind: 'total', settings: { label: 'Total' } },
+        ] },
+        { id: 'ty-policy', kind: 'checkout-policy-links', settings: productionPolicySettings() },
+      ],
+    };
+  }
+  function legacyThankyouTemplate() {
+    return {
+      sections: [
+        { id: 'ty-header', kind: 'checkout-header' },
+        { id: 'ty-status', kind: 'thankyou-order-status' },
+        { id: 'ty-details', kind: 'thankyou-order-details' },
+        { id: 'ty-continue', kind: 'thankyou-continue-shopping' },
+        { id: 'ty-contact', kind: 'thankyou-contact-us' },
+        { id: 'ty-summary', kind: 'checkout-order-summary', settings: { mobile_default: 'expanded' }, blocks: [
+          { id: 'ty-blk-lines', kind: 'cart-lines' },
+          { id: 'ty-blk-subtotal', kind: 'subtotal' },
+          { id: 'ty-blk-discount', kind: 'discount' },
+          { id: 'ty-blk-shipping', kind: 'shipping' },
+          { id: 'ty-blk-total', kind: 'total' },
+        ] },
+        { id: 'ty-policy', kind: 'checkout-policy-links', settings: {
+          refund_policy_page: 'pg-refund', privacy_policy_page: 'pg-privacy',
+          terms_of_service_page: 'pg-terms', contact_page: 'pg-contact',
+        } },
+      ],
+    };
+  }
+
+  // Legacy ids are retained in CHECKOUT_TEMPLATE_SETS. Residual A/B adds a
+  // Trust-led / Concise checkout pair plus one shared Upsell/Downsell set.
+  // Showcase drafts live in the same lists but stay off preset Flows.
+  const CHECKOUT_TEMPLATE_SEEDS = {
+    checkout: {
+      standard: FIRST_PURCHASE_CHECKOUT_TEMPLATE,
+      conversion: RETURNING_CUSTOMER_CHECKOUT_TEMPLATE,
+      'trust-led': TRUST_LED_CHECKOUT_TEMPLATE,
+      concise: CONCISE_CHECKOUT_TEMPLATE,
+      'social-proof': SOCIAL_PROOF_CHECKOUT_TEMPLATE,
+    },
+    upsell: {
+      'one-click-upsell': NEW_CUSTOMER_UPSELL_TEMPLATE,
+      'subscription-upsell': RETURNING_CUSTOMER_UPSELL_TEMPLATE,
+      'residual-offer': RESIDUAL_UPSELL_TEMPLATE,
+      'limited-proof': LIMITED_PROOF_UPSELL_TEMPLATE,
+    },
+    downsell: {
+      'standard-downsell': NEW_CUSTOMER_DOWNSELL_TEMPLATE,
+      'save-offer': RETURNING_CUSTOMER_DOWNSELL_TEMPLATE,
+      'residual-save': RESIDUAL_DOWNSELL_TEMPLATE,
+      'gentle-last-chance': GENTLE_LAST_CHANCE_DOWNSELL_TEMPLATE,
+    },
+    thankyou: {
+      standard: productionThankyouTemplate(),
+      'base-order': legacyThankyouTemplate(),
+      'survey-thankyou': legacyThankyouTemplate(),
+      'brand-celebration': BRAND_CELEBRATION_THANKYOU_TEMPLATE,
+    },
+  };
+
+  const UPSELL_TEMPLATE = NEW_CUSTOMER_UPSELL_TEMPLATE;
+  const DOWNSELL_TEMPLATE = NEW_CUSTOMER_DOWNSELL_TEMPLATE;
 
   // ==========================================================================
   //  THANK YOU PAGE (Thank you PRD) — second transaction page, shares the
@@ -871,15 +1513,16 @@
   // The six content & trust components that may live in the Order details / Contact us /
   // Order summary zones (PRD §9.2). Header / Order status only allow Static content;
   // Policy Links only Testimonials; Page bottom only Footer.
-  const TY_SIX = ['checkout-trust-badges', 'checkout-static-content', 'checkout-payment-icons',
+  const TY_LEFT_CONTENT = ['checkout-static-content', 'checkout-countdown'];
+  const TY_FLEX = ['checkout-countdown', 'checkout-trust-badges', 'checkout-static-content', 'checkout-payment-icons',
     'checkout-trustpilot', 'checkout-review-card', 'checkout-fb-comments'];
   const THANKYOU_ZONES = [
     { id: 'announce', label: 'Above header', after: null, col: 'announce', allow: ['announcement-bar'] },
-    { id: 'header', label: 'Below header', after: 'checkout-header', col: 'main', allow: ['checkout-static-content'] },
-    { id: 'status', label: 'Below Order status', after: 'thankyou-order-status', col: 'main', allow: ['checkout-static-content'] },
-    { id: 'details', label: 'Below Order details', after: 'thankyou-order-details', col: 'main', allow: TY_SIX.slice() },
-    { id: 'continue', label: 'Below Contact us', after: 'thankyou-contact-us', col: 'main', allow: TY_SIX.slice() },
-    { id: 'summary', label: 'Below Order Summary', after: 'checkout-order-summary', col: 'summary', allow: TY_SIX.slice() },
+    { id: 'header', label: 'Below header', after: 'checkout-header', col: 'main', allow: TY_LEFT_CONTENT.slice() },
+    { id: 'status', label: 'Below Order status', after: 'thankyou-order-status', col: 'main', allow: TY_LEFT_CONTENT.slice() },
+    { id: 'details', label: 'Below Order details', after: 'thankyou-order-details', col: 'main', allow: TY_FLEX.slice() },
+    { id: 'continue', label: 'Below Contact us', after: 'thankyou-contact-us', col: 'main', allow: TY_FLEX.slice() },
+    { id: 'summary', label: 'Below Order Summary', after: 'checkout-order-summary', col: 'summary', allow: TY_FLEX.slice() },
     // policytop is listed before 'bottom' so drag-onto-policy-links resolves here first.
     { id: 'policytop', label: 'Below Policy Links', after: 'checkout-policy-links', col: 'bottom', allow: ['checkout-testimonials'] },
     { id: 'bottom', label: 'Page bottom', after: 'checkout-policy-links', col: 'bottom', allow: ['checkout-footer'] },
@@ -888,25 +1531,7 @@
   // Thank-you skeleton (PRD §3.1, §23.2). Required components are locked; reused
   // Checkout components (header, mobile summary bar, order summary, policy links,
   // footer) carry the same behaviour they have on Checkout.
-  const THANKYOU_TEMPLATE = {
-    sections: [
-      { id: 'ty-header', kind: 'checkout-header' },
-      { id: 'ty-status', kind: 'thankyou-order-status' },
-      { id: 'ty-details', kind: 'thankyou-order-details' },
-      { id: 'ty-continue', kind: 'thankyou-continue-shopping' },
-      { id: 'ty-contact', kind: 'thankyou-contact-us' },
-      { id: 'ty-summary', kind: 'checkout-order-summary', blocks: [
-        { id: 'ty-blk-lines', kind: 'cart-lines' },
-        { id: 'ty-blk-subtotal', kind: 'subtotal' },
-        { id: 'ty-blk-discount', kind: 'discount' },
-        { id: 'ty-blk-shipping', kind: 'shipping' },
-        { id: 'ty-blk-total', kind: 'total' },
-      ] },
-      { id: 'ty-policy', kind: 'checkout-policy-links', settings: {
-        refund_policy_page: 'pg-refund', privacy_policy_page: 'pg-privacy', terms_of_service_page: 'pg-terms', contact_page: 'pg-contact',
-      } },
-    ],
-  };
+  const THANKYOU_TEMPLATE = productionThankyouTemplate();
 
   // Add-component catalog for the Thank-you editor (PRD §7, §9.2). Only reusable
   // content & trust enhancement components — NO commerce boosters (PRD §8).
@@ -927,9 +1552,10 @@
     ] },
     { label: 'Promotion & urgency', entries: [
       { kind: 'announcement-bar', name: 'Announcement Bar', desc: 'Post-purchase notice / next-order offer (above header)', defaultZone: 'announce' },
+      { kind: 'checkout-countdown', name: 'Countdown', desc: 'Static urgency / reservation timer', defaultZone: 'header' },
     ] },
     { label: 'Content & structure', entries: [
-      { kind: 'checkout-static-content', name: 'Static content', desc: 'Order-processing / shipping / support notice', defaultZone: 'summary' },
+      { kind: 'checkout-static-content', name: 'Static content', desc: 'Order-processing / shipping / support notice', defaultZone: 'header' },
       { kind: 'checkout-footer', name: 'Footer', desc: 'Thank-you footer (bottom of page only)', defaultZone: 'bottom' },
     ] },
   ];
@@ -1035,7 +1661,7 @@
 
   window.OS_DATA = {
     THEMES, PAGE_OPTIONS, CATALOG, SETTINGS_GROUPS, SAMPLE, DEFAULT_THEME,
-    CHECKOUT_PAGES, CHECKOUT_TEMPLATE_SETS, CHECKOUT_SETTINGS_GROUPS, CHECKOUT_TEMPLATE, CHECKOUT_MOCK, CHECKOUT_COMMERCE, CHECKOUT_CONTENT, CHECKOUT_ZONES, CHECKOUT_CATALOG,
+    CHECKOUT_PAGES, CHECKOUT_TEMPLATE_SETS, CHECKOUT_TEMPLATE_SEEDS, CHECKOUT_SETTINGS_GROUPS, CHECKOUT_SETTINGS_REMOVED, CHECKOUT_TEMPLATE, CHECKOUT_MOCK, CHECKOUT_COMMERCE, CHECKOUT_CONTENT, CHECKOUT_ZONES, CHECKOUT_CATALOG,
     UPSELL_TEMPLATE, DOWNSELL_TEMPLATE, OFFER_ZONES, OFFER_CATALOG, OFFER_MOCKS,
     THANKYOU_TEMPLATE, THANKYOU_ZONES, THANKYOU_CATALOG, THANKYOU_SNAPSHOT,
   };

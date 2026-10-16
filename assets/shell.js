@@ -174,9 +174,11 @@
     // Online store is a self-contained Theme editor. Version it independently so
     // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
     var moduleV = id === 'settings' ? '20261008-ocean-note'
-      : id === 'online-store' ? '20260822theme-sync1'
+      : id === 'online-store' ? '20261016-edit-tab'
       : id === 'analytics' ? '20260922-address-info1'
-      : id === 'orders' ? '20261013-no-channel' : V;
+      : id === 'orders' ? '20261013-no-channel'
+      : id === 'products' ? '20261013-continue2'
+      : id === 'vendors' ? '20261013-sort-arrow' : V;
     // Only Analytics ships a dedicated icon bundle. Avoid a noisy 404 for every
     // other lazily loaded module.
     var chain = id === 'analytics'
@@ -191,8 +193,15 @@
       if (id === 'online-store' && !window.POST_PURCHASE_ORDER_MOCK)
         return loadScript('assets/post-purchase-order-mock.js?v=' + moduleV);
     });
+    // Product settings and the Vendors page share one vendor list. Load it before either module,
+    // and load the product catalog before Vendors so vendor products can resolve names.
+    chain = chain.then(function () {
+      if (id === 'products' && !window.DATA_VENDORS) return loadScript('vendors/js/data.js?v=20261013-vendors2');
+      if (id === 'vendors' && !window.DATA_PRODUCTS) return loadScript('products/js/data.js?v=20261013-vendors2');
+    });
     chain = chain.then(function () {
       if (id === 'subscriptions' && window.DATA_SUBS) return;
+      if (id === 'vendors' && window.DATA_VENDORS) return;
       return loadScript(id + '/js/data.js?v=' + moduleV);
     }).catch(function () {}); // optional
     chain = chain.then(function () { return loadScript(id + '/js/app.js?v=' + moduleV); });    // required

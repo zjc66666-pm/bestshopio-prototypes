@@ -18,6 +18,23 @@
     return s ? s.replace(/app\.js.*$/, '') : 'online-store/js/';
   })();
   const OS_V = String(Date.now()); // per-load cache-bust for section files (always fresh on reload)
+  const BC_HOST = !!(window.ROUTE_MODULE && window.ROUTE_MODULE.flows === 'bestcheckout');
+  function bcExitQuery() {
+    if (!BC_HOST) return '';
+    const q = new URLSearchParams((location.hash.split('?')[1] || ''));
+    const keep = [];
+    if (q.get('from') === 'bestcheckout' || (ED && ED.exitTo)) keep.push('from=bestcheckout');
+    const ret = q.get('return') || ((ED && ED.exitTo && ED.exitTo !== '#/pages') ? ED.exitTo : '');
+    if (ret) keep.push('return=' + encodeURIComponent(ret));
+    return keep.length ? ('?' + keep.join('&')) : '';
+  }
+  function checkoutEditorHash(handle, page) {
+    if (BC_HOST) {
+      const pg = (page && page !== 'checkout') ? page : 'checkout';
+      return '#/online-store/edit/' + encodeURIComponent(handle) + '/' + pg + bcExitQuery();
+    }
+    return '#/checkout/' + encodeURIComponent(handle) + (page && page !== 'checkout' ? '/' + page : '');
+  }
 
   // ------------------------------------------------------------------ helpers
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -38,12 +55,13 @@
     chevR: svg('<path d="m9 18 6-6-6-6"/>', 14),
     layers: svg('<path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>'),
     gear: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
-    eye: svg('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>', 15),
-    eyeOff: svg('<path d="M9.9 4.24A9 9 0 0 1 12 4c6 0 10 7 10 7a13 13 0 0 1-1.67 2.18M6.6 6.6A13 13 0 0 0 2 11s4 7 10 7a9 9 0 0 0 4.5-1.2"/><path d="m2 2 20 20"/>', 15),
+    eye: svg('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>', 14),
+    eyeOff: svg('<path d="M9.9 4.24A9 9 0 0 1 12 4c6 0 10 7 10 7a13 13 0 0 1-1.67 2.18M6.6 6.6A13 13 0 0 0 2 11s4 7 10 7a9 9 0 0 0 4.5-1.2"/><path d="m2 2 20 20"/>', 14),
     clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 15),
     trash: svg('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>', 14),
-    grip: svg('<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>', 14),
+    grip: svg('<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>', 16),
     plus: svg('<path d="M12 5v14M5 12h14"/>', 14),
+    plusCircle: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>',
     x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 14),
     search: svg('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'),
     info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>', 14),
@@ -58,7 +76,7 @@
     copy: svg('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', 15),
     link: svg('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>', 15),
     more: svg('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>', 16),
-    lock: svg('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', 13),
+    lock: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="16" r="1"/><rect x="3" y="10" width="18" height="12" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>',
     image: svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>', 14),
   };
   const ICON = (n) => I[n] || I.layers;
@@ -152,6 +170,15 @@
     pagePad: (t, mob) => ((t && t.layout) ? (mob ? t.layout.page_horizontal_padding_mobile : t.layout.page_horizontal_padding_desktop) : (mob ? 16 : 40)),
     gridGap: (t, mob) => ((t && t.layout) ? (mob ? t.layout.grid_gap_mobile : t.layout.grid_gap_desktop) : (mob ? 16 : 24)),
     pageWidth: (t) => ((t && t.layout && t.layout.page_width) || 1200),
+    // BestCheckout page-library presets still ship older checkout-* sections that
+    // read these checkout-surface tokens. Keep them on the shared OS so those
+    // cards do not crash after the Theme engine overlay.
+    ckPad: (t, mob) => {
+      const v = (t && t.checkout && t.checkout.padding_horizontal != null) ? t.checkout.padding_horizontal : OS.pagePad(t, mob);
+      return mob ? Math.min(v, 20) : v;
+    },
+    ckGap: (t) => ((t && t.checkout && t.checkout.section_spacing != null) ? t.checkout.section_spacing : 18),
+    ckWidth: (t) => (((t && t.checkout && t.checkout.content_width) === 'comfortable') ? 1200 : 980),
   });
 
   // ------------------------------------------------------------------ section loader
@@ -165,7 +192,9 @@
       'checkout-product-upsell', 'checkout-shipping-insurance', 'checkout-vip-club',
       'checkout-countdown', 'checkout-payment-icons', 'checkout-trust-badges', 'checkout-trustpilot',
       'checkout-review-card', 'checkout-testimonials', 'checkout-fb-comments', 'checkout-static-content', 'checkout-footer',
-      'thankyou-order-status', 'thankyou-order-details', 'thankyou-continue-shopping', 'thankyou-contact-us'];
+      'thankyou-order-status', 'thankyou-order-details', 'thankyou-continue-shopping', 'thankyou-contact-us',
+      'checkout-urgency', 'checkout-trust', 'checkout-summary', 'checkout-postpurchase', 'checkout-tracking',
+      'checkout-rating', 'checkout-confirm', 'checkout-bundle', 'checkout-endorsement', 'checkout-addon', 'checkout-guarantee'];
     D.CATALOG.forEach((g) => g.entries.forEach((e) => { if (e.kind && kinds.indexOf(e.kind) < 0) kinds.push(e.kind); }));
     _sectionsP = Promise.all(kinds.map((k) => loadScript(MOD_BASE + 'sections/' + k + '.js?v=' + OS_V).catch(() => { /* not yet ported — skip */ })));
     return _sectionsP;
@@ -236,9 +265,7 @@
     return url.toString();
   }
   function editorHashForState() {
-    if (isCheckout()) {
-      return '#/checkout/' + encodeURIComponent(ED.meta.handle) + (ED.checkoutPage !== 'checkout' ? '/' + ED.checkoutPage : '');
-    }
+    if (isCheckout()) return checkoutEditorHash(ED.meta.handle, ED.checkoutPage);
     return '#/online-store/edit/' + encodeURIComponent(ED.meta.handle);
   }
   function previewSourceForSavedState() {
@@ -371,13 +398,18 @@
     };
     const ckTemplates = {};
     Object.keys(D.CHECKOUT_TEMPLATE_SETS || {}).forEach((pt) => {
-      ckTemplates[pt] = { list: (D.CHECKOUT_TEMPLATE_SETS[pt] || []).map((s) => ({
-        id: s.id, name: s.name, isDefault: !!s.isDefault, basedOn: s.basedOn,
-        previewOrderScenario: s.previewOrderScenario,
-        sections: (ckBase[pt] || []).map(matSection),
-      })) };
+      ckTemplates[pt] = { list: (D.CHECKOUT_TEMPLATE_SETS[pt] || []).map((s) => {
+        const preset = ((D.CHECKOUT_TEMPLATE_SEEDS || {})[pt] || {})[s.id];
+        const seeds = preset && Array.isArray(preset.sections) ? preset.sections : (ckBase[pt] || []);
+        return {
+          id: s.id, name: s.name, isDefault: !!s.isDefault, basedOn: s.basedOn,
+          previewOrderScenario: s.previewOrderScenario,
+          status: s.status || '',
+          sections: seeds.map(matSection),
+        };
+      }) };
     });
-    theme.checkout = { postPurchaseEnabled: false, settings: buildCkSettingsDefaults(), templates: ckTemplates };
+    theme.checkout = { postPurchaseEnabled: true, settings: buildCkSettingsDefaults(), templates: ckTemplates };
     return theme;
   }
 
@@ -404,6 +436,7 @@
       sectionExpand: {},
       busy: null,                      // 'saving' | 'publishing' | 'discarding' | null
       settingsExpand: settingsExpandInit(),
+      exitTo: null,
     };
     // Seed order + shipping discount codes so the Checkout Order Summary demonstrates
     // Shopify-style grouped discount details out of the box (buyer runtime state only).
@@ -605,10 +638,9 @@
         '<div class="tabs" style="margin-bottom:14px"><div class="tab active" style="font-size:18px;font-weight:600;padding:6px 2px 14px">My theme</div></div>' +
         '<div class="os-theme-cards">' + D.THEMES.map(themeCard).join('') + '</div>' +
       '</div>';
-    root.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => goEdit(b.getAttribute('data-edit')));
-    root.querySelectorAll('[data-edit-ck]').forEach((b) => b.onclick = () => goCheckout(b.getAttribute('data-edit-ck')));
   }
   function themeCard(t) {
+    const customizeHref = (location.href.split('#')[0] || '') + '#/online-store/edit/' + encodeURIComponent(t.handle);
     return '<section class="os-theme-card">' +
       '<div class="os-theme-prev">' +
         '<div class="os-prev-pc"><img src="' + esc(t.pc_image) + '" alt="Desktop preview" loading="lazy"></div>' +
@@ -617,17 +649,33 @@
       '<div class="os-theme-meta"><div><div class="os-theme-name">' + esc(t.title) + '</div>' +
       '<div class="os-theme-saved">Last saved: ' + esc(t.updated_time) + '</div></div>' +
       '<div class="os-theme-actions">' +
-        '<button class="btn btn-default" data-edit-ck="' + esc(t.handle) + '">Edit checkout</button>' +
-        '<button class="btn btn-primary" data-edit="' + esc(t.handle) + '">Customize</button>' +
+        '<a class="btn btn-primary" href="' + esc(customizeHref) + '" target="_blank" rel="noopener">Customize</a>' +
       '</div></div></section>';
   }
   function goEdit(handle) { location.hash = '#/online-store/edit/' + encodeURIComponent(handle); }
-  function goCheckout(handle) { location.hash = '#/checkout/' + encodeURIComponent(handle); }
+  function goCheckout(handle) { location.hash = checkoutEditorHash(handle, 'checkout'); }
 
   // ==========================================================================
   //  BUILDER  (#/online-store/edit/:handle)
   // ==========================================================================
-  function renderBuilder(handle, surface, page) {
+  function applyBcHostTemplate(tpl, saved) {
+    if (!ED || !isCheckout()) return;
+    const page = ED.checkoutPage;
+    const list = ((ED.theme.checkout.templates[page] || {}).list) || [];
+    const cur = list.find((t) => t.id === ckTplIdOf(page)) || list[0];
+    if (!cur) return;
+    if (tpl && D.CHECKOUT_TEMPLATES && D.CHECKOUT_TEMPLATES[tpl] && tpl !== 'standard') {
+      cur.sections = D.CHECKOUT_TEMPLATES[tpl].seeds.map(matSection);
+    }
+    if (saved) {
+      let store; try { store = JSON.parse(localStorage.getItem('bsio_bc_templates') || '{}'); } catch (e) { store = {}; }
+      const ptKey = page === 'thankyou' ? 'thankyou' : page;
+      const tp = ((store[ptKey] || []).filter((x) => x.id === saved)[0]);
+      if (tp && tp.sections) cur.sections = tp.sections.map(matSection);
+    }
+  }
+  function renderBuilder(handle, surface, page, host) {
+    host = host || {};
     if (!ED || ED.meta.handle !== handle) startEditor(handle);
     else if (ED.previewOnly) {
       // A preview URL can be opened directly in the current tab. Returning to an editor route
@@ -647,6 +695,8 @@
       // Same surface, but the route pins a specific checkout page (#/checkout/thankyou).
       ED.checkoutPage = page; ED.leftMode = 'sections'; ED.selection = defaultSelection();
     }
+    if (host.exitTo) ED.exitTo = host.exitTo;
+    applyBcHostTemplate(host.tpl, host.saved);
     closeBuilder(); ensureStyles();
     const b = h('<div class="os-builder i18n-skip' + (ED.fullPreview ? ' os-full-preview' : '') + '" id="os-builder"></div>');
     b.appendChild(topBar());
@@ -669,41 +719,65 @@
   // -------------------------------------------------------------- TOP BAR
   function topBar() {
     const st = status();
-    const pill = { unsaved: ['pill-orange', 'Unsaved changes'], draft: ['pill-blue', 'Draft pending publish'], saved: ['pill-green', 'Saved'] }[st];
+    const statusMeta = {
+      unsaved: { cls: 'unsaved', label: 'Unsaved changes' },
+      draft: { cls: 'pending-publish', label: 'Draft pending publish' },
+      saved: { cls: 'saved', label: 'Saved' },
+    }[st];
     const dirty = isDirty(), draft = hasDraft(), busy = ED.busy;
     const issues = busy ? [] : validate();
+    const chrome = h('<div class="os-chrome"></div>');
     const top = h('<div class="os-top"></div>');
+    const backIcon = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+    const modeSections = '<img alt="" aria-hidden="true" width="24" height="24" src="data:image/svg+xml,%3csvg%20width=\'24\'%20height=\'24\'%20viewBox=\'0%200%2024%2024\'%20fill=\'none\'%20xmlns=\'http://www.w3.org/2000/svg\'%3e%3cpath%20d=\'M3.75%2018V17.1431C3.75%2016.7289%204.08579%2016.3931%204.5%2016.3931C4.91421%2016.3931%205.25%2016.7289%205.25%2017.1431V18H5.89307C6.30718%2018.0001%206.64307%2018.3359%206.64307%2018.75C6.64307%2019.1641%206.30718%2019.4999%205.89307%2019.5H5.25C4.42157%2019.5%203.75%2018.8284%203.75%2018ZM10.3931%2018C10.8072%2018.0001%2011.1431%2018.3359%2011.1431%2018.75C11.1431%2019.1641%2010.8072%2019.4999%2010.3931%2019.5H9.10693C8.69282%2019.4999%208.35693%2019.1641%208.35693%2018.75C8.35693%2018.3359%208.69282%2018.0001%209.10693%2018H10.3931ZM14.8931%2018C15.3072%2018.0001%2015.6431%2018.3359%2015.6431%2018.75C15.6431%2019.1641%2015.3072%2019.4999%2014.8931%2019.5H13.6069C13.1928%2019.4999%2012.8569%2019.1641%2012.8569%2018.75C12.8569%2018.3359%2013.1928%2018.0001%2013.6069%2018H14.8931ZM18.75%2018V17.1431C18.75%2016.7289%2019.0858%2016.3931%2019.5%2016.3931C19.9142%2016.3931%2020.25%2016.7289%2020.25%2017.1431V18C20.25%2018.8284%2019.5784%2019.5%2018.75%2019.5H18.1069C17.6928%2019.4999%2017.3569%2019.1641%2017.3569%2018.75C17.3569%2018.3359%2017.6928%2018.0001%2018.1069%2018H18.75ZM3.75%2012.8569V11.1431C3.75%2010.7289%204.08579%2010.3931%204.5%2010.3931C4.91421%2010.3931%205.25%2010.7289%205.25%2011.1431V12.8569C5.25%2013.2711%204.91421%2013.6069%204.5%2013.6069C4.08579%2013.6069%203.75%2013.2711%203.75%2012.8569ZM18.75%2012.8569V11.1431C18.75%2010.7289%2019.0858%2010.3931%2019.5%2010.3931C19.9142%2010.3931%2020.25%2010.7289%2020.25%2011.1431V12.8569C20.25%2013.2711%2019.9142%2013.6069%2019.5%2013.6069C19.0858%2013.6069%2018.75%2013.2711%2018.75%2012.8569ZM3.75%206.85693V6C3.75%205.17157%204.42157%204.5%205.25%204.5H5.89307C6.30718%204.50011%206.64307%204.83586%206.64307%205.25C6.64307%205.66414%206.30718%205.99989%205.89307%206H5.25V6.85693C5.25%207.27115%204.91421%207.60693%204.5%207.60693C4.08579%207.60693%203.75%207.27115%203.75%206.85693ZM18.75%206.85693V6H18.1069C17.6928%205.99989%2017.3569%205.66414%2017.3569%205.25C17.3569%204.83586%2017.6928%204.50011%2018.1069%204.5H18.75C19.5784%204.5%2020.25%205.17157%2020.25%206V6.85693C20.25%207.27115%2019.9142%207.60693%2019.5%207.60693C19.0858%207.60693%2018.75%207.27115%2018.75%206.85693ZM10.3931%204.5C10.8072%204.50011%2011.1431%204.83586%2011.1431%205.25C11.1431%205.66414%2010.8072%205.99989%2010.3931%206H9.10693C8.69282%205.99989%208.35693%205.66414%208.35693%205.25C8.35693%204.83586%208.69282%204.50011%209.10693%204.5H10.3931ZM14.8931%204.5C15.3072%204.50011%2015.6431%204.83586%2015.6431%205.25C15.6431%205.66414%2015.3072%205.99989%2014.8931%206H13.6069C13.1928%205.99989%2012.8569%205.66414%2012.8569%205.25C12.8569%204.83586%2013.1928%204.50011%2013.6069%204.5H14.8931Z\'%20fill=\'%23121927\'/%3e%3cpath%20d=\'M5.25%2013.5H18.75V10.5H5.25V13.5ZM20.25%2013.875C20.25%2014.4963%2019.7463%2015%2019.125%2015H4.875C4.25368%2015%203.75%2014.4963%203.75%2013.875V10.125C3.75%209.50368%204.25368%209%204.875%209H19.125C19.7463%209%2020.25%209.50368%2020.25%2010.125V13.875Z\'%20fill=\'%23121927\'/%3e%3c/svg%3e">';
+    const modeSettings = '<img alt="" aria-hidden="true" width="24" height="24" src="data:image/svg+xml,%3csvg%20width=\'24\'%20height=\'24\'%20viewBox=\'0%200%2024%2024\'%20fill=\'none\'%20xmlns=\'http://www.w3.org/2000/svg\'%3e%3cpath%20d=\'M16.125%207.33897C16.125%207.05836%2016.1619%206.78572%2016.2305%206.52598C15.6606%206.04629%2015.0161%205.66242%2014.3188%205.39585C13.7732%206.08084%2012.9432%206.52891%2012%206.52891C11.0566%206.52891%2010.2261%206.08104%209.68042%205.39585C8.98323%205.66248%208.33859%206.04627%207.7688%206.52598C7.83744%206.78577%207.87499%207.0583%207.875%207.33897C7.875%208.82654%206.8419%2010.1038%205.43457%2010.3756C5.31406%2010.9027%205.25001%2011.4534%205.25%2012.0206C5.25%2012.3057%205.26772%2012.5864%205.29907%2012.8622C6.77517%2013.0757%207.875%2014.3873%207.875%2015.9222C7.87498%2016.4242%207.75562%2016.899%207.54761%2017.3204C8.11326%2017.8397%208.76112%2018.2607%209.46729%2018.5597C9.99479%2017.7043%2010.9227%2017.1227%2012%2017.1227C13.0772%2017.1227%2014.0044%2017.7045%2014.532%2018.5597C15.2382%2018.2607%2015.8859%2017.8397%2016.4517%2017.3204C16.2437%2016.899%2016.125%2016.4241%2016.125%2015.9222C16.125%2014.3875%2017.2245%2013.076%2018.7002%2012.8622C18.7316%2012.5864%2018.75%2012.3057%2018.75%2012.0206C18.75%2011.4533%2018.6852%2010.9027%2018.5647%2010.3756C17.1577%2010.1035%2016.125%208.82629%2016.125%207.33897ZM17.625%207.33897C17.625%208.24579%2018.3243%208.92979%2019.125%208.92979H19.1455L19.2686%208.93784C19.5513%208.98041%2019.7895%209.18238%2019.8743%209.46299C20.1184%2010.2717%2020.25%2011.131%2020.25%2012.0206C20.25%2012.6078%2020.1929%2013.1822%2020.0837%2013.7374C20.009%2014.1175%2019.6569%2014.3781%2019.2715%2014.3387C19.2233%2014.3338%2019.1745%2014.3314%2019.125%2014.3314C18.3243%2014.3314%2017.625%2015.0154%2017.625%2015.9222C17.625%2016.3216%2017.7627%2016.6822%2017.9868%2016.9586C18.2216%2017.2482%2018.2085%2017.6663%2017.9553%2017.94C16.9839%2018.9902%2015.7532%2019.7866%2014.3657%2020.2164C14.1754%2020.2753%2013.9691%2020.256%2013.793%2020.1629C13.617%2020.0699%2013.4853%2019.9108%2013.4268%2019.7206C13.2257%2019.0662%2012.6484%2018.6227%2012%2018.6227C11.3516%2018.6227%2010.7743%2019.0662%2010.5732%2019.7206C10.5147%2019.9108%2010.383%2020.0699%2010.207%2020.1629C10.0309%2020.256%209.82456%2020.2753%209.63428%2020.2164C8.24678%2019.7866%207.01611%2018.9902%206.04468%2017.94C5.79151%2017.6663%205.77835%2017.2482%206.01318%2016.9586C6.23733%2016.6822%206.37497%2016.3216%206.375%2015.9222C6.375%2015.0154%205.67573%2014.3314%204.875%2014.3314C4.82555%2014.3314%204.77669%2014.3338%204.72852%2014.3387C4.34311%2014.3781%203.99103%2014.1175%203.91626%2013.7374C3.80711%2013.1822%203.75%2012.6078%203.75%2012.0206C3.75001%2011.131%203.88156%2010.2717%204.12573%209.46299L4.17114%209.348C4.29748%209.09166%204.56154%208.92546%204.85449%208.92979C4.86125%208.92989%204.86813%208.92979%204.875%208.92979C5.67573%208.92979%206.375%208.24579%206.375%207.33897C6.37498%207.0806%206.31764%206.83915%206.2168%206.62632C6.07911%206.33577%206.14177%205.99004%206.3728%205.76646C7.32472%204.84561%208.48985%204.15291%209.78662%203.7794C10.136%203.67876%2010.5076%203.84335%2010.6677%204.16978C10.924%204.69246%2011.4336%205.02891%2012%205.02891C12.5664%205.02891%2013.076%204.69246%2013.3323%204.16978L13.3645%204.11045C13.5385%203.82373%2013.8858%203.68505%2014.2134%203.7794C15.5102%204.15291%2016.6753%204.84561%2017.6272%205.76646C17.8582%205.99004%2017.9209%206.33577%2017.7832%206.62632C17.6824%206.83915%2017.625%207.0806%2017.625%207.33897Z\'%20fill=\'%23121927\'/%3e%3cpath%20d=\'M13.875%2012.0001C13.875%2010.9646%2013.0355%2010.1251%2012%2010.1251C10.9645%2010.1251%2010.125%2010.9646%2010.125%2012.0001C10.125%2013.0356%2010.9645%2013.8751%2012%2013.8751C13.0355%2013.8751%2013.875%2013.0356%2013.875%2012.0001ZM15.375%2012.0001C15.375%2013.8641%2013.864%2015.3751%2012%2015.3751C10.136%2015.3751%208.625%2013.8641%208.625%2012.0001C8.625%2010.1361%2010.136%208.6251%2012%208.6251C13.864%208.6251%2015.375%2010.1361%2015.375%2012.0001Z\'%20fill=\'%23121927\'/%3e%3c/svg%3e">';
+    const monitorIco = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+    const phoneIco = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>';
+    const showBack = !isCheckout();
     top.innerHTML =
       '<div class="os-top-l">' +
-        '<button class="back-btn" id="t-back" title="Back to themes">' + I.back + '</button>' +
-        '<div class="os-rail">' +
-          '<button class="os-rail-b' + (!ED.fullPreview && !inSettings() ? ' on' : '') + '" data-rail="sections" title="' + (!ED.fullPreview && !inSettings() ? 'Hide sections' : 'Sections') + '">' + I.layers + '</button>' +
-          '<button class="os-rail-b' + (!ED.fullPreview && inSettings() ? ' on' : '') + '" data-rail="settings" title="' + (!ED.fullPreview && inSettings() ? 'Hide theme settings' : 'Theme settings') + '">' + I.gear + '</button>' +
+        (showBack ? '<button class="os-top-back" id="t-back" title="Back">' + backIcon + '</button>' : '') +
+        '<div class="os-mode-tabs" aria-label="Editor mode">' +
+          '<button class="' + (!ED.fullPreview && !inSettings() ? 'active' : '') + '" data-rail="sections" title="Sections">' + modeSections + '</button>' +
+          '<button class="' + (!ED.fullPreview && inSettings() ? 'active' : '') + '" data-rail="settings" title="Theme settings">' + modeSettings + '</button>' +
         '</div>' +
-        '<span class="os-tname">' + esc(ED.theme.name) + '</span>' +
-        '<span class="pill ' + pill[0] + '"><span class="dot"></span>' + pill[1] + '</span>' +
+        '<div class="os-top-brand">' +
+          '<strong class="os-tname">' + esc(chromeThemeName()) + '</strong>' +
+          '<span class="os-tstatus ' + statusMeta.cls + '">' + statusMeta.label + '</span>' +
+        '</div>' +
       '</div>' +
       '<div class="os-top-c">' +
         '<button class="os-pagesel" id="t-page" aria-label="Select page to edit">' +
           '<span class="os-psb-ico">' + pageIco(isCheckout() ? '__checkout__' : ED.currentPage) + '</span>' +
-          '<span class="os-psb-label">' + esc(pageMenuLabel()) + '</span>' +
+          '<span class="os-psb-label">' + esc(pageSelectorLabel()) + '</span>' +
           '<span class="os-psb-chev">' + I.chev + '</span>' +
         '</button>' +
-        '<div class="os-dev">' +
-          '<button class="' + (ED.device === 'desktop' ? 'on' : '') + '" data-dev="desktop" title="Desktop">' + I.desktop + '</button>' +
-          '<button class="' + (ED.device === 'mobile' ? 'on' : '') + '" data-dev="mobile" title="Mobile">' + I.mobile + '</button>' +
-        '</div>' +
       '</div>' +
       '<div class="os-top-r">' +
-        '<button class="btn btn-default os-preview-open" id="t-preview"' + (busy ? ' disabled' : '') + '>' + I.eye + '<span>Preview</span></button>' +
-        '<button class="btn btn-default" id="t-discard"' + (dirty && !busy ? '' : ' disabled') + '>Discard</button>' +
-        '<button class="btn btn-default" id="t-save"' + (dirty && !busy ? '' : ' disabled') + '>' + (busy === 'saving' ? 'Saving…' : 'Save') + '</button>' +
-        '<button class="btn ' + (issues.length ? 'btn-warn' : 'btn-primary') + '" id="t-pub"' + (((dirty || draft) && !busy) ? '' : ' disabled') + ' title="' + (issues.length ? issues.length + ' validation issue(s)' : 'Publish to storefront') + '">' +
+        '<div class="os-dev" aria-label="Preview device">' +
+          '<button class="' + (ED.device === 'desktop' ? 'active' : '') + '" data-dev="desktop" title="Desktop preview">' + monitorIco + '</button>' +
+          '<button class="' + (ED.device === 'mobile' ? 'active' : '') + '" data-dev="mobile" title="Mobile preview">' + phoneIco + '</button>' +
+        '</div>' +
+        ((ED.exitTo && /^#\/(?:pages|flows(?:\/|$)|bestcheckout)/.test(ED.exitTo)) ? '<button class="os-top-btn os-top-hidden" id="t-saveas" title="Save the current layout as a new template in the library">Save as template</button>' : '') +
+        '<button class="os-top-icon os-preview-open os-top-hidden" id="t-preview"' + (busy ? ' disabled' : '') + ' title="Preview">' + I.eye + '</button>' +
+        '<button class="os-top-btn" id="t-discard"' + (dirty && !busy ? '' : ' disabled') + '>Discard</button>' +
+        '<button class="os-top-btn" id="t-save"' + (dirty && !busy ? '' : ' disabled') + '>' + (busy === 'saving' ? 'Saving…' : 'Save') + '</button>' +
+        '<button class="os-top-btn primary' + (issues.length ? ' warn' : '') + '" id="t-pub"' + (((dirty || draft) && !busy) ? '' : ' disabled') + ' title="' + (issues.length ? issues.length + ' validation issue(s)' : 'Publish to storefront') + '">' +
           (busy === 'publishing' ? 'Publishing…' : (issues.length ? 'Publish · ' + issues.length : 'Publish')) + '</button>' +
       '</div>';
-    return top;
+    chrome.innerHTML = '<div class="os-appbar"><strong>THEME EDITOR</strong><span>·</span><span>' + esc(chromeThemeName()) + '</span></div>';
+    chrome.appendChild(top);
+    return chrome;
   }
   // Trigger label: page/template on the online-store surface, page name on checkout.
+  function chromeThemeName() {
+    const name = String((ED.theme && ED.theme.name) || 'Default').trim();
+    return /^aura/i.test(name) ? 'Default' : name;
+  }
+  function pageSelectorLabel() {
+    if (isCheckout()) return ckPageLabel(ED.checkoutPage);
+    return pageMenuLabel();
+  }
   function pageMenuLabel() {
     if (isCheckout()) {
       const t = curCkTpl();
@@ -730,7 +804,8 @@
   }
   function wireTop() {
     const b = document.getElementById('os-builder');
-    b.querySelector('#t-back').onclick = () => attemptLeave(() => { location.hash = '#/online-store'; });
+    const backBtn = b.querySelector('#t-back');
+    if (backBtn) backBtn.onclick = () => attemptLeave(() => { location.hash = (ED && ED.exitTo) || '#/online-store'; });
     b.querySelectorAll('[data-rail]').forEach((x) => x.onclick = () => {
       const mode = x.getAttribute('data-rail');
       const alreadyOpen = mode === 'settings' ? inSettings() : !inSettings();
@@ -749,6 +824,21 @@
     const dis = b.querySelector('#t-discard'); if (dis && !dis.disabled) dis.onclick = onDiscard;
     const sv = b.querySelector('#t-save'); if (sv && !sv.disabled) sv.onclick = onSave;
     const pb = b.querySelector('#t-pub'); if (pb && !pb.disabled) pb.onclick = onPublish;
+    const sa = b.querySelector('#t-saveas'); if (sa) sa.onclick = saveAsBcTemplate;
+  }
+  function saveAsBcTemplate() {
+    const page = isCheckout() ? ED.checkoutPage : ED.currentPage;
+    const ptKey = page === 'thankyou' || page === 'thank-you' ? 'thankyou' : page;
+    const name = (window.prompt('Save as new template — name:', pageMenuLabel() + ' v2') || '').trim();
+    if (!name) return;
+    let store; try { store = JSON.parse(localStorage.getItem('bsio_bc_templates') || '{}'); } catch (e) { store = {}; }
+    store[ptKey] = store[ptKey] || [];
+    const sections = isCheckout()
+      ? clone((((ED.theme.checkout.templates[page] || {}).list || []).find((t) => t.id === ckTplIdOf(page)) || {}).sections || [])
+      : clone((pageSections() || []));
+    store[ptKey].push({ id: 'saved-' + ptKey + '-' + (store[ptKey].length + 1), name: name, accent: '#1f8f4e', layout: page === 'checkout' ? '2col' : 'solo', sections: sections });
+    try { localStorage.setItem('bsio_bc_templates', JSON.stringify(store)); } catch (e) {}
+    toast('Saved as template: ' + name);
   }
   function rememberCanvasScroll() {
     const sc = document.getElementById('os-cscroll'); ED._canvasScroll = sc ? sc.scrollTop : 0;
@@ -764,8 +854,10 @@
     const ck = isCheckout();
     if (inSettings()) {
       left.innerHTML = '<div class="os-left-head">' + (ck ? 'Checkout settings' : 'Theme settings') + '</div><div class="os-left-scroll" id="os-tree">' + settingsTreeHint() + '</div>';
+    } else if (ck) {
+      left.innerHTML = '<div class="os-left-scroll os-ck-tree" id="os-tree">' + checkoutTreeHtml() + '</div>';
     } else {
-      left.innerHTML = '<div class="os-left-head">' + (ck ? 'Checkout' : 'Sections') + '</div><div class="os-left-scroll" id="os-tree">' + (ck ? checkoutTreeHtml() : treeHtml()) + '</div>';
+      left.innerHTML = '<div class="os-left-head">Sections</div><div class="os-left-scroll" id="os-tree">' + treeHtml() + '</div>';
     }
     return left;
   }
@@ -778,18 +870,53 @@
   }
   // Checkout tree — required components are locked; commerce components (PRD §14.1)
   // can be added / hidden / deleted / reordered.
+  function ckTreeGroup(kind) {
+    if (kind === 'checkout-header' || kind === 'announcement-bar') return 'header';
+    if (kind === 'checkout-footer' || kind === 'checkout-policy-links') return 'footer';
+    return 'checkout';
+  }
   function checkoutTreeHtml() {
-    let html = '<div class="os-grp-head" style="cursor:default">' + esc(ckPageLabel(ED.checkoutPage)) + ' Template</div>';
-    pageSections().forEach((s) => { html += checkoutRow(s); });
-    let nAdd = 0; ckCatalog().forEach((g) => nAdd += g.entries.length);
-    html += '<div class="os-tree-add" data-add-ckcomp>' + I.plus + ' Add section <span class="os-add-n">(' + nAdd + ')</span></div>';
-    const note = isThankyou()
-      ? 'Required components confirm the order, so they can\u2019t be moved. Only content & trust components can be added, hidden, deleted and reordered within their allowed zones.'
-      : isOfferPage()
-        ? 'Required components keep the post-purchase offer usable, so they can\u2019t be moved. Existing Checkout content & trust components can be added; Product upsell, Shipping Insurance and VIP Club aren\u2019t available here.'
-      : 'Required components keep the transaction flow intact, so they can\u2019t be moved. Commerce and content & trust components can be added, hidden, deleted and reordered within their allowed zones.';
-    html += '<div class="os-tree-note" style="margin-top:10px">' + note + '</div>';
+    const secs = pageSections();
+    const offer = isOfferPage();
+    const headerSecs = offer ? [] : secs.filter((s) => ckTreeGroup(s.kind) === 'header');
+    const footerSecs = secs.filter((s) => ckTreeGroup(s.kind) === 'footer');
+    const midSecs = secs.filter((s) => {
+      const g = ckTreeGroup(s.kind);
+      return g === 'checkout' || (offer && g === 'header');
+    });
+    const groupHead = (key, label) => '<button type="button" class="os-grp-head" data-grp="' + key + '">' + esc(label) + '</button>';
+    let html = '';
+    if (headerSecs.length) {
+      html += groupHead('header', 'Header group');
+      if (ED.expand.header !== false) headerSecs.forEach((s) => { html += checkoutRow(s); });
+    }
+    html += groupHead('template', ckPageLabel(ED.checkoutPage));
+    if (ED.expand.template !== false) {
+      midSecs.forEach((s) => { html += checkoutRow(s); });
+      let nAdd = 0; ckCatalog().forEach((g) => nAdd += g.entries.length);
+      html += '<div class="os-tree-add" data-add-ckcomp>' + I.plusCircle + ' Add section (' + nAdd + ')</div>';
+    }
+    if (footerSecs.length) {
+      html += groupHead('footer', 'Footer group');
+      if (ED.expand.footer !== false) footerSecs.forEach((s) => { html += checkoutRow(s); });
+    }
     return html;
+  }
+  function treeCaret(hasBlocks, open, id) {
+    if (!hasBlocks) return '<span class="os-row-caret ghost" aria-hidden="true"></span>';
+    return '<span class="os-row-caret' + (open ? ' open' : '') + '" data-tog-sec="' + id + '">' + I.chevR + '</span>';
+  }
+  function treeLead(caretHtml, iconHtml, canDrag) {
+    const ico = canDrag
+      ? '<span class="os-tr-drag-slot"><span class="os-tr-grip" title="Drag to reorder section">' + I.grip + '</span><span class="os-tr-ico">' + iconHtml + '</span></span>'
+      : '<span class="os-tr-ico">' + iconHtml + '</span>';
+    return '<span class="os-row-lead">' + caretHtml + ico + '</span>';
+  }
+  function treeBlkLead(iconHtml, canDrag) {
+    const left = canDrag
+      ? '<span class="os-tr-grip" title="Drag to reorder block">' + I.grip + '</span>'
+      : treeCaret(false, false, '');
+    return '<span class="os-row-lead">' + left + '<span class="os-tr-ico">' + iconHtml + '</span></span>';
   }
   function checkoutRow(s) {
     const sel = ED.selection; const def = SECTIONS[s.kind];
@@ -805,10 +932,9 @@
       const pinned = fixed || pinnedTop || !!(def && def.pinned);
       const lockTitle = fixed ? 'Pinned to page bottom' : (pinnedTop ? 'Top area only \u2014 can\u2019t be moved' : 'Bottom area only \u2014 can\u2019t be moved');
       let h2 = '<div class="os-row sec' + (active ? ' active' : '') + (s.hidden ? ' hid' : '') + '"' + (pinned ? '' : ' draggable="true"') + ' data-sel-sec="' + s.id + '">' +
-        (hasBlocks ? '<span class="os-row-caret' + (open ? ' open' : '') + '" data-tog-sec="' + s.id + '">' + I.chevR + '</span>' : '<span class="os-row-caret ghost"></span>') +
-        '<span class="os-tr-ico">' + ICON(def ? def.icon : 'layers') + '</span>' +
+        treeLead(treeCaret(hasBlocks, open, s.id), ICON(def ? def.icon : 'layers'), !pinned) +
         '<span class="os-tr-name">' + esc(sectionLabel(s)) + '</span>' +
-        rowActions(s.hidden, true) + (pinned ? '<span class="os-tr-lock" title="' + lockTitle + '">' + I.lock + '</span>' : '<span class="os-tr-grip">' + I.grip + '</span>') + '</div>';
+        rowActions(s.hidden, true) + (pinned ? '<span class="os-tr-lock" title="' + lockTitle + '">' + I.lock + '</span>' : '') + '</div>';
       if (hasBlocks && open) {
         // Some sections (e.g. Footer) render blocks grouped by kind into fixed regions rather than
         // in raw array order. Sort the tree display by that region order so it matches the preview.
@@ -820,20 +946,19 @@
         blist.forEach((bl) => {
           const bActive = sel.kind === 'block' && sel.sectionId === s.id && sel.blockId === bl.id;
           h2 += '<div class="os-row blk' + (bActive ? ' active' : '') + (bl.hidden ? ' hid' : '') + '" draggable="true" data-sel-blk="' + s.id + ':' + bl.id + '">' +
-            '<span class="os-tr-ico sm">' + ICON('layers') + '</span><span class="os-tr-name">' + esc(blockLabel(s, bl)) + '</span>' +
-            rowActions(bl.hidden, true) + '<span class="os-tr-grip">' + I.grip + '</span></div>';
+            treeBlkLead(ICON('layers'), true) + '<span class="os-tr-name">' + esc(blockLabel(s, bl)) + '</span>' +
+            rowActions(bl.hidden, true) + '</div>';
         });
         const bd = blockAddInfo(s);
         if (bd) h2 += '<div class="os-tree-add sub" data-add-blk="' + s.id + '">' + I.plus + ' ' + esc(bd) + '</div>';
       }
       return h2;
     }
-    // Required components are locked (no drag/delete). Some (e.g. Header) are still hideable —
-    // they get the eye toggle from the tree, plus the lock to signal they can't be moved.
-    const hideable = !!(def && def.hideable);
+    // Required/core components are locked (no drag/delete/hide). The only core exception
+    // that still gets a hide control is Policy Links, matching the live editor.
+    const hideable = s.kind === 'checkout-policy-links';
     let html = '<div class="os-row sec locked' + (active ? ' active' : '') + (s.hidden ? ' hid' : '') + '" data-sel-sec="' + s.id + '">' +
-      (hasBlocks ? '<span class="os-row-caret' + (open ? ' open' : '') + '" data-tog-sec="' + s.id + '">' + I.chevR + '</span>' : '<span class="os-row-caret ghost"></span>') +
-      '<span class="os-tr-ico">' + ICON(def ? def.icon : 'layers') + '</span>' +
+      treeLead(treeCaret(hasBlocks, open, s.id), ICON(def ? def.icon : 'layers')) +
       '<span class="os-tr-name">' + esc(sectionLabel(s)) + '</span>' +
       (hideable ? rowActions(s.hidden, false) : '') +
       '<span class="os-tr-lock" title="Required component">' + I.lock + '</span></div>';
@@ -841,7 +966,7 @@
       (s.blocks || []).forEach((bl) => {
         const bActive = sel.kind === 'block' && sel.blockId === bl.id;
         html += '<div class="os-row blk locked' + (bActive ? ' active' : '') + '" data-sel-blk="' + s.id + ':' + bl.id + '">' +
-          '<span class="os-tr-ico sm">' + ICON('layers') + '</span><span class="os-tr-name">' + esc(blockLabel(s, bl)) + '</span>' +
+          treeBlkLead(ICON('layers')) + '<span class="os-tr-name">' + esc(blockLabel(s, bl)) + '</span>' +
           '<span class="os-tr-lock">' + I.lock + '</span></div>';
       });
     }
@@ -861,7 +986,7 @@
     html += groupHead('template', pageLabel().replace(/ page$/i, '') + ' Template');
     if (ED.expand.template) {
       pageSections().forEach((s) => { html += sectionRow(s); });
-      html += '<div class="os-tree-add" data-add-sec>' + I.plus + ' Add section <span class="os-add-n">(' + countAvailable() + ')</span></div>';
+      html += '<div class="os-tree-add" data-add-sec>' + I.plusCircle + ' Add section (' + countAvailable() + ')</div>';
     }
     // Footer group
     html += groupHead('footer', 'Footer Group');
@@ -895,16 +1020,15 @@
     const hasBlocks = def && def.blocks;
     const open = ED.sectionExpand[scope] !== false;
     let html = '<div class="os-row global' + (active ? ' active' : '') + (inst.hidden ? ' hid' : '') + '" data-sel-global="' + scope + '">' +
-      (hasBlocks ? '<span class="os-row-caret' + (open ? ' open' : '') + '" data-tog-sec="' + scope + '">' + I.chevR + '</span>' : '<span class="os-row-caret ghost"></span>') +
-      '<span class="os-tr-ico">' + ICON(def ? def.icon : 'layers') + '</span>' +
+      treeLead(treeCaret(hasBlocks, open, scope), ICON(def ? def.icon : 'layers')) +
       '<span class="os-tr-name">' + esc(label) + '</span>' +
       rowActions(inst.hidden, false) + '<span class="os-tr-lock" title="Global section">' + I.lock + '</span></div>';
     if (hasBlocks && open) {
       (inst.blocks || []).forEach((bl) => {
         const bActive = ED.selection.kind === 'block' && ED.selection.sectionId === scope && ED.selection.blockId === bl.id;
         html += '<div class="os-row blk' + (bActive ? ' active' : '') + (bl.hidden ? ' hid' : '') + '" draggable="true" data-sel-blk="' + scope + ':' + bl.id + '">' +
-          '<span class="os-tr-ico sm">' + ICON('layers') + '</span><span class="os-tr-name">' + esc(blockLabel(inst, bl)) + '</span>' +
-          rowActions(bl.hidden, true) + '<span class="os-tr-grip">' + I.grip + '</span></div>';
+          treeBlkLead(ICON('layers'), true) + '<span class="os-tr-name">' + esc(blockLabel(inst, bl)) + '</span>' +
+          rowActions(bl.hidden, true) + '</div>';
       });
       const bd = blockAddInfo(inst);
       if (bd) html += '<div class="os-tree-add sub" data-add-blk="' + scope + '">' + I.plus + ' ' + esc(bd) + '</div>';
@@ -919,16 +1043,15 @@
     const open = ED.sectionExpand[s.id] !== false;
     const name = sectionLabel(s);
     let html = '<div class="os-row sec' + (active ? ' active' : '') + (s.hidden ? ' hid' : '') + '" draggable="true" data-sel-sec="' + s.id + '">' +
-      (hasBlocks ? '<span class="os-row-caret' + (open ? ' open' : '') + '" data-tog-sec="' + s.id + '">' + I.chevR + '</span>' : '<span class="os-row-caret ghost"></span>') +
-      '<span class="os-tr-ico">' + ICON(def ? def.icon : 'layers') + '</span>' +
+      treeLead(treeCaret(hasBlocks, open, s.id), ICON(def ? def.icon : 'layers'), true) +
       '<span class="os-tr-name">' + esc(name) + '</span>' +
-      rowActions(s.hidden, true) + '<span class="os-tr-grip">' + I.grip + '</span></div>';
+      rowActions(s.hidden, true) + '</div>';
     if (hasBlocks && open) {
       (s.blocks || []).forEach((bl) => {
         const bActive = sel.kind === 'block' && sel.blockId === bl.id;
         html += '<div class="os-row blk' + (bActive ? ' active' : '') + (bl.hidden ? ' hid' : '') + '" draggable="true" data-sel-blk="' + s.id + ':' + bl.id + '">' +
-          '<span class="os-tr-ico sm">' + ICON('layers') + '</span><span class="os-tr-name">' + esc(blockLabel(s, bl)) + '</span>' +
-          rowActions(bl.hidden, true) + '<span class="os-tr-grip">' + I.grip + '</span></div>';
+          treeBlkLead(ICON('layers'), true) + '<span class="os-tr-name">' + esc(blockLabel(s, bl)) + '</span>' +
+          rowActions(bl.hidden, true) + '</div>';
       });
       const bd = blockAddInfo(s);
       if (bd) html += '<div class="os-tree-add sub" data-add-blk="' + s.id + '">' + I.plus + ' ' + esc(bd) + '</div>';
@@ -937,8 +1060,8 @@
   }
   function rowActions(hidden, canDelete) {
     return '<span class="os-tr-acts">' +
-      '<span class="os-tr-act" data-vis title="' + (hidden ? 'Show' : 'Hide') + '">' + (hidden ? I.eyeOff : I.eye) + '</span>' +
-      (canDelete ? '<span class="os-tr-act danger" data-del title="Delete">' + I.trash + '</span>' : '') + '</span>';
+      (canDelete ? '<span class="os-tr-act danger" data-del title="Remove">' + I.trash + '</span>' : '') +
+      '<span class="os-tr-act" data-vis title="' + (hidden ? 'Show' : 'Hide') + '">' + (hidden ? I.eyeOff : I.eye) + '</span></span>';
   }
   function blockAddInfo(s) {
     const def = SECTIONS[s.kind]; if (!def || !def.blocks) return null;
@@ -1493,7 +1616,7 @@
     if (sel.kind === 'announcement' || sel.kind === 'header' || sel.kind === 'footer') {
       const inst = ED.theme[sel.kind]; const def = SECTIONS[inst.kind];
       const label = sel.kind === 'announcement' ? 'Announcement bar' : sel.kind[0].toUpperCase() + sel.kind.slice(1);
-      return panelHead(def ? def.icon : 'layers', label, 'Global · shown on every page', inst.hidden, 'global', sel.kind) +
+      return panelHead(label) +
         '<div class="os-right-scroll" id="os-form">' + (def ? schemaForm(def.schema, inst.settings, '', schemaCtx()) : noSettings()) + '</div>';
     }
     if (sel.kind === 'section') {
@@ -1501,7 +1624,7 @@
       if (!s) return emptyRight('Section not found.');
       const def = SECTIONS[s.kind];
       const rm = isCheckout() ? '' : '<button class="os-remove" data-remove-sec="' + s.id + '">' + I.trash + ' Remove section</button>';
-      return panelHead(def ? def.icon : 'layers', sectionLabel(s), def ? def.name : s.kind, s.hidden, 'section', s.id, isCheckout()) +
+      return panelHead(def ? def.name : s.kind) +
         '<div class="os-right-scroll" id="os-form">' + (def ? schemaForm(def.schema, panelSettings(s), '', schemaCtx(s.id)) : noSettings()) + rm + '</div>';
     }
     if (sel.kind === 'block') {
@@ -1510,7 +1633,7 @@
       if (!s || !bl) return emptyRight('Block not found.');
       const def = SECTIONS[s.kind]; const bd = blockDef(def, bl.kind);
       const rm = isCheckout() ? '' : '<button class="os-remove" data-remove-blk="' + sel.sectionId + ':' + bl.id + '">' + I.trash + ' Remove block</button>';
-      return panelHead('layers', blockLabel(s, bl), (bd ? bd.name : 'Block') + ' · in ' + (def ? def.name : s.kind), bl.hidden, 'block', sel.blockId, isCheckout()) +
+      return panelHead(bd ? bd.name : 'Block') +
         '<div class="os-right-scroll" id="os-form">' + (bd && bd.fields && bd.fields.length ? schemaForm(bd.fields, bl.settings, '') : noSettings()) + rm + '</div>';
     }
     return emptyRight('Select a section or block to edit.');
@@ -1529,14 +1652,10 @@
       sample: D.SAMPLE,
     };
   }
-  function panelHead(icon, title, sub, hidden, scope, id, locked) {
-    const vis = locked
-      ? '<span class="os-rh-vis" title="Required component" style="cursor:default;color:#c4cad3">' + I.lock + '</span>'
-      : '<button class="os-rh-vis' + (hidden ? ' off' : '') + '" data-head-vis="' + scope + ':' + id + '" title="' + (hidden ? 'Show section' : 'Hide section') + '">' + (hidden ? I.eyeOff : I.eye) + '</button>';
-    return '<div class="os-right-head"><span class="os-rh-ico">' + ICON(icon) + '</span>' +
-      '<div style="min-width:0"><div class="os-rh-title">' + esc(title) + '</div><div class="os-rh-sub">' + esc(sub) + '</div></div>' + vis + '</div>';
+  function panelHead(title) {
+    return '<div class="os-right-head"><div class="os-rh-title">' + esc(title) + '</div></div>';
   }
-  function emptyRight(msg) { return '<div class="os-right-head"><span class="os-rh-ico">' + I.layers + '</span><div><div class="os-rh-title">Settings</div><div class="os-rh-sub">Nothing selected</div></div></div><div class="os-empty-right">' + esc(msg) + '</div>'; }
+  function emptyRight(msg) { return panelHead('Settings') + '<div class="os-empty-right">' + esc(msg) + '</div>'; }
   function noSettings() { return '<div class="os-info">This section has no settings.</div>'; }
 
   // ==========================================================================
@@ -1558,17 +1677,21 @@
     if (f.control === 'toggle') {
       return '<div class="os-fld os-fld-row"><label class="os-flabel">' + esc(f.label) + req(f) + '</label>' + control(f, val, values, ctx) + '</div>' + hint;
     }
-    const valTag = (f.control === 'range') ? '<span class="os-fval">' + esc(fmtRange(f, val)) + '</span>' : '';
-    return '<div class="os-fld"><label class="os-flabel">' + esc(f.label) + req(f) + valTag + '</label>' + control(f, val, values, ctx) + hint + '</div>';
+    return '<div class="os-fld"><label class="os-flabel">' + esc(f.label) + req(f) + '</label>' + control(f, val, values, ctx) + hint + '</div>';
   }
   function req(f) { return f.required ? '<span class="os-req">*</span>' : ''; }
   function fmtRange(f, v) { v = (v == null ? f.default : v); return v + (f.unit || ''); }
+  function rangePct(min, max, val) {
+    const lo = Number(min), hi = Number(max), n = Number(val);
+    const span = Math.max(hi - lo, 1);
+    return Math.min(100, Math.max(0, ((n - lo) / span) * 100));
+  }
   function control(f, val, values, ctx) {
     const dk = 'data-fkey="' + esc(f.key) + '" data-control="' + f.control + '"';
     const opts = typeof f.options === 'function' ? (f.options(values, ctx) || []) : (f.options || []);
     switch (f.control) {
       case 'text': case 'url':
-        return '<input class="os-input" ' + dk + (f.maxlength ? ' maxlength="' + f.maxlength + '"' : '') + ' type="text" value="' + esc(val) + '" placeholder="' + esc(f.placeholder || '') + '">';
+        return '<input class="os-input" ' + dk + (f.maxlength ? ' maxlength="' + f.maxlength + '"' : '') + ' type="text" value="' + esc(val) + '" placeholder="' + esc(f.placeholder || 'Please enter') + '">';
       case 'textarea': case 'custom_css': case 'richtext':
         return '<textarea class="os-input os-ta' + (f.control === 'custom_css' ? ' mono' : '') + '" ' + dk + (f.maxlength ? ' maxlength="' + f.maxlength + '"' : '') + ' rows="' + (f.control === 'custom_css' ? 4 : 3) + '" placeholder="' + esc(f.placeholder || '') + '">' + esc(val) + '</textarea>' + (f.control === 'richtext' ? '<div class="os-fhint">Rich text — basic HTML allowed.' + (f.maxlength ? ' Max ' + f.maxlength + ' characters.' : '') + '</div>' : (f.maxlength ? '<div class="os-fhint">Max ' + f.maxlength + ' characters.</div>' : ''));
       case 'select':
@@ -1577,8 +1700,14 @@
         return '<div class="os-seg2" ' + dk + '>' + opts.map((o) => '<button data-v="' + esc(o.value) + '" class="' + (String(o.value) === String(val) ? 'on' : '') + '">' + esc(o.label) + '</button>').join('') + '</div>';
       case 'toggle':
         return '<span class="os-tg' + (val ? ' on' : '') + '" ' + dk + '><i></i></span>';
-      case 'range':
-        return '<input type="range" class="os-range" ' + dk + ' min="' + f.min + '" max="' + f.max + '" step="' + (f.step || 1) + '" value="' + (val == null ? f.default : val) + '">';
+      case 'range': {
+        const cur = (val == null ? f.default : val);
+        const pct = rangePct(f.min, f.max, cur);
+        return '<div class="os-range-row" ' + dk + '>' +
+          '<input type="range" class="os-range" min="' + f.min + '" max="' + f.max + '" step="' + (f.step || 1) + '" value="' + cur + '" style="--os-range-percent:' + pct + '%">' +
+          '<label class="os-range-num"><input type="number" class="os-range-num-in" min="' + (f.min != null ? f.min : '') + '" max="' + (f.max != null ? f.max : '') + '" step="' + (f.step || 1) + '" value="' + cur + '">' +
+          (f.unit ? '<span>' + esc(f.unit) + '</span>' : '') + '</label></div>';
+      }
       case 'number':
         return '<input type="number" class="os-input" ' + dk + ' value="' + esc(val) + '"' + (f.min != null ? ' min="' + f.min + '"' : '') + (f.max != null ? ' max="' + f.max + '"' : '') + (f.step ? ' step="' + f.step + '"' : '') + '>';
       case 'numberInherit': {
@@ -1591,12 +1720,12 @@
       case 'color':
         return colorControl(f, val, dk);
       case 'image':
-        return '<div class="os-imgf" ' + dk + '>' +
+        return '<div class="os-imgf" ' + dk + ' data-img-url="' + esc(val || '') + '">' +
           (val
-            ? '<div class="os-imgset"><div class="os-imgset-prev" style="background-image:url(' + esc(val) + ')"></div>' +
-              '<div class="os-imgset-meta"><div class="os-imgset-name" title="' + esc(val) + '">' + esc(val) + '</div>' +
-              '<div class="os-imgset-acts"><button type="button" class="os-imglink" data-img-pick>Replace</button><button type="button" class="os-imglink danger" data-img-remove>Remove</button></div></div></div>'
-            : '<button type="button" class="os-imgdrop" data-img-pick><span class="os-imgdrop-ico">' + I.image + '</span><span class="os-imgdrop-t">Select image</span><span class="os-imgdrop-s">drag &amp; drop supported</span></button>') +
+            ? '<div class="os-imgset"><button type="button" class="os-imgset-pick" data-img-pick><span class="os-imgset-prev" style="background-image:url(' + esc(val) + ')"></span>' +
+              '<span class="os-imgset-meta"><strong title="' + esc(val) + '">' + esc(mediaFileName(val, 'Selected image')) + '</strong><span>Replace</span></span></button>' +
+              '<button type="button" class="os-imglink danger" data-img-remove>Remove</button></div>'
+            : '<button type="button" class="os-imgdrop" data-img-pick>' + mediaImageIcon() + '<span><strong>Select image</strong><em>jpg / png / webp - drag &amp; drop supported</em></span></button>') +
           '</div>';
       case 'collections':
         return collectionsControl(f, val, dk);
@@ -1625,8 +1754,177 @@
     return '<button class="os-picker" ' + dk + ' data-pick="' + f.control + '"' + (f.single ? ' data-single="1"' : '') + (f.pickFrom ? ' data-pickfrom="' + esc(f.pickFrom) + '"' : '') + '>' +
       '<span>' + esc(label) + '</span>' + I.chev + '</button>';
   }
-  // Simulated "system library" pick — drops in one sample image (no real picker in the prototype).
-  const PICK_IMG = 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80';
+  function mediaFileName(url, fallback) {
+    const raw = String(url || '').split('?')[0].split('#')[0];
+    const name = raw.split('/').pop();
+    try { return decodeURIComponent(name || '') || fallback; } catch (_) { return name || fallback; }
+  }
+  function mediaImageIcon() {
+    return '<span class="os-imgdrop-ico" aria-hidden="true"><svg viewBox="20 58 24 20" width="24" height="20"><path d="M42.5 60.125C42.5 60.0829 42.4564 60 42.3418 60H22.6582C22.5436 60 22.5 60.0829 22.5 60.125V75.875C22.5 75.9171 22.5436 76 22.6582 76H42.3418C42.4564 76 42.5 75.9171 42.5 75.875V60.125ZM44.5 75.875C44.5 77.0756 43.5062 78 42.3418 78H22.6582C21.4938 78 20.5 77.0756 20.5 75.875V60.125C20.5 58.9244 21.4938 58 22.6582 58H42.3418C43.5062 58 44.5 58.9244 44.5 60.125V75.875Z" fill="currentColor"/><path d="M27.75 63.5C27.75 63.0858 27.4142 62.75 27 62.75C26.5858 62.75 26.25 63.0858 26.25 63.5C26.25 63.9142 26.5858 64.25 27 64.25C27.4142 64.25 27.75 63.9142 27.75 63.5ZM29.25 63.5C29.25 64.7426 28.2426 65.75 27 65.75C25.7574 65.75 24.75 64.7426 24.75 63.5C24.75 62.2574 25.7574 61.25 27 61.25C28.2426 61.25 29.25 62.2574 29.25 63.5Z" fill="currentColor"/><path d="M42.5 74.1113L33.8828 69.2734L30.9434 72.7031C30.5926 73.1124 29.9805 73.1705 29.5596 72.834L27.2305 70.9697L22.5 74.0664V75.8418C22.5 75.929 22.571 76 22.6582 76H42.3418C42.429 76 42.5 75.929 42.5 75.8418V74.1113ZM44.5 75.8418C44.5 77.0336 43.5336 78 42.3418 78H22.6582C21.4664 78 20.5 77.0336 20.5 75.8418V73.5264C20.5 73.189 20.6699 72.8742 20.9521 72.6895L26.7422 68.9004L26.8818 68.8232C27.2194 68.6725 27.6186 68.7197 27.9141 68.9561L30.0537 70.667L32.8984 67.3496C33.2087 66.9876 33.7317 66.8945 34.1475 67.1279L43.9893 72.6543C44.3045 72.8313 44.5 73.1648 44.5 73.5264V75.8418Z" fill="currentColor"/></svg></span>';
+  }
+  const MEDIA_LIB_UPLOADED = [];
+  function rememberMedia(url, name) {
+    if (!url) return;
+    const fileName = String(name || mediaFileName(url, 'upload')).replace(/\.[^.]+$/, '');
+    const ext = ((String(name || url).split('.').pop() || 'WEBP') + '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) || 'IMG';
+    MEDIA_LIB_UPLOADED.unshift({ id: 'u' + Date.now() + Math.round(Math.random() * 1e6), name: fileName, ext: ext, kind: 'image', url: url });
+  }
+  function mediaLibraryFiles(currentUrl) {
+    const NAMES = ['product-main', 'front-view', 'back-view', 'detail-shot', 'size-chart', 'fabric-closeup', 'model-pose', 'flat-lay', 'packaging', 'lifestyle', 'swatch-card', 'hangtag'];
+    const EXT = ['WEBP', 'JPG', 'PNG', 'WEBP'];
+    const urls = [];
+    const seen = new Set();
+    const add = (url) => { if (url && !seen.has(url)) { seen.add(url); urls.push(url); } };
+    (D.SAMPLE.products || []).forEach((p) => add(p.image));
+    (D.SAMPLE.collections || []).forEach((c) => add(c.image));
+    (D.SAMPLE.blogs || []).forEach((b) => add(b.image));
+    MEDIA_LIB_UPLOADED.forEach((f) => add(f.url));
+    add(currentUrl);
+    const out = urls.map((url, i) => {
+      const uploaded = MEDIA_LIB_UPLOADED.find((f) => f.url === url);
+      if (uploaded) return Object.assign({}, uploaded);
+      return { id: 'f' + i, name: NAMES[i % NAMES.length] + (i >= NAMES.length ? '-' + (Math.floor(i / NAMES.length) + 1) : ''), ext: EXT[i % EXT.length], kind: 'image', url: url };
+    });
+    if (urls[2]) out.splice(3, 0, { id: 'v1', name: 'product-demo', ext: 'WEBM', kind: 'video', url: urls[2] });
+    if (urls[6]) out.splice(8, 0, { id: 'v2', name: 'unboxing-clip', ext: 'MP4', kind: 'video', url: urls[6] });
+    out.splice(13, 0, { id: 'z1', name: 'brand-assets', ext: 'ZIP', kind: 'raw' });
+    return out;
+  }
+  function readLocalMedia(fileList, onDone) {
+    const files = Array.from(fileList || []).filter((f) => /^image\//.test(f.type || ''));
+    if (!files.length) { onDone([]); return; }
+    let pending = files.length; const added = [];
+    files.forEach((f) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          const ext = (f.name.split('.').pop() || 'IMG').toUpperCase();
+          const item = { id: 'u' + Date.now() + Math.round(Math.random() * 1e6), name: f.name.replace(/\.[^.]+$/, ''), ext: ext, kind: 'image', url: reader.result };
+          MEDIA_LIB_UPLOADED.unshift(item);
+          added.push(item);
+        }
+        if (--pending === 0) onDone(added);
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+  function pickLocalMedia(onPick) {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.style.display = 'none';
+    document.body.appendChild(inp);
+    inp.onchange = () => readLocalMedia(inp.files, (added) => { if (inp.parentNode) inp.parentNode.removeChild(inp); if (added.length) onPick(added); });
+    inp.click();
+  }
+  function openSelectFileModal(currentUrl, onPick) {
+    closePops();
+    const FILES = mediaLibraryFiles(currentUrl);
+    const PAGE = 18;
+    const current = FILES.find((f) => f.url === currentUrl && f.kind === 'image');
+    const st = { q: '', type: 'image', sort: 'new', page: 1, sel: current ? current.id : '' };
+    const CHK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+    const backdrop = h('<div class="modal-backdrop os-sf-backdrop"></div>');
+    const m = h('<div class="modal" style="width:860px;max-width:94vw"></div>');
+    m.innerHTML =
+      '<div class="modal-head flex items-center justify-between"><span>Select file</span><span class="drawer-x" data-x>' + I.x + '</span></div>' +
+      '<div class="modal-body">' +
+        '<div class="sf-toolbar">' +
+          '<div class="sf-search"><span class="ic">' + I.search + '</span><input id="sf-q" placeholder="Search by file name" autocomplete="off" /></div>' +
+          '<select class="filter-select" id="sf-type" style="width:130px">' +
+            '<option value="all">All</option><option value="image" selected>Images</option><option value="video">Videos</option><option value="raw">Other</option>' +
+          '</select>' +
+          '<select class="filter-select" id="sf-sort" style="width:210px">' +
+            '<option value="new">Date added (newest first)</option><option value="old">Date added (oldest first)</option><option value="name">File name (A–Z)</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="sf-drop"><div>Drag and drop images, videos</div><button type="button" class="btn btn-default" id="sf-upload">Upload new</button></div>' +
+        '<div class="sf-grid" id="sf-grid"></div>' +
+        '<div class="sf-pager" id="sf-pager"></div>' +
+      '</div>' +
+      '<div class="modal-foot"><button type="button" class="btn btn-default" data-cancel>Cancel</button><button type="button" class="btn btn-primary" data-ok>Done</button></div>';
+    backdrop.appendChild(m); document.body.appendChild(backdrop);
+    const close = () => { if (backdrop.parentNode) backdrop.remove(); };
+    const grid = m.querySelector('#sf-grid');
+    const pager = m.querySelector('#sf-pager');
+    const view = () => {
+      let list = FILES.slice();
+      const q = st.q.trim().toLowerCase();
+      if (q) list = list.filter((f) => (f.name + '.' + f.ext).toLowerCase().indexOf(q) >= 0);
+      if (st.type !== 'all') list = list.filter((f) => f.kind === st.type);
+      if (st.sort === 'old') list = list.slice().reverse();
+      else if (st.sort === 'name') list = list.slice().sort((a, b) => a.name.localeCompare(b.name));
+      return list;
+    };
+    const tile = (f) => {
+      const inner = f.kind === 'raw'
+        ? '<span class="sf-raw">' + esc(f.ext) + '</span>'
+        : '<img src="' + esc(f.url) + '" alt="" />' + (f.kind === 'video' ? '<span class="sf-play">' + I.play + '</span>' : '');
+      return '<div class="sf-tile' + (st.sel === f.id ? ' sel' : '') + '" data-id="' + esc(f.id) + '">' +
+        '<div class="sf-thumb">' + inner + '<span class="sf-check">' + CHK + '</span></div>' +
+        '<div class="sf-name" title="' + esc(f.name + '.' + f.ext.toLowerCase()) + '">' + esc(f.name) + '</div>' +
+        '<div class="sf-type">' + esc(f.ext) + '</div></div>';
+    };
+    const pagerHtml = (page, pages) => {
+      if (pages <= 1) return '';
+      const it = (lbl, p, d, a) => '<span class="pg-item' + (a ? ' active' : '') + (d ? ' disabled' : '') + '"' + (d ? '' : ' data-p="' + p + '"') + '>' + lbl + '</span>';
+      let s = it('‹', page - 1, page <= 1);
+      for (let p = 1; p <= pages; p++) s += it(String(p), p, false, p === page);
+      return '<div class="pg">' + s + it('›', page + 1, page >= pages) + '</div>';
+    };
+    const render = () => {
+      const list = view();
+      const pages = Math.max(1, Math.ceil(list.length / PAGE));
+      if (st.page > pages) st.page = pages;
+      const items = list.slice((st.page - 1) * PAGE, st.page * PAGE);
+      grid.innerHTML = items.length ? items.map(tile).join('') : '<div class="muted" style="grid-column:1/-1;text-align:center;padding:48px 0">No files found.</div>';
+      pager.innerHTML = pagerHtml(st.page, pages);
+      grid.querySelectorAll('.sf-tile').forEach((t) => t.onclick = () => {
+        const id = t.getAttribute('data-id');
+        const file = FILES.find((f) => f.id === id);
+        if (!file || file.kind === 'raw') return;
+        st.sel = (st.sel === id ? '' : id);
+        render();
+      });
+      pager.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => { st.page = Number(b.getAttribute('data-p')); render(); });
+    };
+    const ingest = (added) => {
+      added.forEach((f) => { FILES.unshift(f); st.sel = f.id; });
+      st.type = 'image'; st.page = 1; render();
+    };
+    render();
+    m.querySelector('#sf-q').oninput = (e) => { st.q = e.target.value; st.page = 1; render(); };
+    m.querySelector('#sf-type').onchange = (e) => { st.type = e.target.value; st.page = 1; render(); };
+    m.querySelector('#sf-sort').onchange = (e) => { st.sort = e.target.value; st.page = 1; render(); };
+    m.querySelector('#sf-upload').onclick = () => pickLocalMedia(ingest);
+    const drop = m.querySelector('.sf-drop');
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('drag'); readLocalMedia(e.dataTransfer.files, ingest); });
+    const cancel = () => close();
+    m.querySelector('[data-x]').onclick = cancel;
+    m.querySelector('[data-cancel]').onclick = cancel;
+    backdrop.onclick = (e) => { if (e.target === backdrop) cancel(); };
+    m.querySelector('[data-ok]').onclick = () => {
+      const picked = FILES.find((f) => f.id === st.sel && f.kind === 'image');
+      close();
+      if (picked) onPick(picked.url);
+    };
+  }
+  function wireImageField(el, onChange) {
+    const k = el.getAttribute('data-fkey');
+    el.querySelectorAll('[data-img-pick]').forEach((b) => b.onclick = () => {
+      openSelectFileModal(el.getAttribute('data-img-url') || '', (url) => onChange(k, url, true));
+    });
+    const rm = el.querySelector('[data-img-remove]'); if (rm) rm.onclick = () => onChange(k, '', true);
+    const drop = el.querySelector('.os-imgdrop');
+    if (drop) {
+      drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('drag'); };
+      drop.ondragleave = () => drop.classList.remove('drag');
+      drop.ondrop = (e) => {
+        e.preventDefault(); drop.classList.remove('drag');
+        readLocalMedia(e.dataTransfer.files, (added) => { if (added[0]) onChange(k, added[0].url, true); });
+      };
+    }
+  }
   const I_grip = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
   const I_coll = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>';
   function collectionsControl(f, val, dk) {
@@ -1773,7 +2071,7 @@
       } else if (ctl === 'select') {
         el.onchange = () => onChange(k, el.value, true);
       } else if (ctl === 'range') {
-        el.oninput = () => { const fv = el.parentElement.querySelector('.os-fval'); if (fv) fv.textContent = el.value + (rangeUnit(el) || ''); onChange(k, num(el.value), false); };
+        wireRange(el, field, onChange);
       } else if (ctl === 'toggle') {
         el.onclick = () => { const nv = !el.classList.contains('on'); el.classList.toggle('on', nv); onChange(k, nv, true); };
       } else if (ctl === 'segmented') {
@@ -1788,8 +2086,7 @@
         numEl.oninput = () => onChange(k, clamp(numEl.value, f.min == null ? -1e9 : f.min, f.max == null ? 1e9 : f.max, f.min || 0), false);
         autoBtn.onclick = () => { const on = !autoBtn.classList.contains('on'); autoBtn.classList.toggle('on', on); if (on) { numEl.value = ''; numEl.disabled = true; onChange(k, null, false); } else { numEl.disabled = false; const dv = (f.min != null ? f.min : 0); numEl.value = dv; onChange(k, dv, false); numEl.focus(); } };
       } else if (ctl === 'image') {
-        el.querySelectorAll('[data-img-pick]').forEach((b) => b.onclick = () => onChange(k, PICK_IMG, true));
-        const rm = el.querySelector('[data-img-remove]'); if (rm) rm.onclick = () => onChange(k, '', true);
+        wireImageField(el, onChange);
       } else if (ctl === 'collections') {
         const pick = el.querySelector('[data-cols-pick]'); if (pick) pick.onclick = () => openPickerPop(pick, ctl, target[k], (v) => onChange(k, v, true));
         const list = el.querySelector('[data-cols-list]'); if (list) wireColsReorder(list, () => (Array.isArray(target[k]) ? target[k] : []), (arr) => onChange(k, arr, true));
@@ -1941,6 +2238,32 @@
   function clampNum(el) { const f = fieldByEl(el); let v = num(el.value); if (f) { if (f.min != null) v = Math.max(f.min, v); if (f.max != null) v = Math.min(f.max, v); } return v; }
   function rangeUnit(el) { const f = fieldByEl(el); return f ? f.unit : ''; }
   function fieldByEl(el) { const k = el.getAttribute('data-fkey'); const sc = currentSchema(); return (sc || []).find((x) => x.key === k); }
+  function wireRange(el, f, onChange) {
+    const slider = el.querySelector('input[type="range"]');
+    const numIn = el.querySelector('.os-range-num-in');
+    if (!slider) return;
+    const min = Number(slider.min);
+    const max = Number(slider.max);
+    const k = el.getAttribute('data-fkey');
+    const apply = (raw, syncNum) => {
+      const n = clamp(raw, min, max, min);
+      slider.value = n;
+      if (numIn && syncNum !== false) numIn.value = n;
+      slider.style.setProperty('--os-range-percent', rangePct(min, max, n) + '%');
+      onChange(k, n, false);
+    };
+    slider.oninput = () => apply(slider.value, true);
+    if (numIn) {
+      numIn.oninput = () => {
+        const n = Number(numIn.value);
+        if (!isFinite(n) || n < min || n > max) return;
+        apply(n, false);
+      };
+      numIn.onchange = () => apply(numIn.value, true);
+      numIn.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); apply(numIn.value, true); } };
+      numIn.onblur = () => apply(numIn.value, true);
+    }
+  }
   function num(v) { v = Number(v); return isFinite(v) ? v : 0; }
   function coerce(v) { if (v === 'true') return true; if (v === 'false') return false; if (v !== '' && !isNaN(v)) return Number(v); return v; }
 
@@ -1998,7 +2321,7 @@
       else if (ctl === 'textarea' || ctl === 'custom_css' || ctl === 'richtext') el.oninput = () => change(k, el.value, false);
       else if (ctl === 'number') el.oninput = () => change(k, clamp(el.value, f.min == null ? -1e9 : f.min, f.max == null ? 1e9 : f.max, 0), false);
       else if (ctl === 'select') el.onchange = () => change(k, el.value, true);
-      else if (ctl === 'range') el.oninput = () => { const fv = el.parentElement.querySelector('.os-fval'); if (fv) fv.textContent = el.value + (f.unit || ''); change(k, num(el.value), false); };
+      else if (ctl === 'range') wireRange(el, f, change);
       else if (ctl === 'toggle') el.onclick = () => { const nv = !el.classList.contains('on'); el.classList.toggle('on', nv); change(k, nv, true); };
       else if (ctl === 'segmented') el.querySelectorAll('button').forEach((bn) => bn.onclick = () => { el.querySelectorAll('button').forEach((x) => x.classList.remove('on')); bn.classList.add('on'); change(k, coerce(bn.getAttribute('data-v')), true); });
       else if (ctl === 'color') {
@@ -2007,8 +2330,7 @@
         hx.onchange = () => { const v = hx.value.trim(); sw.style.background = v === 'transparent' ? '' : v; sw.classList.toggle('tsp', v === 'transparent'); change(k, v, false); };
         if (tb) tb.onclick = () => { const on = !tb.classList.contains('on'); tb.classList.toggle('on', on); sw.classList.toggle('tsp', on); if (on) { sw.style.background = ''; hx.value = 'transparent'; change(k, 'transparent', false); } else { sw.style.background = '#ffffff'; hx.value = '#FFFFFF'; change(k, '#FFFFFF', false); } };
       } else if (ctl === 'image') {
-        el.querySelectorAll('[data-img-pick]').forEach((b) => b.onclick = () => change(k, PICK_IMG, true));
-        const rm = el.querySelector('[data-img-remove]'); if (rm) rm.onclick = () => change(k, '', true);
+        wireImageField(el, change);
       } else if (ctl === 'product' || ctl === 'collection' || ctl === 'menu' || ctl === 'blog' || ctl === 'page') {
         el.onclick = () => openPickerPop(el, ctl, target[k], (v) => change(k, v, true), el.getAttribute('data-single') === '1', el.getAttribute('data-pickfrom'));
       } else if (ctl === 'collections') {
@@ -2239,7 +2561,9 @@
       row.addEventListener('dragstart', (e) => {
         if (row.hasAttribute('data-sel-sec')) dragInfo = { type: 'sec', id: row.getAttribute('data-sel-sec') };
         else { const p = row.getAttribute('data-sel-blk').split(':'); dragInfo = { type: 'blk', secId: p[0], id: p[1] }; }
-        e.dataTransfer.effectAllowed = 'move'; row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', dragInfo.id || ''); } catch (_) {}
+        row.classList.add('dragging');
       });
       row.addEventListener('dragend', () => { row.classList.remove('dragging'); clearDrop(); dragInfo = null; });
       row.addEventListener('dragover', (e) => {
@@ -2714,6 +3038,7 @@
   // Switch page type and/or active template. Selecting a different template of the same
   // page type still re-renders (pt equals currentPage but the template changed).
   function switchPage(pt, tplId) {
+    if (!isCkType(pt) && !(D.PAGE_OPTIONS || []).some((p) => p.value === pt)) return;
     const changed = isCheckout() || (pt !== ED.currentPage) || (tplId && tplId !== curTplId());
     if (!changed) { ED.currentPage = pt; if (tplId) ED.tplSel[pt] = tplId; return; }
     confirmSwitchTemplate(() => {
@@ -2882,7 +3207,7 @@
   function syncSurfaceHash() {
     const handle = ED.meta.handle;
     const want = isCheckout()
-      ? ('#/checkout/' + encodeURIComponent(handle) + (ED.checkoutPage !== 'checkout' ? '/' + ED.checkoutPage : ''))
+      ? checkoutEditorHash(handle, ED.checkoutPage)
       : '#/online-store/edit/' + encodeURIComponent(handle);
     if (location.hash !== want) { try { history.replaceState(null, '', want); } catch (e) {} }
   }
@@ -3044,6 +3369,7 @@
     ED.publishedTheme = snapshot.source === 'published' ? clone(snapshot.theme) : publishedBaseline;
     ED.surface = snapshot.surface === 'checkout' ? 'checkout' : 'online-store';
     ED.currentPage = previewContext.currentPage || 'home';
+    if (!(D.PAGE_OPTIONS || []).some((p) => p.value === ED.currentPage)) ED.currentPage = 'home';
     ED.checkoutPage = isCkType(previewContext.checkoutPage) ? previewContext.checkoutPage : 'checkout';
     if (!ED.theme.templates[ED.currentPage]) ED.currentPage = Object.keys(ED.theme.templates)[0] || 'home';
     if (!ED.theme.checkout.templates[ED.checkoutPage]) ED.checkoutPage = Object.keys(ED.theme.checkout.templates)[0] || 'checkout';
@@ -3286,7 +3612,7 @@
   //  REFRESHERS
   // ==========================================================================
   function rerender() { renderBuilder(ED.meta.handle); }
-  function refreshTop() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-top'); const nw = topBar(); old.replaceWith(nw); wireTop(); }
+  function refreshTop() { const b = document.getElementById('os-builder'); if (!b) return; const old = b.querySelector('.os-chrome') || b.querySelector('.os-top'); const nw = topBar(); old.replaceWith(nw); wireTop(); }
   function refreshPreviewBarLabel() {
     const bar = document.querySelector('[data-preview-bar-text]');
     if (bar && ED && !ED.previewOnly) bar.textContent = previewBarText();
@@ -3409,9 +3735,10 @@
   // ==========================================================================
   let routeGeneration = 0;
   function route(rest) {
-    const first = (location.hash || '').replace(/^#\/?/, '').split('/')[0];
-    const liveRest = (location.hash || '').replace(/^#\/?/, '').split('/').filter(Boolean).slice(1).join('/');
-    const rawRest = rest || '';
+    const hashPath = (location.hash || '').replace(/^#\/?/, '').split('?')[0];
+    const first = hashPath.split('/').filter(Boolean)[0] || '';
+    const liveRest = hashPath.split('/').filter(Boolean).slice(1).join('/');
+    const rawRest = (rest || '').split('?')[0];
     if (rawRest !== liveRest) return; // Ignore a stale shell dispatch for an older same-module hash.
     const generation = ++routeGeneration;
     closePops(); closeStandalonePreview();
@@ -3457,9 +3784,22 @@
       ensureSections().then(() => { if (generation === routeGeneration) renderBuilder(decodeURIComponent(handle), 'checkout', page); });
       return;
     }
-    const m = routePath.match(/^edit\/(.+)$/);
+    const m = routePath.match(/^edit\/([^/?]+)(?:\/([^/?]+))?$/);
     if (m) {
-      ensureSections().then(() => { if (generation === routeGeneration) renderBuilder(decodeURIComponent(m[1]), 'online-store'); });
+      const handle = decodeURIComponent(m[1]);
+      let page = m[2] ? decodeURIComponent(m[2]) : '';
+      if (page === 'thank-you') page = 'thankyou';
+      const q = new URLSearchParams((rawRest.split('?')[1] || location.hash.split('?')[1] || ''));
+      const tpl = q.get('tpl');
+      const saved = q.get('saved');
+      const requestedExit = q.get('return');
+      const exitTo = requestedExit && /^#\/(?:pages|flows(?:\/[^/?]+)?)$/.test(requestedExit)
+        ? requestedExit
+        : (q.get('from') === 'bestcheckout' ? '#/pages' : null);
+      const surface = (CK_TYPES.indexOf(page) >= 0) ? 'checkout' : 'online-store';
+      ensureSections().then(() => {
+        if (generation === routeGeneration) renderBuilder(handle, surface, page || (surface === 'checkout' ? 'checkout' : ''), { exitTo: exitTo, tpl: tpl, saved: saved });
+      });
     }
     else renderList();
   }
@@ -3500,27 +3840,52 @@
 
   /* builder shell */
   .os-builder{position:fixed;inset:0;z-index:140;background:var(--page);display:flex;flex-direction:column;font-size:14px;color:var(--ink)}
+  .os-chrome{flex-shrink:0}
+  .os-appbar{box-sizing:border-box;display:flex;align-items:center;gap:8px;height:40px;padding:12px 24px;background:#0f172a;color:#b7bbbf;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:12px;line-height:1;white-space:nowrap}
+  .os-appbar strong{color:#e2e8f0;font-size:12px;font-weight:700}
+  .os-appbar span{color:#b7bbbf;font-size:12px;font-weight:400}
   /* Popovers (block-kind menu, resource pickers, add-section, page menu) must sit above the
      full-screen editor chrome (.os-builder is z-index 140); the shared .pop-layer defaults to
      80, which hid menus behind the tree / preview canvas. Keep below modal backdrops (240). */
   .pop-layer{z-index:200}
   body.os-preview-active .pop-layer{z-index:540}
-  .os-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--hair);background:#fff;flex-shrink:0}
-  .os-top-l{display:flex;align-items:center;gap:12px;min-width:0}
+  .os-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;height:56px;padding:0 14px;border-bottom:1px solid #e0e1e3;background:#fff;color:#111827;flex-shrink:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .os-top-l{display:flex;align-items:center;gap:0;min-width:0}
   .os-top-c{display:flex;align-items:center;gap:10px;justify-content:center}
   .os-top-r{display:flex;align-items:center;gap:8px;justify-self:end}
-  .os-preview-open{display:inline-flex;align-items:center;gap:6px}
+  .os-top-back{width:32px;height:32px;margin-right:16px;padding:0;border:1px solid #e0e1e3;border-radius:4px;background:#fff;color:#31353c;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+  .os-top-back:hover{background:#f3f6fb;color:#111827}
+  .os-mode-tabs{display:inline-flex;gap:0;padding:2px;margin-right:24px;border:0;border-radius:4px;background:#f2f2f3;flex:none}
+  .os-mode-tabs button{width:30px;height:28px;padding:0;border:0;border-radius:2px;background:transparent;color:#31353c;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+  .os-mode-tabs button.active{background:#fff;color:#111827}
+  .os-mode-tabs button svg,.os-mode-tabs button img{display:block;width:24px;height:24px;max-width:24px;max-height:24px}
+  .os-top-brand{display:flex;align-items:center;gap:24px;min-width:0}
+  .os-top-icon{width:32px;height:32px;padding:0;border:0;border-radius:8px;background:transparent;color:#111827;display:grid;place-items:center;cursor:pointer}
+  .os-top-icon:hover{background:#F3F4F6}
+  .os-top-icon.on{background:#F3F4F6}
+  .os-top-icon:disabled{opacity:.4;cursor:not-allowed}
+  .os-top-hidden{display:none!important}
+  .os-top-btn{min-width:76px;width:76px;height:32px;padding:0 12px;border:1px solid #e0e1e3;border-radius:4px;background:#fff;color:#121927;font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .os-top-btn:hover{background:#f3f6fb;color:#111827}
+  .os-top-btn.primary{background:#111827;border-color:#111827;color:#fff}
+  .os-top-btn.primary:hover{background:#020617;color:#fff}
+  .os-top-btn.warn{border-color:#F59E0B;background:#F59E0B;color:#fff}
+  .os-top-btn[disabled]{opacity:1;cursor:not-allowed;border-color:#f2f2f3;background:#f8f9f9;color:#e0e1e3}
+  .os-top-btn.primary[disabled]{border-color:#b7bbbf;background:#b7bbbf;color:#fff}
+  .os-preview-open{display:inline-flex;align-items:center;justify-content:center}
   .os-preview-open svg{flex:none}
-  .os-rail{display:inline-flex;background:var(--panel);border-radius:8px;padding:3px;gap:2px}
-  .os-rail-b{width:32px;height:28px;border:0;background:none;color:var(--ink-muted);border-radius:6px;display:grid;place-items:center;cursor:pointer}
-  .os-rail-b.on{background:#fff;color:var(--brand);box-shadow:0 1px 2px rgba(0,0,0,.12)}
-  .os-tname{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
-  .os-pagesel{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px;border:1px solid var(--ctl);border-radius:8px;background:#fff;font-size:13px;font-family:inherit;color:var(--ink);min-width:180px;max-width:280px;cursor:pointer}
-  .os-pagesel:hover{border-color:var(--brand)}
-  .os-pagesel:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-50)}
-  .os-psb-ico{display:inline-flex;color:var(--ink-muted);flex:none}
+  .os-tname{font-size:14px;font-weight:700;color:#31353c;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+  .os-tstatus{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;line-height:1.3;white-space:nowrap}
+  .os-tstatus::before{content:"";width:5px;height:5px;border-radius:999px;background:currentColor}
+  .os-tstatus.saved{background:#d1fae5;color:#047857}
+  .os-tstatus.pending-publish{background:#dbeafe;color:#1d4ed8}
+  .os-tstatus.unsaved{background:#fef3c7;color:#b45309}
+  .os-pagesel{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid #D1D5DB;border-radius:8px;background:#fff;font-size:13px;font-family:inherit;color:#111827;min-width:200px;max-width:320px;cursor:pointer}
+  .os-pagesel:hover{background:#F9FAFB}
+  .os-pagesel:focus{outline:none;border-color:#9CA3AF;box-shadow:0 0 0 3px rgba(17,24,39,.06)}
+  .os-psb-ico{display:inline-flex;color:#6B7280;flex:none}
   .os-psb-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
-  .os-psb-chev{display:inline-flex;color:var(--ink-muted);flex:none}
+  .os-psb-chev{display:inline-flex;color:#6B7280;flex:none}
   /* Page / template selector popover */
   .os-pgpop{min-width:260px}
   /* Let the body take the popover's remaining height so its inner list scrolls (long
@@ -3586,9 +3951,10 @@
   .ckoffer-policy{width:100%;margin:0 auto;padding:24px 28px 32px;box-sizing:border-box}
   .ckoffer-page.mob .ckoffer-policy{padding:20px var(--ck-mob-pad,18px) 28px}
   .btn[disabled]{opacity:.5;cursor:not-allowed}
-  .os-dev{display:inline-flex;background:var(--panel);border-radius:8px;padding:3px;gap:2px}
-  .os-dev button{width:32px;height:28px;border:0;background:none;color:var(--ink-muted);border-radius:6px;display:grid;place-items:center;cursor:pointer}
-  .os-dev button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  .os-dev{display:inline-flex;align-items:center;gap:0;padding:2px;margin-right:4px;border:0;border-radius:4px;background:#f2f2f3}
+  .os-dev button{width:30px;height:28px;border:0;background:transparent;color:#31353c;border-radius:2px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+  .os-dev button:hover{color:#111827}
+  .os-dev button.active{background:#fff;color:#111827}
   .btn-warn{background:#f59e0b;color:#fff}.btn-warn:hover{background:#e08c08}
   .btn-danger{background:var(--err);color:#fff}.btn-danger:hover{background:#b3401f}
   .os-top .btn[disabled]{opacity:.45;cursor:not-allowed}
@@ -3603,9 +3969,10 @@
   .os-builder.os-full-preview .os-block-sel{outline:none}
 
   /* left tree */
-  .os-left{border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0;background:#fff}
+  .os-left{border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0;background:#fff;color:#111827;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;letter-spacing:0}
   .os-left-head{padding:12px 16px;font-size:13px;font-weight:600;color:var(--ink);border-bottom:1px solid var(--hair);flex-shrink:0}
   .os-left-scroll{flex:1;overflow:auto;padding:8px}
+  .os-left-scroll.os-ck-tree{padding:0 10px 24px}
   /* Product / Collection template context + Shopify-style preview resource selector. */
   .os-rp-context{padding:4px 4px 12px;margin-bottom:4px;border-bottom:1px solid var(--hair)}
   .os-rp-template{font-size:14px;font-weight:650;color:var(--ink);padding:2px 4px}
@@ -3620,29 +3987,42 @@
   .os-rp-thumb svg{width:14px;height:14px}
   .os-rp-chev{display:inline-flex;flex:none;color:var(--ink-muted)}
   .os-tree-note{font-size:12px;color:var(--ink-muted);line-height:1.55;background:var(--panel);border-radius:8px;padding:9px 11px;margin:4px 4px 10px}
-  .os-tree-row{display:flex;align-items:center;gap:9px;padding:8px 8px;border-radius:8px;cursor:pointer;color:var(--ink-body);font-size:13.5px}
+  .os-tree-row{display:flex;align-items:center;gap:9px;padding:8px 8px;border-radius:8px;cursor:pointer;color:#111827;font-size:12px;font-weight:400;line-height:1.3}
   .os-tree-row:hover{background:var(--panel)}
-  .os-grp-head{display:flex;align-items:center;gap:6px;padding:9px 8px 6px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);cursor:pointer}
+  .os-grp-head{display:flex;align-items:center;gap:8px;height:39px;width:100%;border:0;border-top:.5px solid #e0e1e3;background:transparent;padding:0;color:#111827;font-family:inherit;font-size:13px;font-weight:700;letter-spacing:0;line-height:1.3;text-transform:none;text-align:left;cursor:pointer}
+  .os-grp-head:first-child{border-top:0}
   .os-caret{display:inline-flex;color:var(--ink-muted);transition:transform .15s}.os-caret.open{transform:rotate(90deg)}
-  .os-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--ink-body);position:relative}
-  .os-row:hover{background:var(--panel)}
-  .os-row.active{background:#e6f0ff;color:var(--brand);font-weight:600}
-  .os-row.active .os-tr-ico{color:var(--brand)}
+  .os-row{display:flex;align-items:center;column-gap:8px;row-gap:4px;min-height:39px;padding:0 8px 0 4px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:400;line-height:1.3;color:#111827;position:relative;user-select:none}
+  .os-row:hover{background:#f2f2f3}
+  .os-row.active{background:#121927;color:#fff;font-weight:400}
+  .os-row.active .os-tr-ico,.os-row.active .os-row-caret,.os-row.active .os-tr-grip{color:#fff}
   .os-row.hid .os-tr-name{text-decoration:line-through;opacity:.7}
-  .os-row.blk{padding-left:40px}
-  .os-tr-ico{width:18px;height:18px;flex:none;color:var(--ink-muted);display:inline-flex}.os-tr-ico.sm{width:15px;height:15px}
+  .os-row.blk{padding-left:28px}
+  .os-row-lead{display:inline-flex;align-items:center;gap:4px;flex:0 0 36px;width:36px}
+  .os-lead-spacer{width:16px;height:16px;flex:0 0 16px}
+  .os-tr-ico{width:16px;height:16px;flex:0 0 16px;color:#121927;display:inline-flex;align-items:center;justify-content:center}
   .os-tr-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .os-row-caret{width:16px;display:inline-flex;color:var(--ink-muted);transition:transform .15s;flex:none}.os-row-caret.open{transform:rotate(90deg)}.os-row-caret.ghost{visibility:hidden}
-  .os-tr-acts{display:flex;gap:1px;opacity:0;flex:none}
-  .os-row:hover .os-tr-acts,.os-row.hid .os-tr-acts{opacity:1}
-  .os-tr-act{width:22px;height:22px;display:grid;place-items:center;color:var(--ink-muted);border-radius:6px;cursor:pointer}
-  .os-tr-act:hover{background:#fff;color:var(--ink)}.os-tr-act.danger:hover{color:var(--err)}
-  .os-tr-grip{color:#c4cad3;cursor:grab;display:inline-flex;flex:none;opacity:0}
+  .os-row-caret{width:16px;height:32px;display:inline-flex;align-items:center;justify-content:center;color:#b7bbbf;transition:transform .15s;flex:0 0 16px}.os-row-caret.open{transform:rotate(90deg)}.os-row-caret.ghost{visibility:hidden}
+  .os-tr-acts{display:inline-flex;align-items:center;gap:2px;flex:0 0 46px;justify-content:flex-end;width:46px;opacity:0;pointer-events:none}
+  .os-row:hover .os-tr-acts,.os-row.hid .os-tr-acts{opacity:1;pointer-events:auto}
+  .os-tr-act{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:#121927;border-radius:4px;cursor:pointer;background:transparent}
+  .os-tr-act:hover{background:rgba(17,24,39,.07)}
+  .os-row.active .os-tr-acts .os-tr-act{color:#fff}
+  .os-row.active .os-tr-act:hover{background:rgba(255,255,255,.16);color:#fff}
+  .os-tr-drag-slot{position:relative;display:inline-flex;width:16px;height:16px;flex:0 0 16px;align-items:center;justify-content:center}
+  .os-tr-drag-slot > .os-tr-grip{position:absolute;inset:0;z-index:1;width:16px;height:16px}
+  .os-tr-drag-slot > .os-tr-ico{transition:opacity .12s ease}
+  .os-row:hover .os-tr-drag-slot > .os-tr-ico{opacity:0}
+  .os-tr-grip{width:16px;height:32px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 16px;color:#b7bbbf;cursor:grab;opacity:0}
+  .os-tr-grip svg,.os-tr-ico svg,.os-tr-act svg{pointer-events:none}
   .os-row:hover .os-tr-grip{opacity:1}
-  .os-tr-lock{color:#c4cad3;display:inline-flex;flex:none;margin-left:2px}
-  .os-tree-add{display:flex;align-items:center;gap:6px;padding:8px;margin:4px 0 2px;border:1px dashed var(--ctl);border-radius:8px;color:var(--brand);font-size:13px;cursor:pointer}
-  .os-tree-add:hover{background:var(--brand-50)}.os-tree-add.sub{margin-left:20px;font-size:12.5px;padding:6px 8px}
-  .os-add-n{color:var(--ink-muted);font-size:12px}
+  .os-tr-lock{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;color:#c7ccd4}
+  .os-tr-lock svg{display:block;width:16px;height:16px}
+  .os-row.active .os-tr-lock{color:rgba(255,255,255,.72)}
+  .os-tree-add{display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-height:39px;margin:0;border:0;border-radius:4px;background:transparent;color:#2563eb;padding:0 8px 0 4px;font-size:13px;font-weight:400;line-height:1;cursor:pointer}
+  .os-tree-add:hover{background:#f2f3f5;color:#2563eb}
+  .os-tree-add svg{width:16px;height:16px;flex:0 0 16px}
+  .os-tree-add.sub{margin:0;padding:0 8px 0 48px;font-size:13px}
   .os-row.dragging{opacity:.4}
   .os-row.drop-before::before,.os-row.drop-after::before{content:'';position:absolute;left:8px;right:8px;height:2px;background:var(--brand);border-radius:2px}
   .os-row.drop-before::before{top:-1px}.os-row.drop-after::before{bottom:-1px}
@@ -3666,63 +4046,79 @@
   .os-render-err{margin:8px;padding:14px;background:#fff4f2;color:#b3401f;font-size:12.5px;border:1px solid #f3c9c0;border-radius:8px}
 
   /* right panel */
-  .os-right{border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0;background:#fff}
-  .os-right-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--hair);flex-shrink:0}
+  .os-right{border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0;background:#fff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:12px}
+  .os-right-head{display:flex;align-items:flex-start;justify-content:space-between;gap:3px;padding:16px 0;margin:0 10px;border-bottom:1px solid #e0e1e3;background:#fff;flex-shrink:0}
+  .os-rh-title{min-width:0;color:#111827;font-size:13px;font-weight:700;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .os-rh-ico{width:32px;height:32px;flex:none;border-radius:8px;background:var(--panel);display:grid;place-items:center;color:var(--ink-muted)}
-  .os-rh-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .os-rh-sub{font-size:12px;color:var(--ink-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .os-rh-vis{margin-left:auto;width:30px;height:30px;display:grid;place-items:center;border:0;background:none;color:var(--ink-muted);border-radius:6px;cursor:pointer;flex:none}
-  .os-rh-vis:hover{background:var(--panel)}.os-rh-vis.off{color:#c4cad3}
   .os-expall{margin-left:auto;font-size:12.5px;color:var(--brand);border:0;background:none;cursor:pointer}
-  .os-right-scroll{flex:1;overflow:auto;padding:12px 14px}
+  .os-right-scroll{flex:1;overflow:auto;padding:16px 10px 24px}
   .os-empty-right{padding:28px 22px;text-align:center;color:#9aa3b0;font-size:13px;line-height:1.7}
   .os-remove{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:36px;margin-top:14px;border:1px solid #f3c9c0;border-radius:8px;background:#fff;color:var(--err);font-size:13px;font-weight:500;cursor:pointer}
   .os-remove:hover{background:#fef4f2}
 
   /* fields */
   .os-fld{margin-bottom:12px}
-  .os-fld-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .os-flabel{display:flex;align-items:center;font-size:12px;font-weight:600;color:var(--ink-body);margin-bottom:6px}
+  .os-fld-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:14px;min-height:32px}
+  .os-flabel{display:flex;align-items:center;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:12px;font-weight:400;line-height:1.3;color:#111827;margin-bottom:6px}
   .os-fld-row .os-flabel{margin-bottom:0}
   .os-req{color:var(--err);margin-left:2px}
-  .os-fval{margin-left:auto;font-size:12px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
-  .os-fhint{font-size:11.5px;color:#8a93a1;margin-top:4px;line-height:1.5}
-  .os-sub{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#9aa3b0;margin:16px 0 8px;padding-top:12px;border-top:1px solid #f0f2f5}
+  .os-fval{margin-left:auto;font-size:11px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
+  .os-fhint{font-size:12px;color:#8a93a1;margin-top:4px;line-height:1.5}
+  .os-sub{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:11px;font-weight:700;letter-spacing:0;line-height:1.3;text-transform:uppercase;color:#9ca3af;margin:16px 0 8px;padding:0;border:0}
+  .os-right-scroll > .os-sub:first-child{margin-top:0}
   .os-info{font-size:12px;color:#8a93a1;line-height:1.55;background:var(--panel);border-radius:8px;padding:9px 11px;margin-bottom:10px}
-  .os-input{width:100%;height:34px;padding:0 10px;border:1px solid var(--ctl);border-radius:8px;font-size:13px;color:var(--ink);background:#fff;font-family:inherit}
+  .os-input{width:100%;height:34px;padding:0 10px;border:1px solid var(--ctl);border-radius:8px;font-size:12px;color:var(--ink);background:#fff;font-family:inherit}
   .os-input:focus{outline:none;border-color:var(--brand)}
-  .os-ta{height:auto;min-height:72px;padding:8px 10px;line-height:1.5;resize:vertical}.os-ta.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
-  .os-select{width:100%;height:34px;padding:0 8px;border:1px solid var(--ctl);border-radius:8px;font-size:13px;color:var(--ink);background:#fff;font-family:inherit;cursor:pointer}
+  .os-ta{height:auto;min-height:72px;padding:8px 10px;line-height:1.5;resize:vertical}.os-ta.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:13px}
+  .os-select{width:100%;height:34px;padding:0 8px;border:1px solid var(--ctl);border-radius:8px;font-size:12px;color:var(--ink);background:#fff;font-family:inherit;cursor:pointer}
   .os-select:focus{outline:none;border-color:var(--brand)}
   .os-seg2{display:flex;background:var(--panel);border-radius:8px;padding:3px;gap:2px}
   .os-seg2 button{flex:1;border:0;background:none;font-size:12px;font-weight:500;color:var(--ink-body);padding:6px 6px;border-radius:6px;cursor:pointer;font-family:inherit;white-space:nowrap}
   .os-seg2 button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
-  .os-tg{width:38px;height:22px;border-radius:999px;background:#cfd5de;cursor:pointer;flex:none;position:relative;transition:background .15s}
-  .os-tg.on{background:var(--brand)}
-  .os-tg i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}.os-tg.on i{left:18px}
-  .os-range{width:100%;accent-color:var(--brand);cursor:pointer}
+  .os-tg{width:28px;min-height:16px;height:16px;border:0;border-radius:2px;padding:2px;background:#e0e1e3;box-shadow:none;cursor:pointer;flex:none;position:relative;box-sizing:border-box}
+  .os-tg.on{background:#121927}
+  .os-tg i{display:block;width:12px;height:12px;border-radius:2px;background:#fff;box-shadow:none;transition:transform .14s ease}
+  .os-tg.on i{transform:translateX(12px)}
+  .os-range-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(64px,64px);gap:12px;align-items:center;min-height:32px}
+  .os-range{appearance:none;-webkit-appearance:none;width:100%;min-height:6px;height:6px;border:0;border-radius:10px;padding:0;background:transparent;box-shadow:none;cursor:pointer}
+  .os-range::-webkit-slider-runnable-track{height:6px;border-radius:10px;background:linear-gradient(to right,#121927 0 var(--os-range-percent,0%),#f2f2f3 var(--os-range-percent,0%) 100%)}
+  .os-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;margin-top:-5px;border:4px solid #121927;border-radius:8px;background:#fff}
+  .os-range::-moz-range-track{height:6px;border-radius:10px;background:#f2f2f3}
+  .os-range::-moz-range-progress{height:6px;border-radius:10px;background:#121927}
+  .os-range::-moz-range-thumb{width:8px;height:8px;border:4px solid #121927;border-radius:8px;background:#fff}
+  .os-range-num{display:flex;align-items:center;width:100%;min-height:32px;height:32px;overflow:hidden;border:1px solid #e0e1e3;border-radius:4px;background:#fff;padding:0 8px}
+  .os-range-num:focus-within{border-color:#121927;box-shadow:0 0 0 2px rgba(18,25,39,.12)}
+  .os-range-num-in{appearance:textfield;-moz-appearance:textfield;flex:1 1 auto;width:0;min-width:0;min-height:auto;height:30px;border:0;border-radius:0;background:transparent;padding:0;text-align:left;box-shadow:none;font:inherit;font-size:12px;color:#111827;outline:none}
+  .os-range-num-in::-webkit-outer-spin-button,.os-range-num-in::-webkit-inner-spin-button{margin:0;-webkit-appearance:none}
+  .os-range-num span{flex:0 0 auto;padding-left:6px;color:#9ca3af;font-size:11px;line-height:1}
   .os-color{display:flex;align-items:center;gap:8px}
   .os-sw{width:32px;height:32px;border-radius:8px;border:1px solid var(--ctl);cursor:pointer;flex:none;position:relative;overflow:hidden}
   .os-sw input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;border:0;padding:0}
   .os-sw.tsp{background:conic-gradient(#ccc 25%,#fff 0 50%,#ccc 0 75%,#fff 0)50%/12px 12px}
-  .os-hex{flex:1;height:32px;border:1px solid var(--ctl);border-radius:8px;padding:0 10px;font-size:12.5px;font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--ink)}
+  .os-hex{flex:1;height:32px;border:1px solid var(--ctl);border-radius:8px;padding:0 10px;font-size:12px;font-family:inherit;color:var(--ink)}
   .os-hex:focus{outline:none;border-color:var(--brand)}
   .os-tbtn{width:32px;height:32px;border:1px solid var(--ctl);border-radius:8px;background:#fff;color:var(--ink-muted);font-size:12px;font-weight:700;cursor:pointer;flex:none}
   .os-tbtn.on{border-color:var(--brand);color:var(--brand);background:var(--brand-50)}
   .os-ninh{display:flex;align-items:center;gap:8px}.os-ninh .os-input{flex:1}.os-ninh .os-tbtn{width:auto;padding:0 10px;font-size:12px;font-weight:600}
-  .os-imgdrop{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:18px 12px;border:1.5px dashed var(--ctl);border-radius:10px;background:var(--panel);cursor:pointer;font-family:inherit;transition:border-color .12s,background .12s}
-  .os-imgdrop:hover{border-color:var(--brand);background:var(--brand-50)}
-  .os-imgdrop-ico{color:var(--ink-muted);display:inline-flex;margin-bottom:2px}
-  .os-imgdrop:hover .os-imgdrop-ico{color:var(--brand)}
-  .os-imgdrop-t{font-size:13px;font-weight:600;color:var(--ink)}
-  .os-imgdrop-s{font-size:11.5px;color:var(--ink-muted)}
-  .os-imgset{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--ctl);border-radius:10px;background:#fff}
-  .os-imgset-prev{width:48px;height:48px;flex:none;border-radius:8px;background-size:cover;background-position:center;background-color:var(--panel);border:1px solid var(--hair)}
-  .os-imgset-meta{flex:1;min-width:0}
-  .os-imgset-name{font-size:12px;color:var(--ink-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .os-imgset-acts{display:flex;gap:12px;margin-top:4px}
-  .os-imglink{border:0;background:none;padding:0;font-size:12px;font-weight:600;color:var(--brand);cursor:pointer;font-family:inherit}
-  .os-imglink.danger{color:var(--ink-muted)}.os-imglink.danger:hover{color:#b3261e}
+  .os-imgdrop{display:flex;align-items:center;gap:20px;width:100%;min-height:90px;border:1px dashed #e0e1e3;border-radius:4px;background:#f2f2f3;color:#9ca3af;padding:16px 20px;text-align:left;cursor:pointer;font-family:inherit}
+  .os-imgdrop:hover,.os-imgdrop.drag{border-color:#121927;background:#f2f3f5}
+  .os-sf-backdrop{z-index:280}
+  .os-imgdrop-ico{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;color:#9ca3af}
+  .os-imgdrop-ico svg{display:block;width:24px;height:20px}
+  .os-imgdrop span{display:grid;gap:2px;min-width:0}
+  .os-imgdrop strong{color:#111827;font-size:12px;font-weight:400;line-height:1.3}
+  .os-imgdrop em{color:#9ca3af;font-size:12px;font-style:normal;font-weight:400;line-height:1}
+  .os-imgset{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-width:0;height:90px;border-radius:4px;background:#f2f2f3;padding:8px}
+  .os-imgset-pick{display:flex;align-items:center;gap:8px;flex:1 1 100%;width:100%;min-width:0;height:100%;border:0;border-radius:2px;background:transparent;padding:0;text-align:left;cursor:pointer;font-family:inherit}
+  .os-imgset-prev{flex:0 0 99px;width:99px;height:74px;overflow:hidden;border-radius:2px;background:#e0e1e3;background-size:cover;background-position:center}
+  .os-imgset-meta{display:flex;flex:1 1 auto;flex-direction:column;justify-content:space-between;align-self:stretch;min-width:0;padding:2px 0}
+  .os-imgset-meta strong{width:100%;overflow:hidden;color:#111827;font-size:12px;font-weight:400;line-height:1.3;text-overflow:ellipsis;white-space:nowrap}
+  .os-imgset-meta span{color:#111827;font-size:12px;font-weight:400;line-height:1}
+  .os-imgset-pick:hover .os-imgset-meta strong,.os-imgset-pick:hover .os-imgset-meta span{color:#121927}
+  .os-imglink{border:0;background:none;padding:0;font-size:12px;font-weight:400;color:var(--brand);cursor:pointer;font-family:inherit}
+  .os-imglink.danger{position:absolute;right:8px;bottom:6px;color:#dc2626}
+  .os-imglink.danger:hover{color:#b91c1c}
   /* inline resource picker popover */
   .pop-layer .os-pkpop{pointer-events:auto}
   .os-pkpop{position:fixed;z-index:81;display:flex;flex-direction:column;background:#fff;border:1px solid var(--hair);border-radius:10px;box-shadow:var(--float-shadow);overflow:hidden;max-height:340px}
@@ -3766,7 +4162,7 @@
   .os-rs-more{padding:10px 8px}.os-rs-more svg{transform:rotate(0deg)}
   .os-rs-create{flex:none;padding:12px 14px;border-top:1px solid var(--hair)}
   .os-rs-empty{padding:28px 12px;text-align:center;color:var(--ink-muted);font-size:12.5px;line-height:1.45}
-  .os-picker{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;height:34px;padding:0 10px;border:1px solid var(--ctl);border-radius:8px;background:#fff;font-size:13px;color:var(--ink);cursor:pointer;font-family:inherit}
+  .os-picker{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;height:34px;padding:0 10px;border:1px solid var(--ctl);border-radius:8px;background:#fff;font-size:12px;color:var(--ink);cursor:pointer;font-family:inherit}
   .os-picker:hover{border-color:var(--brand)}.os-picker span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .os-oplist,.os-mappings{display:flex;flex-direction:column;gap:8px}
   .os-op-rows{display:flex;flex-direction:column;border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:#fff}
@@ -3981,7 +4377,7 @@
   .ck-check{display:flex;gap:8px;align-items:center;font-size:var(--ck-small-fs);color:var(--ck-muted);cursor:pointer}
   .ck-check input{accent-color:var(--ck-accent);width:16px;height:16px}
   /* header */
-  .ck-header{width:100%}
+  .ck-header{width:100%;--ck-logo-display-w:var(--ck-logo-w,120px)}
   .ck-header.divline{border-bottom:1px solid var(--ck-divider)}
   .ck-header-in{margin:0 auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;padding:0 20px;box-sizing:border-box}
   /* desktop: align the logo with the left form content (wrap 20 + main 28) and the cart with
@@ -3991,7 +4387,9 @@
   .ck-h-slot.start{justify-content:flex-start;gap:16px}
   .ck-h-slot.center{justify-content:center;flex-direction:column;text-align:center;gap:3px}
   .ck-h-slot.end{justify-content:flex-end;gap:16px}
-  .ck-logo{font-weight:700;font-size:22px;letter-spacing:.18em}
+  .ckpage.mob .ck-header{--ck-logo-display-w:var(--ck-logo-w-mob,var(--ck-logo-w,120px))}
+  .ck-logo-img{display:block;height:auto;object-fit:contain;width:var(--ck-logo-display-w)}
+  .ck-logo{font-weight:700;letter-spacing:.18em;line-height:1;font-size:max(14px,calc(var(--ck-logo-display-w) * .18))}
   .ck-trust{font-size:var(--ck-small-fs);letter-spacing:.14em;text-transform:uppercase}
   .ck-h-contact{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:var(--ck-small-fs);line-height:1.45}
   .ck-h-cc-links{display:flex;align-items:center;gap:10px}
@@ -4001,13 +4399,22 @@
   .ck-h-secure svg{flex:none}
   .ck-h-cart{display:inline-flex;align-items:center;cursor:pointer}
   .ck-header.off{background:var(--ck-page-bg)!important;border-bottom:1px dashed var(--ck-divider)}
-  /* express */
-  .ck-exp-h{font-size:var(--ck-small-fs);color:var(--ck-muted);text-align:center;margin-bottom:10px}
-  .ck-exp-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .ck-exp-btn{height:46px;border-radius:var(--ck-btn-radius);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px;border:0;cursor:pointer}
-  .ck-exp-btn.shoppay{background:#5a31f4}.ck-exp-btn.paypal{background:#ffc439;color:#003087}.ck-exp-btn.gpay{background:#000}
-  .ck-or{display:flex;align-items:center;gap:14px;color:var(--ck-muted);font-size:var(--ck-small-fs);margin-top:16px;text-transform:uppercase;letter-spacing:.1em}
+  /* express — 23 preview: Shop Pay / PayPal / Google Pay logos, 40px row */
+  .ck-express{display:grid;gap:24px}
+  .ck-exp-h{margin:0;color:#a1a5ab;text-align:center;font-family:var(--ck-heading-font);font-size:14px;font-weight:400;line-height:normal}
+  .ck-exp-btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .ck-exp-btn{height:40px;min-width:0;border:0;border-radius:var(--ck-btn-radius);padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .ck-exp-btn svg{display:block}
+  .ck-exp-btn.shop-pay{background:#5a2ff4}
+  .ck-exp-btn.shop-pay svg{width:43.021px;height:17.391px}
+  .ck-exp-btn.paypal{background:#ffc539}
+  .ck-exp-btn.paypal svg{width:65.871px;height:17.553px}
+  .ck-exp-btn.gpay{background:#121927;gap:5.217px}
+  .ck-exp-btn.gpay svg{width:22.609px;height:22.609px}
+  .ck-exp-btn.gpay span{color:#fff;font-family:var(--ck-body-font);font-size:15.652px;font-weight:600;line-height:1.3}
+  .ck-or{display:flex;align-items:center;gap:16px;margin:0;color:#a1a5ab;font-family:var(--ck-body-font);font-size:14px;font-weight:400;line-height:normal;text-transform:none;letter-spacing:0}
   .ck-or::before,.ck-or::after{content:'';flex:1;height:1px;background:var(--ck-divider)}
+  .ckpage.mob .ck-exp-btns{gap:8px}
   /* shipping method */
   .ck-radio-list{border:1px solid var(--ck-input-border);border-radius:var(--ck-input-radius);overflow:hidden}
   .ck-radio{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--ck-input-border);cursor:pointer;color:var(--ck-text)}
@@ -4094,10 +4501,15 @@
   /* Item 3 — subscription cadence tag (muted, tag icon + "Delivery every … (−$x)") */
   .ck-line-sub{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:var(--ck-small-fs);color:var(--ck-sum-muted)}
   .ck-line-sub .ck-tag-i{flex:none}
-  /* Item 3 — bundle parent (black "Bundle" badge in place of the thumb) + children */
-  .ck-line--bundle{align-items:flex-start;margin-bottom:14px}
-  .ck-line-bundle-badge{flex:none;width:64px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;background:#111;color:#fff;font-size:12px;font-weight:700;border-radius:8px;padding:6px 10px;box-sizing:border-box}
-  .ck-bundle-child{display:flex;gap:12px;align-items:center;margin:0 0 14px 24px}
+  /* Bundle parent: compact badge + title + prices on one row; deal right-aligned below */
+  .ck-line--bundle{display:block;align-items:unset;margin-bottom:14px}
+  .ck-line-head{display:flex;align-items:center;gap:8px}
+  .ck-line-bundle-badge{flex:none;height:18px;display:inline-flex;align-items:center;justify-content:center;background:#111;color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:0 6px;line-height:1;box-sizing:border-box}
+  .ck-line--bundle .ck-line-t{flex:1;min-width:0}
+  .ck-line--bundle .ck-line-pr{flex-direction:row;align-items:baseline;gap:6px}
+  .ck-line--bundle .ck-line-deal,
+  .ck-line--bundle .ck-line-sub{justify-content:flex-end}
+  .ck-bundle-child{display:flex;gap:12px;align-items:center;margin:0 0 14px}
   .ck-bundle-child:last-child{margin-bottom:2px}
   .ck-line-img.sm{width:44px;height:44px;border-radius:8px}
   .ck-line-img.sm .ck-line-qty{top:-8px;right:-8px;min-width:18px;height:18px;font-size:10px}
