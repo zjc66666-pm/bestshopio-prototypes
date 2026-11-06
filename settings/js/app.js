@@ -618,6 +618,7 @@
     antom: 'https://dashboard.antom.com/',
     useepay: 'https://merchants.useepay.com/',
     oceanpay: 'https://accounts.oceanpayment.com/',
+    square: 'https://app.squareup.com/dashboard/',
   };
   function pDashLink(key, label) {
     const href = PAY_DASH[key];
@@ -719,7 +720,7 @@
         { k: 'pub', label: 'Public key', msg: 'Please enter Public key' },
         { k: 'hook', label: 'Webhook secret', optional: true },
       ],
-      checksTitle: 'QR payment methods',
+      checksTitle: 'Local QR payments',
       checksNote: 'Shown only to buyers in the matching country; they pay in local currency at the Tazapay rate.',
       checks: [
         { k: 'paynow', label: 'PayNow (SGD)' },
@@ -863,10 +864,10 @@
       ? '<div class="slot-row"><span class="ic"><span class="pm-mono">Alipay</span></span><div class="bd"><span class="lbl">Wallets from this account</span><span class="meta">Alipay, AlipayHK, Kakao Pay, GCash, Touch \'n Go, and DANA appear by buyer country. They use this Antom account and are not connected separately.</span></div></div>'
       : '';
     const qrRow = a.key === 'tazapay'
-      ? '<div class="slot-row"><span class="ic"><span class="pm-mono">QR</span></span><div class="bd"><span class="lbl">QR payment methods</span><span class="meta">' +
+      ? '<div class="slot-row"><span class="ic"><span class="pm-mono">QR</span></span><div class="bd"><span class="lbl">Local QR payments</span><span class="meta"' + (tazapayQr.length ? ' style="white-space:nowrap"' : '') + '>' +
         (tazapayQr.length
-          ? '<span class="i18n-skip">' + esc(tazapayQr.join(', ')) + '</span><br>Shown only to buyers in the matching country.'
-          : 'No QR payment methods selected. Choose them when you manage this connection.') +
+          ? '<span class="i18n-skip">' + esc(tazapayQr.join(', ')) + '</span><span> · </span>Shown only to buyers in the matching country.'
+          : 'No Local QR payments selected. Choose them when you manage this connection.') +
         '</span></div></div>'
       : '';
     return '<div class="panel card-pad slot-panel">' +

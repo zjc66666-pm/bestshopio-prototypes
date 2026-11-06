@@ -804,7 +804,7 @@ window.I18N.extend({
   "Please enter API secret": "请输入 API 密钥",
   "Please enter Webhook secret": "请输入 Webhook 密钥",
   "Please enter Access token": "请输入访问令牌",
-  "QR payment methods": "二维码支付方式",
+  "Local QR payments": "本地二维码支付",
   "Shown only to buyers in the matching country; they pay in local currency at the Tazapay rate.": "只向对应国家的买家展示；买家按当地货币、以 Tazapay 汇率支付。",
   "QRIS (IDR) - full refunds only": "QRIS (IDR) - 仅支持全额退款",
   "QR Ph (PHP) - refunds not supported": "QR Ph (PHP) - 不支持退款",
@@ -826,7 +826,7 @@ window.I18N.extend({
   "Apple Pay and Google Pay are not available.": "不提供 Apple Pay 和 Google Pay。",
   "Apple Pay and Google Pay appear in Express Checkout. They are hidden on subscription checkouts and don't support post-purchase one-click charges.": "Apple Pay 和 Google Pay 显示在快捷支付里。订阅结账不显示这两个钱包，也不支持购买后的一键追加扣款。",
   "Shown only to buyers in the matching country.": "只向对应国家的买家展示。",
-  "No QR payment methods selected. Choose them when you manage this connection.": "还没有勾选二维码支付方式。请在管理此连接时选择。",
+  "No Local QR payments selected. Choose them when you manage this connection.": "还没有勾选本地二维码支付。请在管理此连接时选择。",
   "Apple Pay and Google Pay will no longer appear. Selected QR methods appear for buyers in the matching country. Tazapay is hidden on subscription checkouts and does not support post-purchase one-click charges. PayPal Wallet and Klarna are not affected.": "Apple Pay 和 Google Pay 不再出现。已勾选的二维码方式只向对应国家的买家展示。订阅结账不显示 Tazapay，也不支持购买后的一键追加扣款。PayPal 钱包和 Klarna 不受影响。",
   "Apple Pay and Google Pay appear in Express Checkout. They are hidden on subscription checkouts and don't support post-purchase one-click charges. PayPal Wallet and Klarna are not affected.": "Apple Pay 和 Google Pay 会显示在快捷支付里。订阅结账不显示这两个钱包，也不支持购买后的一键追加扣款。PayPal 钱包和 Klarna 不受影响。"
 });
