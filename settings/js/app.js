@@ -619,6 +619,8 @@
     useepay: 'https://merchants.useepay.com/',
     oceanpay: 'https://accounts.oceanpayment.com/',
     square: 'https://app.squareup.com/dashboard/',
+    tazapay: 'https://dashboard.tazapay.com/signin',
+    poynt: 'https://poynt.godaddy.com/settings/business/contact',
   };
   function pDashLink(key, label) {
     const href = PAY_DASH[key];
