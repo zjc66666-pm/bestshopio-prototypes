@@ -445,10 +445,9 @@
             '<div class="muted" style="font-size:12.5px;color:#c2410c;display:none;margin-top:6px" id="ord-autocancel-err"></div>'
           ) +
           block(
-            '<div class="flex items-center gap-3 mb-1"><span class="text-sm" style="font-weight:600;color:var(--ink)">Abandoned checkout delay</span>' +
-              '<div class="set-addon"><input class="input" type="number" id="ord-abandon-delay" value="' + (b.order.abandonThresholdMinutes || 60) + '" min="15" max="1440" style="width:140px;border-top-right-radius:0;border-bottom-right-radius:0" /><span class="set-addon-suffix">Minutes</span></div></div>' +
-            '<div class="muted" style="font-size:12.5px">After the buyer leaves an email or phone number and then stays unpaid for this idle time, the checkout becomes abandoned. No contact means no abandoned checkout. Buyers still on the page are not marked abandoned.</div>' +
-            '<div class="muted" style="font-size:12.5px;color:#c2410c;display:none;margin-top:6px" id="ord-abandon-delay-err"></div>'
+            '<div class="text-sm" style="font-weight:600;color:var(--ink);margin-bottom:2px">Abandoned checkout delay</div>' +
+            '<div class="text-sm" style="color:var(--ink);margin-bottom:6px">10 minutes</div>' +
+            '<div class="muted" style="font-size:12.5px">After the buyer leaves an email, an unpaid checkout becomes abandoned in about 10 minutes. This time cannot be changed.</div>'
           ) +
           block(
             '<div class="flex items-center gap-3 mb-1"><span class="text-sm" style="font-weight:600;color:var(--ink)">Recovery window</span>' +
@@ -529,7 +528,6 @@
       };
     };
     bindNumberField('ord-autocancel', 'ord-autocancel-err', 1, 1440, 'Enter an auto-cancel time.', 'Enter a time between 1 and 1440 minutes.', (n) => { b.order.autoCancelMinutes = n; });
-    bindNumberField('ord-abandon-delay', 'ord-abandon-delay-err', 15, 1440, 'Enter an abandoned checkout delay.', 'Enter a time between 15 and 1440 minutes.', (n) => { b.order.abandonThresholdMinutes = n; });
     bindNumberField('ord-recovery-window', 'ord-recovery-window-err', 24, 336, 'Enter a recovery window.', 'Enter a recovery window between 24 and 336 hours.', (n) => { b.order.recoveryWindowHours = n; });
   }
 
@@ -589,15 +587,16 @@
   // 各处理方「我们采用的集成方式」下 Express 块实际能出的方式。
   // PayPal 的 Card、Apple Pay、Google Pay 共用一个收款账户；具体钱包仍受
   // PayPal 能力、Checkout 域名和买家设备/浏览器共同约束。
-  // NMI 的 Apple Pay、Google Pay，以及 Oceanpay 的 Google Pay，不进 Express：只能传固定地址，显示在银行卡下方。Oceanpay 不支持 Apple Pay。
-  // NMI 的这两个钱包还不支持订阅和追加扣款。
+  // NMI 的 Apple Pay、Google Pay 不支持订阅和追加扣款，显示在银行卡下方，不进 Express。
+  // Oceanpayment 的 Google Pay 与银行卡一样支持支付、订阅、追加扣款和退款，显示在银行卡下方，不进 Express。Apple Pay 尚未对接。
   // Mollie=Components(GooglePay 待确认) / Braintree=Hosted Fields
   const PAY_EXPRESS = {
     stripe: ['applepay', 'googlepay', 'link', 'klarna', 'amazonpay'], airwallex: ['applepay', 'googlepay'],
     paypal_cards: ['applepay', 'googlepay'], adyen: ['applepay', 'googlepay'], checkout: ['applepay', 'googlepay'], mollie: ['applepay'], nmi: [], braintree: ['applepay', 'googlepay'],
     worldpay: [], nuvei: ['applepay', 'googlepay'], antom: [], useepay: ['applepay'], oceanpay: [],
+    tazapay: [], square: ['applepay', 'googlepay'], poynt: ['applepay', 'googlepay'],
   };
-  // 只能传固定地址的钱包：显示在银行卡下方，不进 Express Checkout。
+  // 显示在银行卡下方、不进 Express Checkout 的钱包。
   const PAY_UNDER_CARD = {
     nmi: ['applepay', 'googlepay'],
     oceanpay: ['googlepay'],
@@ -662,11 +661,14 @@
       { k: 'api', label: 'API key', msg: 'Please enter API key' },
       { k: 'pid', label: 'Profile ID', msg: 'Please enter Profile ID' },
     ], file: { label: 'Mollie domain verification file', button: 'Upload file', accept: '', marginBottom: 16 } },
-    nmi: { desc: 'Allows users to pay with Visa, Mastercard, American Express, Discover, Diners Club, and JCB. Apple Pay and Google Pay appear under Cards with a fixed shipping address. Those wallets do not support subscriptions or additional charges.',
+    nmi: { desc: 'Allows users to pay with Visa, Mastercard, American Express, Discover, Diners Club, and JCB. Apple Pay and Google Pay appear under Cards. Those wallets do not support subscriptions or additional charges.',
       fields: [
-        { k: 'sk', label: 'Private Security Key', msg: 'Please enter Private Security Key' },
-        { k: 'tk', label: 'Public Security Key', msg: 'Please enter Public Security Key' },
-      ] },
+        { k: 'sk', label: 'Security key', msg: 'Please enter Security key' },
+        { k: 'tk', label: 'Tokenization key', msg: 'Please enter Tokenization key' },
+        { k: 'hook', label: 'Webhook secret', optional: true },
+        { k: 'v4', label: 'Merchant V4 API key', optional: true, hint: 'Create a Merchant V4 key under Options > Security Keys in the NMI Merchant Portal. Used to register your checkout domain for Apple Pay.' },
+      ],
+      file: { label: 'NMI domain verification file', button: 'Upload file', accept: '' } },
     braintree: { fields: [
       { k: 'pub', label: 'Public key', msg: 'Please enter Public key' },
       { k: 'priv', label: 'Private key', msg: 'Please enter Private key' },
@@ -699,12 +701,50 @@
         { k: 'app', label: 'App ID', msg: 'Please enter App ID' },
         { k: 'sec', label: 'Secret key', msg: 'Please enter Secret key' },
       ] },
-    oceanpay: { desc: 'Allows users to pay with card and Google Pay. Apple Pay is not available. Google Pay appears under Cards with a fixed shipping address.',
+    oceanpay: { desc: 'Allows users to pay with card and Google Pay. Google Pay appears under Cards and supports subscriptions and additional charges. Apple Pay is not integrated.',
       fields: [
-        { k: 'acct', label: 'Account', msg: 'Please enter Account' },
-        { k: 'terminal', label: 'Terminal', msg: 'Please enter Terminal' },
-        { k: 'secure', label: 'SecureCode', msg: 'Please enter SecureCode' },
+        { k: 'cacct', label: 'Card account', msg: 'Please enter Card account' },
+        { k: 'cterm', label: 'Card terminal', msg: 'Please enter Card terminal' },
+        { k: 'csec', label: 'Card secure code', msg: 'Please enter Card secure code' },
+        { k: 'cpub', label: 'Card public key', msg: 'Please enter Card public key' },
+        { k: 'gacct', label: 'Google Pay account', optional: true },
+        { k: 'gterm', label: 'Google Pay terminal', optional: true },
+        { k: 'gsec', label: 'Google Pay secure code', optional: true },
+        { k: 'gpub', label: 'Google Pay public key', optional: true },
       ] },
+    tazapay: { desc: 'Allows users to pay with Visa, Mastercard and local QR methods such as PayNow, PromptPay, QRIS and QR Ph. Tazapay is hidden on subscription checkouts and does not support post-purchase one-click charges.',
+      fields: [
+        { k: 'key', label: 'API key', msg: 'Please enter API key' },
+        { k: 'sec', label: 'API secret', msg: 'Please enter API secret' },
+        { k: 'pub', label: 'Public key', msg: 'Please enter Public key' },
+        { k: 'hook', label: 'Webhook secret', optional: true },
+      ],
+      checksTitle: 'QR payment methods',
+      checksNote: 'Shown only to buyers in the matching country; they pay in local currency at the Tazapay rate.',
+      checks: [
+        { k: 'paynow', label: 'PayNow (SGD)' },
+        { k: 'promptpay', label: 'PromptPay (THB)' },
+        { k: 'qris', label: 'QRIS (IDR) - full refunds only' },
+        { k: 'qrph', label: 'QR Ph (PHP) - refunds not supported' },
+        { k: 'pix', label: 'PIX (BRL) - requires Tazapay approval' },
+        { k: 'upi', label: 'UPI (INR) - full refunds only, requires Tazapay approval' },
+      ] },
+    square: { desc: 'Allows users to pay with Visa, Mastercard, American Express, Discover, JCB, Apple Pay and Google Pay in your Square location\'s currency. Apple Pay and Google Pay are hidden on subscription checkouts and don\'t support post-purchase one-click charges.',
+      fields: [
+        { k: 'app', label: 'Application ID', msg: 'Please enter Application ID' },
+        { k: 'token', label: 'Access token', msg: 'Please enter Access token', hint: 'Use the access token on the Credentials page of the same application. OAuth tokens are not supported.' },
+        { k: 'loc', label: 'Location ID', msg: 'Please enter Location ID', hint: 'Checkout is charged in this location\'s currency.' },
+        { k: 'sig', label: 'Webhook signature key', optional: true, hint: 'Filled in automatically after saving. Only paste a key here if you created the webhook yourself.' },
+      ],
+      file: { label: 'Square domain verification file', button: 'Upload file', hint: 'Upload the domain verification file provided by Square.', accept: '' } },
+    poynt: { desc: 'Allows users to pay with Visa, Mastercard, American Express, Discover, Apple Pay and Google Pay through GoDaddy Payments in your store currency (USD or CAD). Apple Pay and Google Pay are hidden on subscription checkouts and don\'t support post-purchase one-click charges.',
+      fields: [
+        { k: 'app', label: 'Application ID', msg: 'Please enter Application ID', hint: 'Paste the full APPLICATION ID value from GoDaddy Payments > Business Settings > Poynt Collect API Settings (businessId=urn:aid:...).' },
+        { k: 'priv', label: 'Private key', msg: 'Please enter Private key', type: 'textarea', hint: 'The private key generated together with the application ID. Checkout is charged in your store currency (USD or CAD).' },
+      ],
+      file: { label: 'Poynt domain verification file', button: 'Upload file', hint: 'Optional. Leave it empty and the Apple Pay file is fetched from GoDaddy Payments when you save, then shown here; upload one only to override it.', accept: '' },
+      modeHint: 'Choose Live for credentials from GoDaddy Payments, including test merchants (their transactions are never charged). Choose Sandbox only for credentials issued in GoDaddy\'s separate OTE environment.',
+      modeHintZh: '使用 GoDaddy Payments 的凭证请选正式，包括测试商户（这些交易不会实际扣款）。只有 GoDaddy 单独的 OTE 环境签发的凭证才选沙盒。' },
   };
 
   const ppCapKey = (id) => ({ applepay: 'applePay', googlepay: 'googlePay' }[id] || id);
@@ -722,21 +762,29 @@
   }
   // PayPal Cards reuses the connected PayPal account. It is a primary-card candidate
   // and supplies Card Fields plus eligible Express wallets, never a second card form.
+  // Chip order follows live admin. Keys not in this list (Worldpay, Nuvei, Antom, UseePay)
+  // sort after Poynt, which is the last chip on the live row.
+  const PAY_CHIP_ORDER = ['airwallex', 'stripe', 'paypal_cards', 'adyen', 'checkout', 'nmi', 'braintree', 'mollie', 'oceanpay', 'tazapay', 'square', 'poynt'];
   const pProcsVis = () => {
     const pp = D.payments.paypal;
     const paypalCards = pp.connected && pp.capabilities.cards === 'enabled'
       ? [{ key: 'paypal_cards', name: 'PayPal', logo: 'paypal-logo.svg', connected: true, accountKey: 'paypal' }]
       : [];
-    return D.payments.processors.concat(paypalCards);
+    const rank = (key) => { const i = PAY_CHIP_ORDER.indexOf(key); return i < 0 ? PAY_CHIP_ORDER.length : i; };
+    return D.payments.processors.concat(paypalCards).slice().sort((a, b) => rank(a.key) - rank(b.key));
   };
   const pConnected = () => pProcsVis().filter((p) => p.connected);
   function pActive() { let a = pProcsVis().find((p) => p.key === D.payments.cardProcessor && p.connected); if (!a) a = pConnected()[0] || null; return a; }
   const pLogo = (p, hh) => p.logo
     ? payImg(p.logo, hh || 20)
-    : '<span class="pm-mono">' + esc(p.name) + '</span>';
+    : '<span class="pm-mono i18n-skip">' + esc(p.name) + '</span>';
   function pMethPill(connected) {
     if (!connected) return '<span class="pill pill-gray"><span class="dot"></span>Not connected</span>';
     return '<span class="pill pill-green"><span class="dot"></span>Connected</span>';
+  }
+  function pTazapayQrLabels(account) {
+    const names = { paynow: 'PayNow (SGD)', promptpay: 'PromptPay (THB)', qris: 'QRIS (IDR)', qrph: 'QR Ph (PHP)', pix: 'PIX (BRL)', upi: 'UPI (INR)' };
+    return ((account && account.qrMethods) || []).map((k) => names[k]).filter(Boolean);
   }
   // ① 卡 + Express 单处理方槽位（picker 内连接/切换/管理）
   function pSlot() {
@@ -766,21 +814,34 @@
     const intro = antom
       ? 'Card fields use this Antom account. Wallets from the same account appear by buyer country.'
       : (a.key === 'oceanpay'
-        ? 'Card input shows at checkout. Google Pay appears under Cards, because only a fixed shipping address can be passed. Apple Pay is not available.'
-        : (fixedAddress
-          ? 'Card input shows at checkout. Apple Pay and Google Pay appear under Cards, because only a fixed shipping address can be passed.'
-          : (cardOnly
-            ? 'Once a processor is connected, card input shows at checkout. This processor does not provide Apple Pay or Google Pay.'
-            : 'Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.')));
+        ? 'Card input shows at checkout. Google Pay appears under Cards and supports subscriptions and additional charges. Apple Pay is not integrated.'
+        : (a.key === 'tazapay'
+          ? 'Tazapay is hidden on subscription checkouts and does not support post-purchase one-click charges. Selected QR methods appear for buyers in the matching country.'
+          : (a.key === 'square' || a.key === 'poynt'
+            ? 'Card input and Express Checkout both show at checkout. Apple Pay and Google Pay are hidden on subscription checkouts and don\'t support post-purchase one-click charges.'
+            : (a.key === 'nmi'
+              ? 'Card input shows at checkout. Apple Pay and Google Pay appear under Cards. Those wallets do not support subscriptions or additional charges.'
+              : (fixedAddress
+              ? 'Card input shows at checkout. Apple Pay and Google Pay appear under Cards.'
+              : (cardOnly
+                ? 'Once a processor is connected, card input shows at checkout. This processor does not provide Apple Pay or Google Pay.'
+                : 'Once a processor is connected, card input and Express both show at checkout automatically; the specific wallets are auto-detected by buyer device/environment.'))))));
     const cardMeta = (paypalCards ? 'PayPal Card Fields · Visa / Mastercard / Amex …' : 'Visa / Mastercard / Amex / UnionPay …') + ' · ' + pDashLink(a.key, 'Manage in dashboard ↗');
     const underMeta = a.key === 'nmi'
-      ? 'Apple Pay and Google Pay appear under Cards. They use a fixed shipping address, so buyers cannot change the shipping method. Subscriptions and additional charges are not supported.'
+      ? 'Apple Pay and Google Pay appear under Cards. They do not support subscriptions or additional charges.'
       : (a.key === 'oceanpay'
-        ? 'Google Pay appears under Cards. It uses a fixed shipping address, so buyers cannot change the shipping method. Apple Pay is not available.'
+        ? 'Google Pay appears under Cards and supports subscriptions and additional charges. Apple Pay is not integrated.'
         : 'Apple Pay and Google Pay appear under Cards. They use a fixed shipping address, so buyers cannot change the shipping method.');
-    const expressMeta = a.key === 'oceanpay'
-      ? 'Google Pay is not shown in Express Checkout. It appears under Cards. Apple Pay is not available.'
-      : (fixedAddress
+    const tazapayQr = a.key === 'tazapay' ? pTazapayQrLabels(a) : [];
+    const expressMeta = a.key === 'tazapay'
+      ? 'Apple Pay and Google Pay are not available.'
+      : (a.key === 'square' || a.key === 'poynt'
+        ? 'Apple Pay and Google Pay appear in Express Checkout. They are hidden on subscription checkouts and don\'t support post-purchase one-click charges.'
+        : (a.key === 'oceanpay'
+      ? 'Google Pay is not shown in Express Checkout. It appears under Cards and supports subscriptions and additional charges. Apple Pay is not integrated.'
+      : (a.key === 'nmi'
+        ? 'Apple Pay and Google Pay are not shown in Express Checkout. They appear under Cards and do not support subscriptions or additional charges.'
+        : (fixedAddress
         ? 'Apple Pay and Google Pay are not shown in Express Checkout. They appear under Cards.'
       : (a.key === 'worldpay'
         ? 'Worldpay card checkout supports cards only. Apple Pay and Google Pay are not available.'
@@ -792,7 +853,7 @@
               ? 'Apple Pay and Google Pay are not part of this connection.'
               : (cardOnly
                 ? 'This processor supports card payments only. Apple Pay and Google Pay are not available.'
-                : 'Auto-rendered by buyer environment'))))));
+                : 'Auto-rendered by buyer environment')))))))));
     const underRow = fixedAddress
       ? '<div class="slot-row"><span class="ic">' + under.map((id) => PAY_ICON[id]).join(' ') + '</span><div class="bd"><span class="lbl">Under Cards</span><span class="meta">' + underMeta + '</span></div></div>'
       : '';
@@ -801,14 +862,21 @@
     const antomWallets = antom
       ? '<div class="slot-row"><span class="ic"><span class="pm-mono">Alipay</span></span><div class="bd"><span class="lbl">Wallets from this account</span><span class="meta">Alipay, AlipayHK, Kakao Pay, GCash, Touch \'n Go, and DANA appear by buyer country. They use this Antom account and are not connected separately.</span></div></div>'
       : '';
-    return '<div class="panel card-pad">' +
+    const qrRow = a.key === 'tazapay'
+      ? '<div class="slot-row"><span class="ic"><span class="pm-mono">QR</span></span><div class="bd"><span class="lbl">QR payment methods</span><span class="meta">' +
+        (tazapayQr.length
+          ? '<span class="i18n-skip">' + esc(tazapayQr.join(', ')) + '</span><br>Shown only to buyers in the matching country.'
+          : 'No QR payment methods selected. Choose them when you manage this connection.') +
+        '</span></div></div>'
+      : '';
+    return '<div class="panel card-pad slot-panel">' +
       '<div class="slot-head"><span class="slot-title">Processed by ' + esc(a.name) + '</span>' + picker + '</div>' +
       '<div class="sec-sub" style="margin:0 0 14px">' + intro + '</div>' +
       '<div class="slot-row"><span class="ic">' + PAY_ICON.cards + '</span><div class="bd"><span class="lbl">Cards</span><span class="meta">' + cardMeta + '</span></div></div>' +
       underRow +
+      qrRow +
       expressRow +
       antomWallets +
-      '<div class="syncline">Synced from the active processor · just now · <span class="lnkico" data-refresh>↻ Refresh</span></div>' +
     '</div>';
   }
 
@@ -870,6 +938,11 @@
         html += '<div class="ck-opt"><span class="ck-radio"></span><span>' + walletLabel[id] + '</span><span class="ck-ico">' + PAY_ICON[id] + '</span></div>';
       });
     }
+    if (a && a.key === 'tazapay') {
+      pTazapayQrLabels(a).forEach((label) => {
+        html += '<div class="ck-opt"><span class="ck-radio"></span><span class="i18n-skip">' + esc(label) + '</span></div>';
+      });
+    }
     if (antomOn) html += '<div class="ck-opt"><span class="ck-radio"></span><span>Alipay</span></div><div class="muted" style="font-size:11px;margin:-4px 0 8px">Other Antom wallets appear by buyer country.</div>';
     if (hasPaypal) html += '<div class="ck-opt" data-preview-wallet="paypal"><span class="ck-radio"></span><span>PayPal</span><span class="ck-ico">' + PAY_ICON.paypal + '</span></div>';
     if (klarnaDirect) html += '<div class="ck-opt" data-preview-wallet="klarna"><span class="ck-radio"></span><span>Pay With Klarna</span><span class="ck-ico">' + PAY_ICON.klarna + '</span></div>';
@@ -888,7 +961,7 @@
       ? '<div class="dnote" style="margin-top:10px">Cards will move to PayPal. Apple Pay and Google Pay will appear only after the PayPal account, checkout domain, and buyer environment are eligible.</div>'
       : '';
     const nmiImpact = key === 'nmi'
-      ? '<div class="dnote" style="margin-top:10px">Apple Pay and Google Pay appear under Cards. They use a fixed shipping address, so buyers cannot change the shipping method. Subscriptions and additional charges are not supported. PayPal Wallet and Klarna are not affected.</div>'
+      ? '<div class="dnote" style="margin-top:10px">Apple Pay and Google Pay appear under Cards. They do not support subscriptions or additional charges. PayPal Wallet and Klarna are not affected.</div>'
       : '';
     const worldpayImpact = key === 'worldpay'
       ? '<div class="dnote" style="margin-top:10px">Apple Pay and Google Pay will no longer appear. Buyers can still pay by card through Worldpay. PayPal Wallet and Klarna are not affected.</div>'
@@ -903,10 +976,16 @@
       ? '<div class="dnote" style="margin-top:10px">Apple Pay appears when the UseePay account, checkout domain, and buyer device are eligible. Google Pay is not available.</div>'
       : '';
     const oceanpayImpact = key === 'oceanpay'
-      ? '<div class="dnote" style="margin-top:10px">Google Pay appears under Cards. It uses a fixed shipping address, so buyers cannot change the shipping method. Apple Pay is not available. PayPal Wallet and Klarna are not affected.</div>'
+      ? '<div class="dnote" style="margin-top:10px">Google Pay appears under Cards and supports subscriptions and additional charges. Apple Pay is not integrated. PayPal Wallet and Klarna are not affected.</div>'
+      : '';
+    const tazapayImpact = key === 'tazapay'
+      ? '<div class="dnote" style="margin-top:10px">Apple Pay and Google Pay will no longer appear. Selected QR methods appear for buyers in the matching country. Tazapay is hidden on subscription checkouts and does not support post-purchase one-click charges. PayPal Wallet and Klarna are not affected.</div>'
+      : '';
+    const squareImpact = (key === 'square' || key === 'poynt')
+      ? '<div class="dnote" style="margin-top:10px">Apple Pay and Google Pay appear in Express Checkout. They are hidden on subscription checkouts and don\'t support post-purchase one-click charges. PayPal Wallet and Klarna are not affected.</div>'
       : '';
     modal({ title: 'Switch card processor', width: 440, okText: 'Switch',
-      body: '<div style="font-size:13.5px;line-height:1.65;color:var(--ink-body)">Cards and Express Checkout at checkout will switch processor. The payment methods buyers see may change accordingly.</div><div style="font-size:13px;margin-top:8px"><b>' + esc(cur ? cur.name : '—') + '</b> → <b>' + esc(p.name) + '</b></div>' + paypalImpact + nmiImpact + worldpayImpact + nuveiImpact + antomImpact + useepayImpact + oceanpayImpact + '<div class="muted" style="font-size:12px;margin-top:10px">Switch during off-peak hours; in-flight transactions are unaffected.</div>',
+      body: '<div style="font-size:13.5px;line-height:1.65;color:var(--ink-body)">Cards and Express Checkout at checkout will switch processor. The payment methods buyers see may change accordingly.</div><div style="font-size:13px;margin-top:8px"><b>' + esc(cur ? cur.name : '—') + '</b> → <b>' + esc(p.name) + '</b></div>' + paypalImpact + nmiImpact + worldpayImpact + nuveiImpact + antomImpact + useepayImpact + oceanpayImpact + tazapayImpact + squareImpact + '<div class="muted" style="font-size:12px;margin-top:10px">Switch during off-peak hours; in-flight transactions are unaffected.</div>',
       onOk: (m, close) => { D.payments.cardProcessor = key; close(); renderPayments(); toast('Switched successfully'); } });
   }
 
@@ -928,8 +1007,31 @@
     return (window.I18N && window.I18N.lang === 'zh') ? zh : en;
   }
   const PAY_MANUAL_WEBHOOK = { nmi: true, braintree: true };
+  const PAY_CONNECTED_WEBHOOK = {
+    tazapay: {
+      en: 'Add this URL under Settings > Webhooks in your Tazapay dashboard and paste its secret token above. Payments complete without it, but refund updates rely on it.',
+      zh: '请到 Tazapay 后台的 Settings > Webhooks 添加此地址，并把对应的 secret token 粘贴到上方。不配置也能完成支付，但退款状态更新依赖它。',
+    },
+    square: {
+      en: 'Registered automatically in your Square application when you save. If the signature key above stays empty, add this URL under Webhooks in the Square Developer Console (payment.updated, refund.updated) and paste its signature key above.',
+      zh: '保存后会自动注册到你的 Square 应用。如果上方的签名密钥仍为空，请到 Square Developer Console 的 Webhooks 添加此地址（payment.updated、refund.updated），并把签名密钥粘贴到上方。',
+    },
+    poynt: {
+      en: 'Registered automatically in your GoDaddy Payments business when you save, together with the Apple Pay domain. Payments complete without it, but refund and settlement updates rely on it.',
+      zh: '保存后会连同 Apple Pay 域名一起自动注册到你的 GoDaddy Payments 商户。不配置也能完成支付，但退款和结算状态更新依赖它。',
+    },
+    oceanpay: {
+      slug: 'oceanpayment',
+      en: 'Create a webhook in your Oceanpayment dashboard and paste this URL. We will receive payment results automatically after it is saved.',
+      zh: '请到 Oceanpayment 后台创建 Webhook 并粘贴此地址。保存后我们会自动接收支付结果。',
+    },
+  };
   const PAY_WEBHOOK_HOST = 'https://api.bestshopio.com';
-  const PAY_WEBHOOK_TOKEN = { nmi: '7c2a91e04b8d4f16a3e55c8f0d12b476', braintree: 'b9e14c70a2f84d3bb6c018e5a47d9f21' };
+  const PAY_WEBHOOK_TOKEN = {
+    nmi: '7c2a91e04b8d4f16a3e55c8f0d12b476', braintree: 'b9e14c70a2f84d3bb6c018e5a47d9f21',
+    tazapay: 'c4e8a1d07b2f49e6a5c318d0f6b74a92', square: '8d21f0ab64c547e19a3e5b70c2d84f16', poynt: 'e7a93c5b18d046f2b4e60a91c3f75d28',
+    oceanpay: 'b6e24d81c0a54f3ab7d918e6c5f40a37',
+  };
   function pEnsureWebhookToken(key) {
     const p = D.payments.processors.find((x) => x.key === key);
     if (!p) return '';
@@ -937,10 +1039,28 @@
     return p.webhookToken;
   }
   function pWebhookUrl(key) {
-    return PAY_WEBHOOK_HOST + '/api/' + key + '/webhook/' + pEnsureWebhookToken(key);
+    const spec = PAY_CONNECTED_WEBHOOK[key];
+    const path = spec ? '/web/api/' : '/api/';
+    const slug = (spec && spec.slug) || key;
+    return PAY_WEBHOOK_HOST + path + slug + '/webhook/' + pEnsureWebhookToken(key);
+  }
+  function pWebhookBox(key, noteEn, noteZh) {
+    return '<div class="i18n-skip" style="margin:8px 0 14px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--ink)">' + pModeLocale('Webhook URL', 'Webhook 地址') + '</div>' +
+        '<button type="button" class="btn btn-default" data-copy-webhook style="height:28px;padding:0 10px;font-size:12px">' + pModeLocale('Copy', '复制') + '</button></div>' +
+      '<div style="font-size:12px;line-height:1.5;word-break:break-all;background:#f6f7fb;border:1px solid var(--ctl);border-radius:8px;padding:9px 11px;color:var(--ink)">' + esc(pWebhookUrl(key)) + '</div>' +
+      '<div class="muted" style="font-size:12px;margin-top:6px;line-height:1.55">' + esc(pModeLocale(noteEn, noteZh)) + '</div></div>';
   }
   function pWebhookNote(key, connected) {
+    if (PAY_CONNECTED_WEBHOOK[key]) {
+      if (!connected) return '';
+      const note = PAY_CONNECTED_WEBHOOK[key];
+      return pWebhookBox(key, note.en, note.zh);
+    }
     if (!PAY_MANUAL_WEBHOOK[key]) return '';
+    // Live Connect NMI has no webhook note yet. The URL appears after the merchant connects.
+    if (key === 'nmi' && !connected) return '';
     const name = pEntName(key);
     if (!connected) {
       return '<div class="i18n-skip muted" style="font-size:12.5px;margin:4px 0 14px;line-height:1.55">' +
@@ -960,15 +1080,17 @@
           '请到 ' + name + ' 后台创建 Webhook 并粘贴此地址。保存后我们会自动接收支付结果。'
         )) + '</div></div>';
   }
-  function pModeFields(key) {
+  function pModeFields(key, custom) {
     const selected = pAccountMode(key);
     const live = pModeLocale('Live', '正式');
     const sandbox = pModeLocale('Sandbox', '沙盒');
-    const hint = pModeLocale(
-      'Sandbox is for test payments only. Bind the payment provider\'s sandbox merchant account. Switch to Live before accepting real customer payments.',
-      '沙盒仅用于测试支付收单，需绑定该支付机构的沙盒商户账号。向买家正式收款前，请切换到正式模式。'
-    );
-    return '<div class="i18n-skip" style="margin:8px 0 4px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">' + pModeLocale('Mode', '模式') + '</div>' +
+    const hint = custom && custom.en
+      ? pModeLocale(custom.en, custom.zh || custom.en)
+      : pModeLocale(
+        'Sandbox is for test payments only. Bind the payment provider\'s sandbox merchant account. Switch to Live before accepting real customer payments.',
+        '沙盒仅用于测试支付收单，需绑定该支付机构的沙盒商户账号。向买家正式收款前，请切换到正式模式。'
+      );
+    return '<div class="i18n-skip" style="margin:8px 0 4px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">' + pModeLocale('Mode', '模式') + ' <span style="color:var(--err)">*</span></div>' +
       '<div style="display:flex;gap:22px;align-items:center;font-size:13px;color:var(--ink-body)">' +
         '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input type="radio" name="payment-mode" data-payment-mode value="live"' + (selected === 'live' ? ' checked' : '') + '> ' + live + '</label>' +
         '<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer"><input type="radio" name="payment-mode" data-payment-mode value="sandbox"' + (selected === 'sandbox' ? ' checked' : '') + '> ' + sandbox + '</label></div>' +
@@ -984,7 +1106,7 @@
       const pr = D.payments.processors.find((p) => p.key === key);
       const hadActive = !!pActive();
       pr.connected = true;
-      if (PAY_MANUAL_WEBHOOK[key]) pEnsureWebhookToken(key);
+      if (PAY_MANUAL_WEBHOOK[key] || PAY_CONNECTED_WEBHOOK[key]) pEnsureWebhookToken(key);
       if (!hadActive) D.payments.cardProcessor = key;
     }
   }
@@ -1001,23 +1123,38 @@
     const spec = PAY_FORMS[key] || { fields: [{ k: 'k1', label: 'API key' }, { k: 'k2', label: 'Secret' }] };
     let body = '';
     if (spec.desc) body += '<div class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.5">' + esc(spec.desc) + '</div>';
+    const account = D.payments.processors.find((p) => p.key === key);
     const fieldHtml = (f) => {
       const learn = f.learn ? '<a href="' + f.learn + '" target="_blank" style="font-size:12px;color:var(--brand);font-weight:400">Learn more</a>' : '';
       const star = f.optional ? '' : ' <span style="color:var(--err)">*</span>';
+      const placeholder = f.placeholder || ('Please enter ' + f.label);
+      const saved = connected && !f.optional;
+      const control = f.type === 'textarea'
+        ? '<textarea class="input" data-pf="' + f.k + '" placeholder="' + esc(placeholder) + '" style="min-height:96px;padding:8px 11px;resize:vertical;width:100%;box-sizing:border-box">' + (saved ? '•••••••••••• (saved)' : '') + '</textarea>'
+        : '<input class="input" data-pf="' + f.k + '" placeholder="' + esc(placeholder) + '"' + (saved ? ' value="•••••••••••• (saved)"' : (f.value ? ' value="' + esc(f.value) + '"' : '')) + ' />';
+      const hint = f.hint ? '<div class="muted" style="font-size:12px;line-height:1.5;margin-top:4px">' + esc(f.hint) + '</div>' : '';
       return '<div style="margin-bottom:4px"><div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px"><span>' + esc(f.label) + star + '</span>' + learn + '</div>' +
-        '<input class="input" data-pf="' + f.k + '" placeholder="Please enter ' + esc(f.label) + '"' + (connected ? ' value="•••••••••••• (saved)"' : (f.value ? ' value="' + esc(f.value) + '"' : '')) + ' />' +
+        control + hint +
         '<div data-perr="' + f.k + '" style="min-height:18px;font-size:12px;color:var(--err);margin-top:3px"></div></div>';
     };
     body += spec.fields.map(fieldHtml).join('');
+    if (spec.checks) {
+      const selected = (account && account.qrMethods) || [];
+      body += '<div style="margin:8px 0 12px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">' + esc(spec.checksTitle) + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px">' +
+        spec.checks.map((item) => '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.4;color:var(--ink)"><input type="checkbox" data-qr="' + esc(item.k) + '"' + (selected.indexOf(item.k) >= 0 ? ' checked' : '') + ' style="margin-top:2px"> <span>' + esc(item.label) + '</span></label>').join('') +
+        '</div>' + (spec.checksNote ? '<div class="muted" style="font-size:12px;margin-top:8px;line-height:1.55">' + esc(spec.checksNote) + '</div>' : '') + '</div>';
+    }
     if (spec.file) {
       const file = typeof spec.file === 'string'
         ? { label: spec.file, button: 'Upload ZIP', hint: 'Only .zip files up to 1MB are supported.', accept: '.zip' }
         : spec.file;
-      body += '<div style="margin:' + (file.marginTop || 0) + 'px 0 ' + (file.marginBottom == null ? 4 : file.marginBottom) + 'px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">' + esc(file.label) + '</div><button class="btn btn-default" type="button" data-file-upload data-file-accept="' + esc(file.accept || '') + '">' + esc(file.button || 'Upload file') + '</button>' + (file.hint ? '<div class="muted" style="font-size:11.5px;margin-top:4px">' + esc(file.hint) + '</div>' : '') + '</div>';
+      const fileLabel = (account && account.domainFile) || file.button || 'Upload file';
+      body += '<div style="margin:' + (file.marginTop || 0) + 'px 0 ' + (file.marginBottom == null ? 4 : file.marginBottom) + 'px"><div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">' + esc(file.label) + '</div><button class="btn btn-default" type="button" data-file-upload data-file-accept="' + esc(file.accept || '') + '">' + esc(fileLabel) + '</button>' + (file.hint ? '<div class="muted" style="font-size:11.5px;margin-top:4px;line-height:1.5">' + esc(file.hint) + '</div>' : '') + '</div>';
     }
     if (spec.afterFile) body += spec.afterFile.map(fieldHtml).join('');
     body += '<div data-webhook-slot>' + pWebhookNote(key, connected) + '</div>';
-    body += pModeFields(key);
+    body += pModeFields(key, spec.modeHint ? { en: spec.modeHint, zh: spec.modeHintZh } : null);
 
     const bindWebhookCopy = (root) => {
       root.querySelectorAll('[data-copy-webhook]').forEach((button) => {
@@ -1065,12 +1202,13 @@
         if (!okAll) { if (firstBad) firstBad.focus(); return; }   // 校验不过不关闭
         const mode = m.querySelector('[data-payment-mode]:checked');
         if (mode) pSetAccountMode(key, mode.value);
+        if (spec.checks && account) account.qrMethods = [...m.querySelectorAll('[data-qr]:checked')].map((el) => el.dataset.qr);
         if (!liveConnected) {
           pConnect(key);
           liveConnected = true;
           renderPayments();
           toast('Connected successfully');
-          if (PAY_MANUAL_WEBHOOK[key]) {
+          if (PAY_MANUAL_WEBHOOK[key] || PAY_CONNECTED_WEBHOOK[key]) {
             revealWebhookAfterConnect(m, close);
             return;
           }
@@ -1084,7 +1222,7 @@
     // 输入即清除该字段错误；验证文件走本地文件选择（原型）
     dlg.m.querySelectorAll('[data-pf]').forEach((inp) => inp.oninput = () => { const err = dlg.m.querySelector('[data-perr="' + inp.dataset.pf + '"]'); if (err) err.textContent = ''; inp.style.borderColor = ''; });
     dlg.m.querySelectorAll('[data-file-upload]').forEach((button) => {
-      button.onclick = () => openFilePicker({ accept: button.dataset.fileAccept || '', onSelected: (file) => { button.textContent = file.name; toast('Selected ' + file.name); } });
+      button.onclick = () => openFilePicker({ accept: button.dataset.fileAccept || '', onSelected: (file) => { button.textContent = file.name; if (account) account.domainFile = file.name; toast('Selected ' + file.name); } });
     });
     bindWebhookCopy(dlg.m);
   }
@@ -1117,6 +1255,7 @@
     '.payv2 .proc-pick .pchip .pchip-cog:hover{background:rgba(0,0,0,.05);color:var(--ink)}' +
     '.payv2 .proc-pick .lock{height:30px;padding:0 11px;border-radius:8px;border:1px dashed var(--hair);background:var(--panel);font-size:13px;color:var(--ink-muted);display:inline-flex;align-items:center;gap:6px}' +
     '.payv2 .slot-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--hair)}' +
+    '.payv2 .slot-panel{padding-bottom:0}' +
     '.payv2 .slot-row .ic{display:flex;gap:4px;align-items:center;flex-wrap:wrap}' +
     '.payv2 .slot-row .ic img{height:20px}' +
     '.payv2 .slot-row .bd{display:flex;flex-direction:column;flex:1;min-width:0}' +
@@ -1135,7 +1274,7 @@
     '.payv2 .imeth .nm{font-weight:700;font-size:14px;color:var(--ink)}' +
     '.payv2 .imeth .sub{font-size:12.5px;color:var(--ink-muted);margin-top:2px}' +
     '.payv2 .imeth .right{margin-left:auto;display:flex;align-items:center;gap:10px}' +
-    '.payv2 .dnote{margin:10px 0 0;font-size:12.5px;color:#1e3a8a;background:#eef4ff;border:1px solid #cfe1ff;border-radius:9px;padding:9px 12px;line-height:1.6}' +
+    '.payv2 .dnote,.modal .dnote{margin:10px 0 0;font-size:12.5px;color:#1e3a8a;background:#eef4ff;border:1px solid #cfe1ff;border-radius:9px;padding:9px 12px;line-height:1.6}' +
     '.payv2 .set-prim{font-size:12px;color:var(--brand);background:#fff;border:1px solid var(--ctl);border-radius:8px;padding:5px 11px;cursor:pointer}' +
     '.payv2 .set-prim:hover{border-color:var(--brand);background:var(--brand-50)}' +
     '.payv2 .pm-mono{font-weight:800;font-size:13px;color:var(--ink)}' +
@@ -1156,10 +1295,102 @@
     '.payv2 .preview-note{font-size:11.5px;color:var(--ink-muted);text-align:center;margin-top:10px;line-height:1.5}' +
     '.payv2 .foot-note{font-size:12px;color:var(--ink-muted);margin-top:20px;line-height:1.7}';
 
+  // in = integrated, out = not integrated yet, no = the provider cannot do it. null stays blank.
+  function pCapabilityRows() {
+    const all = (value) => [value, value, value, value];
+    const line = (inst, method, caps, qr) => [inst, method].concat(caps, [qr == null ? 'no' : qr]);
+    const wallet = ['in', 'no', 'no', 'in'];
+    return [
+      line('Airwallex', 'Cards', all('in')),
+      line('Airwallex', 'Apple Pay', all('in')),
+      line('Airwallex', 'Google Pay', all('in')),
+      line('Stripe', 'Cards', all('in')),
+      line('Stripe', 'Apple Pay', all('in')),
+      line('Stripe', 'Google Pay', all('in')),
+      line('Stripe', 'Klarna', all('in')),
+      line('Stripe', 'Afterpay / Clearpay', all('in')),
+      line('Stripe', 'Link', all('in')),
+      line('Stripe', 'Amazon Pay', all('in')),
+      line('PayPal', 'Pay Now', all('in')),
+      line('PayPal', 'Pay Later', wallet),
+      line('PayPal', 'Cards', all('in')),
+      line('PayPal', 'Apple Pay', all('in')),
+      line('PayPal', 'Google Pay', wallet),
+      line('PayPal', 'PayPal Wallet', all('in')),
+      line('PayPal', 'Venmo', all('in')),
+      line('Adyen', 'Cards', all('in')),
+      line('Adyen', 'Apple Pay', all('in')),
+      line('Adyen', 'Google Pay', all('in')),
+      line('Checkout.com', 'Cards', all('in')),
+      line('Checkout.com', 'Apple Pay', all('in')),
+      line('Checkout.com', 'Google Pay', all('in')),
+      line('NMI', 'Cards', all('in')),
+      line('NMI', 'Apple Pay', wallet),
+      line('NMI', 'Google Pay', wallet),
+      line('Braintree', 'Cards', all('in')),
+      line('Braintree', 'Apple Pay', all('in')),
+      line('Braintree', 'Google Pay', all('in')),
+      line('Braintree', 'Venmo', all('in')),
+      line('Mollie', 'Cards', all('in')),
+      line('Mollie', 'Google Pay', all('in')),
+      line('Oceanpayment', 'Cards', all('in')),
+      line('Oceanpayment', 'Google Pay', all('in')),
+      line('Tazapay', 'Cards', wallet),
+      line('Tazapay', 'PayNow', wallet, 'in'),
+      line('Tazapay', 'PromptPay', wallet, 'in'),
+      line('Tazapay', 'QRIS', wallet, 'in'),
+      line('Tazapay', 'QR Ph', ['in', 'no', 'no', 'no'], 'in'),
+      line('Tazapay', 'Pix', wallet, 'in'),
+      line('Tazapay', 'UPI', wallet, 'in'),
+      line('Square', 'Cards', all('in')),
+      line('Square', 'Apple Pay', wallet),
+      line('Square', 'Google Pay', wallet),
+      line('Poynt', 'Cards', all('in')),
+      line('Poynt', 'Apple Pay', wallet),
+      line('Poynt', 'Google Pay', wallet),
+      line('Amazon Pay', 'Amazon Pay', all('in')),
+      line('Amazon Pay', 'Buy Now', wallet),
+      line('Klarna', 'Klarna', all('in')),
+    ];
+  }
+  function pCapCell(value) {
+    if (value === 'in') return '<span style="color:#067647;font-weight:600;white-space:nowrap">Supported</span>';
+    if (value === 'out') return '<span style="color:#667085;font-weight:600;white-space:nowrap">Not integrated</span>';
+    if (value === 'no') return '<span style="color:#b42318;font-weight:600;white-space:nowrap">Not supported</span>';
+    return '<span class="muted">—</span>';
+  }
+  function pOpenCapabilities() {
+    const groups = [];
+    pCapabilityRows().forEach((row) => {
+      const last = groups[groups.length - 1];
+      if (last && last.name === row[0]) last.items.push(row);
+      else groups.push({ name: row[0], items: [row] });
+    });
+    const head = ['Payment institution', 'Payment method', 'Payment', 'Subscription', 'Upsell / Downsell additional charge', 'Refund', 'QR payment']
+      .map((label) => {
+        const text = label === 'Upsell / Downsell additional charge' ? 'Upsell / Downsell<br>additional charge' : label;
+        return '<th style="position:sticky;top:0;background:#f6f7fb;text-align:left;padding:8px 8px;border-bottom:1px solid var(--ctl);font-weight:600;white-space:normal;line-height:1.35;overflow-wrap:break-word">' + text + '</th>';
+      })
+      .join('');
+    const bodyRows = groups.map((group) => group.items.map((row, index) => {
+      const inst = index === 0
+        ? '<td rowspan="' + group.items.length + '" class="i18n-skip" style="padding:8px 8px;border-bottom:1px solid var(--hair);font-weight:600;vertical-align:top;white-space:normal;overflow-wrap:break-word">' + esc(group.name) + '</td>'
+        : '';
+      const caps = [2, 3, 4, 5, 6].map((i) => '<td style="padding:8px 8px;border-bottom:1px solid var(--hair);white-space:nowrap;vertical-align:top">' + pCapCell(row[i]) + '</td>').join('');
+      return '<tr>' + inst +
+        '<td class="i18n-skip" style="padding:8px 8px;border-bottom:1px solid var(--hair);white-space:normal;overflow-wrap:break-word;vertical-align:top">' + esc(row[1]) + '</td>' +
+        caps + '</tr>';
+    }).join('')).join('');
+    const body = '<div class="muted" style="font-size:13px;line-height:1.55;margin-bottom:12px">Integrated payment institutions and the methods each one can offer. Payment, subscription, additional charge, refund, and QR payment follow the capability list.</div>' +
+      '<div style="max-height:calc(70vh - 96px);overflow-x:hidden;overflow-y:auto;border:1px solid var(--ctl);border-radius:10px"><table style="width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px"><colgroup><col style="width:148px"><col style="width:156px"><col style="width:112px"><col style="width:112px"><col style="width:136px"><col style="width:112px"><col style="width:112px"></colgroup><thead><tr>' +
+      head + '</tr></thead><tbody>' + bodyRows + '</tbody></table></div>';
+    modal({ title: 'Payment capabilities', width: 960, okText: 'Close', hideCancel: true, body: body, onOk: function (m, close) { close(); } });
+  }
+
   function renderPayments() {
     const main =
       '<div class="sec-title" style="margin-top:0">① Cards &amp; Express checkout</div>' +
-      '<div class="sec-sub">Only one processor at a time renders card fields. Express wallets follow the active processor; with PayPal, Apple Pay and Google Pay depend on account capability, checkout-domain verification, and buyer environment.</div>' +
+      '<div class="sec-sub">Only one processor at a time renders card fields. Express wallets follow the active processor.</div>' +
       pSlot() +
       '<div class="sec-title">② Independent payment methods</div>' +
       '<div class="sec-sub">Self-settling — can run alongside the card processor, each on its own rails.</div>' +
@@ -1171,7 +1402,7 @@
     paint(
       '<style>' + PAY_CSS + '</style>' +
       '<div class="payv2">' +
-        '<div style="margin-bottom:14px"><div class="page-title" style="font-size:20px">Payments</div></div>' +
+        '<div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px"><div class="page-title" style="font-size:20px">Payments</div><button class="btn btn-default" type="button" data-pay-caps>Payment capabilities</button></div>' +
         '<div class="set-note" style="margin-bottom:22px;display:flex;gap:10px;align-items:flex-start"><span style="color:var(--brand);flex:none;display:inline-flex">' + I.info + '</span><div class="muted" style="font-size:12.5px;line-height:1.5">Payment connections belong to this store only and are never shared between stores. A newly created store starts with no provider connected, so you connect fresh credentials here.</div></div>' +
         '<div class="pay-grid"><div>' + main + '</div>' + preview + '</div>' +
       '</div>',
@@ -1179,7 +1410,7 @@
     );
     root.querySelectorAll('[data-setproc]').forEach((el) => el.onclick = () => pConfirmSwitch(el.dataset.setproc));
     root.querySelectorAll('[data-cfg]').forEach((el) => el.onclick = () => pOpenConnect(el.dataset.cfg));
-    root.querySelectorAll('[data-refresh]').forEach((el) => el.onclick = () => toast('Synced from the active processor'));
+    root.querySelectorAll('[data-pay-caps]').forEach((el) => el.onclick = () => pOpenCapabilities());
   }
 
   // (旧 openProviderModal 已移除——连接/管理改由 pOpenConnect 承接，见上)

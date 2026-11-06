@@ -173,7 +173,7 @@
     if (loaded[id]) return loaded[id];
     // Online store is a self-contained Theme editor. Version it independently so
     // a Theme-only release cannot reuse stale app/data scripts from a prior shell release.
-    var moduleV = id === 'settings' ? '20261008-ocean-note'
+    var moduleV = id === 'settings' ? '20261105-paycaps38'
       : id === 'online-store' ? '20261016-edit-tab'
       : id === 'analytics' ? '20260922-address-info1'
       : id === 'orders' ? '20261013-no-channel'
